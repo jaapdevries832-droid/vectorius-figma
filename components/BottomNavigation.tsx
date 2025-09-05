@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 type UserRole = 'student' | 'parent' | 'advisor';
-type SidebarItem = 'dashboard' | 'assignments' | 'schedule' | 'notes' | 'ai-chat' | 'students';
+import type { SidebarItem } from 'app/lib/types';
 
 interface BottomNavigationProps {
   currentRole: UserRole;

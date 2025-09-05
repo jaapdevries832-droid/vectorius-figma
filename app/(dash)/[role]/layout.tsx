@@ -6,8 +6,7 @@ import { WeeklyPlanner } from '@/components/WeeklyPlanner'
 import { ChatInterface } from '@/components/ChatInterface'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-
-type SidebarItem = 'dashboard' | 'assignments' | 'schedule' | 'notes' | 'ai-chat' | 'settings' | 'students'
+import type { SidebarItem } from 'app/lib/types'
 
 export default function RoleLayout({ children, params }: { children: React.ReactNode, params: { role: 'student' | 'parent' | 'advisor' }}) {
   const router = useRouter()

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 type UserRole = 'student' | 'parent' | 'advisor';
-type SidebarItem = 'dashboard' | 'assignments' | 'schedule' | 'notes' | 'ai-chat' | 'settings' | 'students';
+import type { SidebarItem } from 'app/lib/types';
 
 interface UserData {
   name: string;
@@ -33,7 +33,7 @@ interface SidebarProps {
 
 export function Sidebar({ currentRole, activeItem, onItemChange, currentUser, className }: SidebarProps) {
   const getMenuItems = (role: UserRole) => {
-    const baseItems = [
+    const baseItems: { id: SidebarItem; label: string; icon: any; color: string }[] = [
       { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard, color: '#3B82F6' },
       { id: 'schedule' as const, label: 'Schedule', icon: Calendar, color: '#8B5CF6' },
       { id: 'assignments' as const, label: 'Assignments', icon: FileText, color: '#10B981' },
