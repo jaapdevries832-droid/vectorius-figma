@@ -6,8 +6,10 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles } from "lucide-react";
+import { useRoleLayout } from "app/lib/role-layout-context";
 
 export function StudentDashboard() {
+  const { setActiveItem, requestOpenClassSetup } = useRoleLayout();
   const assignments = [
     { id: 1, title: "Math Homework Ch. 7", subject: "Mathematics", dueDate: "2025-09-06", completed: false, priority: "high" },
     { id: 2, title: "Essay: Climate Change", subject: "English", dueDate: "2025-09-08", completed: true, priority: "medium" },
@@ -23,6 +25,49 @@ export function StudentDashboard() {
 
   const overallProgress = 72;
 
+  const myClasses = [
+    {
+      id: '1',
+      name: 'Advanced Mathematics',
+      professor: 'Dr. Johnson',
+      room: 'Room 204',
+      color: 'bg-blue-500',
+      startTime: '09:00',
+      endTime: '10:30',
+      days: ['Monday', 'Wednesday', 'Friday'],
+    },
+    {
+      id: '2',
+      name: 'Chemistry Lab',
+      professor: 'Prof. Smith',
+      room: 'Lab 301',
+      color: 'bg-green-500',
+      startTime: '14:00',
+      endTime: '16:00',
+      days: ['Tuesday', 'Thursday'],
+    },
+    {
+      id: '3',
+      name: 'Literature',
+      professor: 'Ms. Davis',
+      room: 'Room 105',
+      color: 'bg-purple-500',
+      startTime: '11:00',
+      endTime: '12:30',
+      days: ['Monday', 'Wednesday'],
+    },
+    {
+      id: '4',
+      name: 'History',
+      professor: 'Mr. Thompson',
+      room: 'Room 210',
+      color: 'bg-orange-500',
+      startTime: '13:00',
+      endTime: '14:30',
+      days: ['Tuesday', 'Thursday'],
+    },
+  ];
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high': return 'bg-red-100 text-red-700 border-red-200';
@@ -30,6 +75,26 @@ export function StudentDashboard() {
       case 'low': return 'bg-green-100 text-green-700 border-green-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
+  };
+
+  const abbrevDays = (days: string[]) => {
+    const map: Record<string, string> = {
+      Monday: 'M',
+      Tuesday: 'T',
+      Wednesday: 'W',
+      Thursday: 'Th',
+      Friday: 'F',
+      Saturday: 'Sa',
+      Sunday: 'Su',
+    };
+    return days.map(d => map[d] ?? d[0]).join('');
+  };
+
+  const formatTimeHuman = (time: string) => {
+    const [h, m] = time.split(':');
+    const hour = parseInt(h, 10);
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${m}`;
   };
 
   const getStatusBadge = (completed: boolean) => {
@@ -124,6 +189,50 @@ export function StudentDashboard() {
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* My Classes */}
+      <Card className="bg-gradient-card border-0 shadow-lg rounded-2xl card-hover">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center space-grid-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md">
+              <Book className="w-4 h-4 text-white" />
+            </div>
+            My Classes
+          </CardTitle>
+          <Button
+            size="sm"
+            className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
+            onClick={() => {
+              setActiveItem('schedule');
+              requestOpenClassSetup();
+            }}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Class
+          </Button>
+        </CardHeader>
+        <CardContent className="space-grid-3">
+          {myClasses.map((cls) => (
+            <div
+              key={cls.id}
+              className="flex items-start justify-between p-6 rounded-2xl border border-gray-100 bg-white/60 hover:bg-white hover:border-gray-200 transition-all duration-200 hover:shadow-md"
+            >
+              <div className="flex items-start space-grid-4">
+                <span className={`mt-1 w-3 h-3 rounded-full ${cls.color}`}></span>
+                <div>
+                  <div className="font-semibold text-gray-900 leading-tight">{cls.name}</div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    {cls.professor} · {cls.room}
+                  </div>
+                </div>
+              </div>
+              <Badge className="bg-gray-100 text-gray-700 border-gray-200 text-xs font-medium rounded-lg">
+                {abbrevDays(cls.days)} {formatTimeHuman(cls.startTime)} – {formatTimeHuman(cls.endTime)}
+              </Badge>
+            </div>
+          ))}
         </CardContent>
       </Card>
 

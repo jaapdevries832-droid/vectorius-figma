@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "./ui/utils";
 import { ClassSetupModal } from "./ClassSetupModal";
+import { useRoleLayout } from "app/lib/role-layout-context";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -35,7 +36,7 @@ interface UserData {
   role: string;
 }
 
-interface Class {
+export interface Class {
   id: string;
   name: string;
   professor: string;
@@ -68,7 +69,7 @@ const TIME_SLOTS = [
   '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
 ];
 
-const DEFAULT_CLASSES: Class[] = [
+export const DEFAULT_CLASSES: Class[] = [
   {
     id: '1',
     name: 'Advanced Mathematics',
@@ -98,10 +99,21 @@ const DEFAULT_CLASSES: Class[] = [
     startTime: '11:00',
     endTime: '12:30',
     days: ['Monday', 'Wednesday']
+  },
+  {
+    id: '4',
+    name: 'History',
+    professor: 'Mr. Thompson',
+    room: 'Room 210',
+    color: 'bg-orange-500',
+    startTime: '13:00',
+    endTime: '14:30',
+    days: ['Tuesday', 'Thursday']
   }
 ];
 
 export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
+  const { openClassSetupTs, activeItem } = useRoleLayout()
   const [currentWeek, setCurrentWeek] = useState(() => {
     const now = new Date();
     const monday = new Date(now.setDate(now.getDate() - now.getDay() + 1));
@@ -153,6 +165,13 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     newDate.setDate(currentWeek.getDate() + (direction === 'next' ? 7 : -7));
     setCurrentWeek(newDate);
   };
+
+  // Open the Class Setup modal on request from layout (e.g., via dashboard)
+  useEffect(() => {
+    if (activeItem === 'schedule' && openClassSetupTs) {
+      setIsClassSetupOpen(true)
+    }
+  }, [openClassSetupTs, activeItem])
 
   const getEventsForTimeSlot = (day: string, timeSlot: string) => {
     return scheduleEvents.filter(event => {
