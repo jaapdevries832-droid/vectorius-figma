@@ -6,25 +6,33 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Send, Bot, User, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+
+type Role = 'user' | 'assistant';
 
 interface Message {
   id: string;
   content: string;
-  sender: 'user' | 'ai';
+  role: Role;
   timestamp: Date;
 }
 
+type Mode = 'tutor' | 'checker' | 'explainer';
+
 export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: "Hello! I'm your AI tutor. I'm here to help you with any academic questions you might have. What would you like to learn about today?",
-      sender: 'ai',
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([{
+    id: 'welcome',
+    content: "Hello! I'm your AI tutor. What are you working on today?",
+    role: 'assistant',
+    timestamp: new Date(),
+  }]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [mode, setMode] = useState<Mode>('tutor');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -35,49 +43,70 @@ export function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
+  // Load chat enabled flag and persisted mode
+  useEffect(() => {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('chatMode') : null;
+    if (stored === 'checker' || stored === 'explainer' || stored === 'tutor') {
+      setMode(stored);
+    }
+    (async () => {
+      try {
+        const res = await fetch('/api/chat', { method: 'GET' });
+        if (!res.ok) throw new Error('Failed to check chat availability');
+        const data = await res.json();
+        setEnabled(Boolean(data?.enabled));
+      } catch (e: any) {
+        setEnabled(false);
+        setErrorMsg(e?.message || 'Failed to check chat availability');
+      }
+    })();
+  }, []);
+
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || isTyping) return;
+    setErrorMsg(null);
 
     const userMessage: Message = {
       id: Date.now().toString(),
       content: inputValue,
-      sender: 'user',
-      timestamp: new Date()
+      role: 'user',
+      timestamp: new Date(),
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputValue("");
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        content: generateAIResponse(inputValue),
-        sender: 'ai',
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, aiResponse]);
-      setIsTyping(false);
-    }, 1500);
-  };
+    try {
+      // Prepare trimmed history: last ~9 exchanges (18 messages)
+      const historySource = [...messages, userMessage];
+      const trimmed = historySource.slice(-18).map(m => ({ role: m.role, content: m.content }));
 
-  const generateAIResponse = (userInput: string): string => {
-    const input = userInput.toLowerCase();
-    
-    if (input.includes('math') || input.includes('equation') || input.includes('calculate')) {
-      return "I'd be happy to help you with math! Could you share the specific problem you're working on? I can help with algebra, geometry, calculus, and more. Feel free to type out the equation or describe what you're trying to solve.";
-    } else if (input.includes('chemistry') || input.includes('chemical') || input.includes('molecule')) {
-      return "Chemistry is fascinating! Whether you're working on balancing equations, understanding molecular structures, or exploring chemical reactions, I'm here to help. What specific chemistry topic would you like to explore?";
-    } else if (input.includes('essay') || input.includes('write') || input.includes('english')) {
-      return "I can definitely help you with writing! Whether you need help brainstorming ideas, structuring your essay, improving your grammar, or citing sources, I'm here to assist. What type of writing assignment are you working on?";
-    } else if (input.includes('history') || input.includes('historical')) {
-      return "History is full of interesting stories and lessons! I can help you understand historical events, analyze primary sources, or prepare for exams. What period or topic in history are you studying?";
-    } else if (input.includes('science') || input.includes('physics') || input.includes('biology')) {
-      return "Science is amazing! I can help explain concepts in physics, biology, chemistry, and other sciences. Whether you're working on lab reports, understanding theories, or preparing for tests, I'm here to help. What scientific concept would you like to explore?";
-    } else {
-      return "That's a great question! I'm here to help you learn and understand any academic topic. Could you provide a bit more detail about what you're working on? The more specific you can be, the better I can assist you with your studies.";
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: userMessage.content, mode, history: trimmed }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Chat request failed');
+      }
+
+      const data = await res.json();
+      const reply: string = data?.reply || '';
+
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: reply,
+        role: 'assistant',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Failed to get a response');
+    } finally {
+      setIsTyping(false);
     }
   };
 
@@ -113,14 +142,44 @@ export function ChatInterface() {
         </CardHeader>
         
         <CardContent className="flex-1 flex flex-col p-0">
+          {/* Chat availability + Mode selector */}
+          <div className="p-4 border-b bg-white flex items-center gap-3 flex-wrap">
+            <div className="text-sm text-gray-600">Mode:</div>
+            <div className="flex gap-2">
+              {([
+                { key: 'tutor', label: 'Tutor' },
+                { key: 'checker', label: 'Checker' },
+                { key: 'explainer', label: 'Explainer' },
+              ] as { key: Mode; label: string }[]).map(m => (
+                <Button
+                  key={m.key}
+                  variant={mode === m.key ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => { setMode(m.key); if (typeof window !== 'undefined') localStorage.setItem('chatMode', m.key); }}
+                  className={mode === m.key ? 'bg-purple-600 hover:bg-purple-700' : ''}
+                >
+                  {m.label}
+                </Button>
+              ))}
+            </div>
+            {enabled === false && (
+              <Alert variant="destructive" className="ml-auto">
+                <AlertTitle>Chat disabled</AlertTitle>
+                <AlertDescription>
+                  Missing Azure OpenAI configuration. Please set credentials in <code>.env.local</code>.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
           {/* Messages Area */}
           <div className="flex-1 p-4 overflow-y-auto space-y-4 min-h-0">
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                {message.sender === 'ai' && (
+                {message.role === 'assistant' && (
                   <Avatar className="w-8 h-8 bg-purple-100">
                     <AvatarFallback className="bg-purple-100 text-purple-600">
                       <Bot className="w-4 h-4" />
@@ -130,15 +189,19 @@ export function ChatInterface() {
                 
                 <div
                   className={`max-w-[80%] p-3 rounded-lg ${
-                    message.sender === 'user'
+                    message.role === 'user'
                       ? 'bg-blue-500 text-white rounded-br-sm'
                       : 'bg-gray-100 text-gray-900 rounded-bl-sm'
                   }`}
                 >
-                  <p className="text-sm">{message.content}</p>
-                  <p className={`text-xs mt-1 ${
-                    message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
-                  }`}>
+                  {message.role === 'assistant' ? (
+                    <div className="prose prose-sm max-w-none text-gray-900">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm">{message.content}</p>
+                  )}
+                  <p className={`text-xs mt-1 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
                     {message.timestamp.toLocaleTimeString([], { 
                       hour: '2-digit', 
                       minute: '2-digit' 
@@ -146,7 +209,7 @@ export function ChatInterface() {
                   </p>
                 </div>
                 
-                {message.sender === 'user' && (
+                {message.role === 'user' && (
                   <Avatar className="w-8 h-8 bg-blue-100">
                     <AvatarFallback className="bg-blue-100 text-blue-600">
                       <User className="w-4 h-4" />
@@ -174,6 +237,16 @@ export function ChatInterface() {
             )}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Error banner */}
+          {errorMsg && (
+            <div className="px-4">
+              <Alert variant="destructive">
+                <AlertTitle>Request failed</AlertTitle>
+                <AlertDescription className="break-words">{errorMsg}</AlertDescription>
+              </Alert>
+            </div>
+          )}
 
           {/* Quick Prompts */}
           {messages.length === 1 && (
@@ -204,11 +277,11 @@ export function ChatInterface() {
                 onKeyPress={handleKeyPress}
                 placeholder="Ask me anything about your studies..."
                 className="flex-1"
-                disabled={isTyping}
+                disabled={isTyping || enabled === false}
               />
               <Button 
                 onClick={handleSendMessage}
-                disabled={!inputValue.trim() || isTyping}
+                disabled={!inputValue.trim() || isTyping || enabled === false}
                 className="bg-purple-600 hover:bg-purple-700"
               >
                 <Send className="w-4 h-4" />
