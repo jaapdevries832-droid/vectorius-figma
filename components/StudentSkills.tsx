@@ -58,7 +58,9 @@ export function StudentSkills() {
 
   function startModule(a: AssignedSkill) {
     setAssignments(prev => {
-      const next = prev.map(x => x.id === a.id ? { ...x, status: 'in_progress' } : x)
+      const next: AssignedSkill[] = prev.map(x =>
+        x.id === a.id ? { ...x, status: "in_progress" } : x
+      )
       saveAssignments(next)
       return next
     })
@@ -67,7 +69,9 @@ export function StudentSkills() {
   function completeModule(a: AssignedSkill) {
     const completedAt = new Date().toISOString()
     setAssignments(prev => {
-      const next = prev.map(x => x.id === a.id ? { ...x, status: 'completed', completedAt } : x)
+      const next: AssignedSkill[] = prev.map(x =>
+        x.id === a.id ? { ...x, status: "completed", completedAt } : x
+      )
       saveAssignments(next)
       return next
     })

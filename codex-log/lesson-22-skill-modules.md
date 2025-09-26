@@ -94,3 +94,16 @@ This document captures all design and code changes made to introduce the Skills 
 **Notes:**  
 - Email integration can be added via backend hook; UI ready to display statuses.
 
+### 2025-09-26 – Fixed AssignedSkill Type Error in StudentSkills.tsx
+**Description:**  
+- Updated AssignedSkill type so status is a union of "not_started" | "in_progress" | "completed".  
+- Fixed startModule and completeModule to return correct types without casting.  
+- This resolves the Next.js build error on Vercel.
+
+**Files/Components Updated:**  
+- /app/lib/types.ts  
+- /components/StudentSkills.tsx  
+
+**Notes:**  
+- Verified build passes locally.  
+- No runtime logic changes, type-safety improvement only.
