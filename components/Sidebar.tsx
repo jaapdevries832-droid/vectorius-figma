@@ -10,7 +10,9 @@ import {
   Settings,
   BookOpen,
   Users,
-  Calendar
+  Calendar,
+  Award,
+  Brain
 } from "lucide-react";
 
 type UserRole = 'student' | 'parent' | 'advisor';
@@ -38,7 +40,9 @@ export function Sidebar({ currentRole, activeItem, onItemChange, currentUser, cl
       { id: 'schedule' as const, label: 'Schedule', icon: Calendar, color: '#8B5CF6' },
       { id: 'assignments' as const, label: 'Assignments', icon: FileText, color: '#10B981' },
       { id: 'notes' as const, label: 'Notes', icon: BookOpen, color: '#F59E0B' },
+      { id: 'skills' as const, label: 'Skill Modules', icon: Brain, color: '#22C55E' },
       { id: 'ai-chat' as const, label: 'AI Chat', icon: Bot, color: '#EF4444' },
+      { id: 'achievements' as const, label: 'Achievements', icon: Award, color: '#F59E0B' },
     ];
 
     if (role === 'advisor') {

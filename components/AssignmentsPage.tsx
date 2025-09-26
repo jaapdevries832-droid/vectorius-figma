@@ -6,9 +6,10 @@ import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { DEFAULT_CLASSES, type Class } from "./WeeklyPlanner"
 import { AssignmentModal, type AssignmentInput, type AssignmentType } from "./AssignmentModal"
-import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Clock, Edit, Trash2, Plus, ExternalLink, Copy, ChevronDown } from "lucide-react"
+import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Clock, Edit, Trash2, Plus, ExternalLink, Copy, ChevronDown, Check, Trophy } from "lucide-react"
+import { GamificationCongratsModal } from "./GamificationCongratsModal"
 
-type Assignment = AssignmentInput & { id: string }
+type Assignment = AssignmentInput & { id: string; completed?: boolean; pointsAvailable?: number; pointsEarned?: number }
 
 const typeMeta: Record<AssignmentType, { icon: any; color: string; badge: string }> = {
   homework: { icon: BookOpen, color: 'text-blue-600', badge: 'bg-blue-100 text-blue-700 border-blue-200' },
@@ -51,11 +52,13 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Class
   })
   const [isOpen, setIsOpen] = useState(false)
   const [assignments, setAssignments] = useState<Assignment[]>([
-    { id: 'a1', title: 'Chapter 7 Homework', type: 'homework', classId: classes[0]?.id ?? '', dueDate: new Date().toISOString().split('T')[0] },
-    { id: 'a2', title: 'Lab Safety Quiz', type: 'quiz', classId: classes[1]?.id ?? '', dueDate: (()=>{ const d=new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0] })() },
-    { id: 'a3', title: 'Poetry Analysis', type: 'project', classId: classes[2]?.id ?? '', dueDate: (()=>{ const d=new Date(); d.setDate(d.getDate()+3); return d.toISOString().split('T')[0] })(), notes: 'Focus on imagery.' },
-    { id: 'a4', title: 'Midterm Test', type: 'test', classId: classes[3]?.id ?? classes[0]?.id ?? '', dueDate: (()=>{ const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0] })() },
+    { id: 'a1', title: 'Chapter 7 Homework', type: 'homework', classId: classes[0]?.id ?? '', dueDate: new Date().toISOString().split('T')[0], completed: false },
+    { id: 'a2', title: 'Lab Safety Quiz', type: 'quiz', classId: classes[1]?.id ?? '', dueDate: (()=>{ const d=new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0] })(), completed: false },
+    { id: 'a3', title: 'Poetry Analysis', type: 'project', classId: classes[2]?.id ?? '', dueDate: (()=>{ const d=new Date(); d.setDate(d.getDate()+3); return d.toISOString().split('T')[0] })(), notes: 'Focus on imagery.', completed: false },
+    { id: 'a4', title: 'Midterm Test', type: 'test', classId: classes[3]?.id ?? classes[0]?.id ?? '', dueDate: (()=>{ const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0] })(), completed: false },
   ])
+  const [congratsOpen, setCongratsOpen] = useState(false)
+  const [congratsPoints, setCongratsPoints] = useState(0)
 
   const grouped = useMemo(() => {
     const groups: Record<string, Assignment[]> = { Overdue: [], 'Due Today': [], 'Due Tomorrow': [], 'This Week': [], Later: [] }
@@ -78,8 +81,22 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Class
   const classById = useMemo(() => Object.fromEntries(classes.map(c => [c.id, c])), [classes])
 
   const addAssignment = (input: AssignmentInput) => {
-    setAssignments(prev => [...prev, { id: Date.now().toString(), ...input }])
+    const basePts = computePotentialPoints(input.dueDate)
+    setAssignments(prev => [...prev, { id: Date.now().toString(), ...input, completed: false, pointsAvailable: basePts }])
     setIsOpen(false)
+  }
+
+  function computePotentialPoints(dueIso: string) {
+    const today = startOfDay(new Date())
+    const due = startOfDay(new Date(dueIso))
+    return due < today ? 0 : 10
+  }
+
+  function markComplete(a: Assignment) {
+    const earned = a.pointsAvailable ?? computePotentialPoints(a.dueDate)
+    setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, completed: true, pointsEarned: earned } : x))
+    setCongratsPoints(earned)
+    setCongratsOpen(true)
   }
 
   const itemLeftBar = (cat: string) => {
@@ -114,6 +131,7 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Class
       const chip = formatMonthDay(a.dueDate)
       return <Badge className="bg-blue-50 text-blue-700 border-blue-200">{chip}</Badge>
     })()
+    const potential = a.pointsAvailable ?? computePotentialPoints(a.dueDate)
     return (
       <div
         key={a.id}
@@ -122,6 +140,17 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Class
           `before:content-[''] before:absolute before:left-0 before:top-4 before:bottom-4 before:w-1.5 before:rounded-full ${itemLeftBar(cat)}`
         }
       >
+        {/* Points badge in corner */}
+        <div className="absolute top-3 right-3">
+          {a.completed ? (
+            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 inline-flex items-center gap-1">
+              <Check className="w-3.5 h-3.5" />
+              +{a.pointsEarned ?? 0} pts
+            </Badge>
+          ) : (
+            <Badge className="bg-amber-100 text-amber-700 border-amber-200">+{potential} pts</Badge>
+          )}
+        </div>
         <div className="flex items-start justify-between">
           <div className="flex items-start space-grid-4">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-md">
@@ -147,6 +176,13 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Class
                 </div>
                 {a.notes && <div className="text-gray-600 truncate bg-gray-100/70 px-3 py-1 rounded-lg">{a.notes}</div>}
               </div>
+              {!a.completed && (
+                <div className="mt-3">
+                  <Button size="sm" className="rounded-xl bg-gradient-primary text-white btn-glow" onClick={() => markComplete(a)}>
+                    <Trophy className="w-4 h-4 mr-2" /> Mark Complete
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center space-grid-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -248,6 +284,17 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Class
       </div>
 
       <AssignmentModal isOpen={isOpen} onClose={() => setIsOpen(false)} onSave={addAssignment} classes={classes} />
+      <GamificationCongratsModal
+        open={congratsOpen}
+        onClose={() => setCongratsOpen(false)}
+        pointsEarned={congratsPoints}
+        streakDays={12}
+        unlockedBadges={congratsPoints >= 10 ? ['On-Time Hero'] : []}
+        onViewBadges={() => {
+          setCongratsOpen(false)
+          // Navigation is handled via sidebar; leaving as placeholder CTA
+        }}
+      />
     </div>
   )
 }

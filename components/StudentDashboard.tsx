@@ -1,11 +1,13 @@
 "use client"
 
+import React from 'react'
+
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles } from "lucide-react";
+import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles, Trophy, Flame } from "lucide-react";
 import { useRoleLayout } from "app/lib/role-layout-context";
 
 export function StudentDashboard() {
@@ -24,6 +26,15 @@ export function StudentDashboard() {
   ];
 
   const overallProgress = 72;
+  const [assignedSkillsCount, setAssignedSkillsCount] = React.useState<number>(0)
+  React.useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('assignedSkills') : null
+      if (!raw) return
+      const arr = JSON.parse(raw) as any[]
+      setAssignedSkillsCount(arr.filter(a => a.studentId === '1').length)
+    } catch {}
+  }, [])
 
   const myClasses = [
     {
@@ -119,8 +130,10 @@ export function StudentDashboard() {
                 <h1 className="text-2xl font-semibold text-gray-900 mb-1">Welcome back, Jordan! ✨</h1>
                 <p className="text-gray-600">Ready to continue your learning journey today?</p>
                 <div className="flex items-center mt-2 space-grid-2">
-                  <Badge className="bg-green-100 text-green-700">12-day streak</Badge>
                   <Badge className="bg-blue-100 text-blue-700">4 assignments due</Badge>
+                  {assignedSkillsCount > 0 && (
+                    <Badge className="bg-emerald-100 text-emerald-700">{assignedSkillsCount} skill module{assignedSkillsCount>1?'s':''} assigned</Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -148,6 +161,36 @@ export function StudentDashboard() {
                 <div className="text-2xl font-semibold text-purple-600">92%</div>
                 <div className="text-sm text-gray-600">Avg Grade</div>
               </div>
+              {/* Points card */}
+              <div className="text-center">
+                <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mb-2 shadow-lg">
+                  <Trophy className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-2xl font-semibold text-amber-600">350</div>
+                <div className="text-sm text-gray-600">Points</div>
+                <div className="mt-2 flex flex-col items-center gap-1">
+                  <button
+                    aria-label="Daily Streak"
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-50 text-orange-700 text-xs border border-orange-200 hover:bg-orange-100 transition"
+                    onClick={() => {
+                      // TODO: open streak history modal
+                      console.log('Open streak history');
+                    }}
+                  >
+                    <Flame className="w-3.5 h-3.5" />
+                    Daily Streak · 12 days
+                  </button>
+                  <div className="text-xs text-gray-500">Earn points for completing tasks on time</div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <button
+                onClick={() => setActiveItem('achievements' as any)}
+                className="text-sm font-medium text-blue-600 hover:underline"
+              >
+                View Rewards
+              </button>
             </div>
           </div>
         </CardContent>
@@ -233,6 +276,30 @@ export function StudentDashboard() {
               </Badge>
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      {/* Skill Modules summary */}
+      <Card className="bg-gradient-card border-0 shadow-lg rounded-2xl card-hover">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center space-grid-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-md">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            Learn How to Learn
+          </CardTitle>
+          <Button size="sm" variant="outline" className="rounded-xl border-gray-200 hover:bg-gray-50 btn-glow" onClick={()=>setActiveItem('skills' as any)}>
+            View Modules
+          </Button>
+        </CardHeader>
+        <CardContent className="space-grid-3">
+          <div className="flex items-center justify-between p-4 rounded-2xl border bg-white/60">
+            <div>
+              <div className="text-sm text-gray-600">Assigned Modules</div>
+              <div className="text-2xl font-semibold text-emerald-600">{assignedSkillsCount}</div>
+            </div>
+            <div className="text-sm text-gray-600">Build skills in note-taking, test prep, and time management</div>
+          </div>
         </CardContent>
       </Card>
 

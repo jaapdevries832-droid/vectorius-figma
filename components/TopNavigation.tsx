@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import { Badge as UIBadge } from "./ui/badge";
 
 type UserRole = 'student' | 'parent' | 'advisor';
 
@@ -130,6 +131,11 @@ export function TopNavigation({ currentRole, onRoleChange, currentUser, onLogout
                     }>
                     {currentRole}
                   </Badge>
+                  {/* Points and Level quick view */}
+                  <div className="mt-2 flex items-center gap-2 text-xs text-gray-700">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">350 pts</span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200">Level 2</span>
+                  </div>
                 </div>
               </div>
             </div>

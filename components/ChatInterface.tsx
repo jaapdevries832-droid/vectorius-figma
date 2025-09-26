@@ -9,6 +9,7 @@ import { Send, Bot, User, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Progress } from "./ui/progress";
 
 type Role = 'user' | 'assistant';
 
@@ -142,6 +143,29 @@ export function ChatInterface() {
         </CardHeader>
         
         <CardContent className="flex-1 flex flex-col p-0">
+          {/* Gamification banner */}
+          <div className="px-4 pt-4">
+            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-sm font-medium text-amber-800">Earn points for asking questions!</p>
+                {(() => {
+                  const asked = messages.filter(m => m.role === 'user').length;
+                  const goal = 10;
+                  const progress = Math.min(asked, goal) / goal * 100;
+                  return (
+                    <div className="min-w-[220px]">
+                      <div className="flex justify-between text-xs text-amber-800 mb-1">
+                        <span>Curiosity badge</span>
+                        <span>{Math.min(asked, goal)} / {goal}</span>
+                      </div>
+                      <Progress value={progress} />
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+
           {/* Chat availability + Mode selector */}
           <div className="p-4 border-b bg-white flex items-center gap-3 flex-wrap">
             <div className="text-sm text-gray-600">Mode:</div>
