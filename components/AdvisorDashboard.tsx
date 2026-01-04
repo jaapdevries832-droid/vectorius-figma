@@ -73,6 +73,18 @@ export function AdvisorDashboard() {
       assignments: 2,
       pendingTasks: 0
     },
+    { 
+      id: "5", 
+      name: "Annie de Vries", 
+      grade: "9th", 
+      subject: "CP Biology", 
+      avatar: "AV",
+      performance: 86,
+      status: "good",
+      lastActivity: "2025-09-05",
+      assignments: 2,
+      pendingTasks: 1
+    },
   ];
 
   const assignments = [

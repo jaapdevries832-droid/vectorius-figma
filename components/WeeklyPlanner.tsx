@@ -29,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-interface UserData {
+export interface UserData {
   name: string;
   email: string;
   avatar: string;
@@ -64,6 +64,7 @@ interface WeeklyPlannerProps {
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TIME_SLOTS = [
   '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', 
   '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
@@ -112,6 +113,86 @@ export const DEFAULT_CLASSES: Class[] = [
   }
 ];
 
+export const ANNIE_CLASSES: Class[] = [
+  {
+    id: 'annie-1',
+    name: 'Entrepreneurship',
+    professor: 'Jacqueline Collins',
+    room: 'TBD',
+    color: 'bg-blue-500',
+    startTime: '08:00',
+    endTime: '09:00',
+    days: WEEKDAYS
+  },
+  {
+    id: 'annie-2',
+    name: 'CP Biology 310-007',
+    professor: 'Michael Ganshirt',
+    room: 'TBD',
+    color: 'bg-green-500',
+    startTime: '09:00',
+    endTime: '10:00',
+    days: WEEKDAYS
+  },
+  {
+    id: 'annie-3',
+    name: 'Spanish 2CP',
+    professor: 'Saul Melendez Loaiza',
+    room: 'TBD',
+    color: 'bg-purple-500',
+    startTime: '10:00',
+    endTime: '11:00',
+    days: WEEKDAYS
+  },
+  {
+    id: 'annie-4',
+    name: 'Algebra',
+    professor: 'Julia McLintock',
+    room: 'TBD',
+    color: 'bg-orange-500',
+    startTime: '11:00',
+    endTime: '12:00',
+    days: WEEKDAYS
+  },
+  {
+    id: 'annie-5',
+    name: 'English 9CPA',
+    professor: 'Shannon Hruzd',
+    room: 'TBD',
+    color: 'bg-red-500',
+    startTime: '12:00',
+    endTime: '13:00',
+    days: WEEKDAYS
+  },
+  {
+    id: 'annie-6',
+    name: 'World History',
+    professor: 'Kelly Ransom',
+    room: 'TBD',
+    color: 'bg-teal-500',
+    startTime: '13:00',
+    endTime: '14:00',
+    days: WEEKDAYS
+  },
+  {
+    id: 'annie-7',
+    name: 'Art 1',
+    professor: 'Cheyenne Frausto',
+    room: 'TBD',
+    color: 'bg-pink-500',
+    startTime: '15:00',
+    endTime: '16:00',
+    days: WEEKDAYS
+  }
+];
+
+export function getDefaultClassesForUser(user: UserData | null) {
+  if (user?.name === 'Annie de Vries') {
+    return ANNIE_CLASSES;
+  }
+  return DEFAULT_CLASSES;
+}
+
 export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
   const { openClassSetupTs, activeItem } = useRoleLayout()
   const [currentWeek, setCurrentWeek] = useState(() => {
@@ -119,11 +200,15 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     const monday = new Date(now.setDate(now.getDate() - now.getDay() + 1));
     return monday;
   });
-  const [classes, setClasses] = useState<Class[]>(DEFAULT_CLASSES);
+  const [classes, setClasses] = useState<Class[]>(() => getDefaultClassesForUser(currentUser));
   const [scheduleEvents, setScheduleEvents] = useState<ScheduleEvent[]>([]);
   const [isClassSetupOpen, setIsClassSetupOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
+
+  useEffect(() => {
+    setClasses(getDefaultClassesForUser(currentUser));
+  }, [currentUser]);
 
   // Generate schedule events from classes
   useEffect(() => {

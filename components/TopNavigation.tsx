@@ -4,6 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Bell, Settings, LogOut, ChevronDown } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +13,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Badge as UIBadge } from "./ui/badge";
 
 type UserRole = 'student' | 'parent' | 'advisor';
 
@@ -39,15 +40,17 @@ export function TopNavigation({ currentRole, onRoleChange, currentUser, onLogout
   return (
     <header className="bg-white/95 backdrop-blur-lg border-b px-6 py-4 flex items-center justify-between shadow-sm" style={{borderColor: 'rgba(59, 130, 246, 0.1)'}}>
       <div className="flex items-center space-grid-4">
-        <div className="flex items-center space-grid-2">
-          <div className="w-10 h-10 bg-gradient-primary rounded-2xl flex items-center justify-center shadow-lg">
-            <span className="text-white font-semibold text-lg">V</span>
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold leading-none text-gray-900">Vectorius</h1>
-            <p className="text-xs text-blue-600">Education Platform</p>
-          </div>
-        </div>
+        <Link href="/" className="flex items-center space-grid-2 group">
+          <Image
+            src="/vectorius-logo.png"
+            alt="Vectorius"
+            width={1376}
+            height={409}
+            sizes="(max-width: 640px) 140px, (max-width: 1024px) 160px, 180px"
+            className="w-[120px] sm:w-[140px] md:w-[160px] lg:w-[180px] h-auto drop-shadow-sm transition-all duration-200 group-hover:opacity-95 group-hover:scale-[1.01]"
+            priority
+          />
+        </Link>
         
         <div className="flex items-center rounded-2xl p-1 space-grid" style={{backgroundColor: 'rgba(59, 130, 246, 0.1)'}}>
           {roleOptions.map((role) => (

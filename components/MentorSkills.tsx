@@ -67,6 +67,7 @@ export function MentorSkills() {
     { id: '2', name: 'Taylor Davis' },
     { id: '3', name: 'Alex Johnson' },
     { id: '4', name: 'Sam Wilson' },
+    { id: '5', name: 'Annie de Vries' },
   ]
 
   useEffect(() => {

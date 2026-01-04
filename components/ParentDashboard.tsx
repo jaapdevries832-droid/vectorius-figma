@@ -15,6 +15,7 @@ export function ParentDashboard() {
   const children = [
     { id: "1", name: "Jordan Davis", grade: "10th Grade", avatar: "JD" },
     { id: "2", name: "Taylor Davis", grade: "8th Grade", avatar: "TD" },
+    { id: "5", name: "Annie de Vries", grade: "9th Grade", avatar: "AV" },
   ];
 
   const selectedChildData = children.find(child => child.id === selectedChild);
@@ -47,6 +48,21 @@ export function ParentDashboard() {
       recentActivities: [
         { type: "assignment", title: "Science Project", status: "in-progress", date: "2025-09-04" },
         { type: "test", title: "Math Test Ch. 5", score: "B+", date: "2025-09-01" },
+      ]
+    },
+    "5": {
+      overallGrade: 90,
+      progress: 82,
+      subjects: [
+        { name: "CP Biology", grade: 92, trend: "up" },
+        { name: "Algebra", grade: 88, trend: "stable" },
+        { name: "English 9CPA", grade: 90, trend: "up" },
+        { name: "World History", grade: 87, trend: "stable" },
+      ],
+      recentActivities: [
+        { type: "assignment", title: "Biology Lab Notes", status: "submitted", date: "2025-09-04" },
+        { type: "quiz", title: "Spanish 2CP Quiz", score: "A-", date: "2025-09-02" },
+        { type: "assignment", title: "Entrepreneurship Pitch Outline", status: "in-progress", date: "2025-09-01" },
       ]
     }
   };

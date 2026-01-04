@@ -9,15 +9,17 @@ import { AchievementsPage } from '@/components/AchievementsPage'
 import { MentorSkills } from '@/components/MentorSkills'
 import { StudentSkills } from '@/components/StudentSkills'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RoleLayoutProvider } from 'app/lib/role-layout-context'
 import type { SidebarItem } from 'app/lib/types'
+import { clearCurrentUser, getCurrentUser, type CurrentUser } from 'app/lib/current-user'
 
 export default function RoleLayout({ children, params }: { children: React.ReactNode, params: { role: 'student' | 'parent' | 'advisor' }}) {
   const router = useRouter()
   const role = params.role
   const [activeItem, setActiveItem] = useState<SidebarItem>('dashboard')
   const [openClassSetupTs, setOpenClassSetupTs] = useState(0)
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
 
   function requestOpenClassSetup() {
     setOpenClassSetupTs(Date.now())
@@ -27,12 +29,22 @@ export default function RoleLayout({ children, params }: { children: React.React
     if (nextRole !== role) router.push(`/${nextRole}`)
   }
 
+  useEffect(() => {
+    setCurrentUser(getCurrentUser())
+  }, [])
+
+  function handleLogout() {
+    clearCurrentUser()
+    setCurrentUser(null)
+    router.push('/login')
+  }
+
   function renderContent() {
     switch (activeItem) {
       case 'dashboard':
         return children
       case 'schedule':
-        return <div className="p-4"><WeeklyPlanner currentUser={null} /></div>
+        return <div className="p-4"><WeeklyPlanner currentUser={currentUser} /></div>
       case 'ai-chat':
         return <div className="p-4"><ChatInterface /></div>
       case 'assignments':
@@ -89,9 +101,9 @@ export default function RoleLayout({ children, params }: { children: React.React
   return (
     <RoleLayoutProvider value={{ activeItem, setActiveItem, openClassSetupTs, requestOpenClassSetup }}>
       <div className="min-h-screen flex flex-col bg-white bg-gradient-secondary">
-        <TopNavigation currentRole={role} onRoleChange={handleRoleChange} currentUser={null} onLogout={()=>{}} />
+        <TopNavigation currentRole={role} onRoleChange={handleRoleChange} currentUser={currentUser} onLogout={handleLogout} />
         <div className="flex-1 flex overflow-hidden">
-          <Sidebar currentRole={role} activeItem={activeItem} onItemChange={setActiveItem} currentUser={null} className="hidden md:flex" />
+          <Sidebar currentRole={role} activeItem={activeItem} onItemChange={setActiveItem} currentUser={currentUser} className="hidden md:flex" />
           <main className="flex-1 overflow-y-auto">{renderContent()}</main>
         </div>
         <BottomNavigation currentRole={role} activeItem={activeItem} onItemChange={setActiveItem} />

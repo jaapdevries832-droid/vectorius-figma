@@ -22,6 +22,7 @@ import {
   Heart
 } from "lucide-react";
 import { cn } from "./ui/utils";
+import { setCurrentUser } from "app/lib/current-user";
 
 type UserRole = 'student' | 'parent' | 'advisor';
 
@@ -43,6 +44,13 @@ const demoAccounts: UserAccount[] = [
     password: "student123",
     name: "Jordan Davis",
     avatar: "JD",
+    role: "student"
+  },
+  {
+    email: "annie.devries@student.vectorius.edu",
+    password: "student123",
+    name: "Annie de Vries",
+    avatar: "AV",
     role: "student"
   },
   {
@@ -120,12 +128,14 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     );
 
     if (account) {
-      _onLogin(selectedRole, {
+      const userData = {
         name: account.name,
         email: account.email,
         avatar: account.avatar,
         role: account.role
-      });
+      };
+      setCurrentUser(userData);
+      _onLogin(selectedRole, userData);
     } else {
       setError('Invalid credentials. Please check your email, password, and selected role.');
     }

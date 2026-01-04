@@ -9,9 +9,12 @@ import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles, Trophy, Flame } from "lucide-react";
 import { useRoleLayout } from "app/lib/role-layout-context";
+import { getCurrentUser, type CurrentUser } from "app/lib/current-user";
+import { getDefaultClassesForUser } from "./WeeklyPlanner";
 
 export function StudentDashboard() {
   const { setActiveItem, requestOpenClassSetup } = useRoleLayout();
+  const [currentUser, setCurrentUser] = React.useState<CurrentUser | null>(null);
   const assignments = [
     { id: 1, title: "Math Homework Ch. 7", subject: "Mathematics", dueDate: "2025-09-06", completed: false, priority: "high" },
     { id: 2, title: "Essay: Climate Change", subject: "English", dueDate: "2025-09-08", completed: true, priority: "medium" },
@@ -36,48 +39,12 @@ export function StudentDashboard() {
     } catch {}
   }, [])
 
-  const myClasses = [
-    {
-      id: '1',
-      name: 'Advanced Mathematics',
-      professor: 'Dr. Johnson',
-      room: 'Room 204',
-      color: 'bg-blue-500',
-      startTime: '09:00',
-      endTime: '10:30',
-      days: ['Monday', 'Wednesday', 'Friday'],
-    },
-    {
-      id: '2',
-      name: 'Chemistry Lab',
-      professor: 'Prof. Smith',
-      room: 'Lab 301',
-      color: 'bg-green-500',
-      startTime: '14:00',
-      endTime: '16:00',
-      days: ['Tuesday', 'Thursday'],
-    },
-    {
-      id: '3',
-      name: 'Literature',
-      professor: 'Ms. Davis',
-      room: 'Room 105',
-      color: 'bg-purple-500',
-      startTime: '11:00',
-      endTime: '12:30',
-      days: ['Monday', 'Wednesday'],
-    },
-    {
-      id: '4',
-      name: 'History',
-      professor: 'Mr. Thompson',
-      room: 'Room 210',
-      color: 'bg-orange-500',
-      startTime: '13:00',
-      endTime: '14:30',
-      days: ['Tuesday', 'Thursday'],
-    },
-  ];
+  React.useEffect(() => {
+    setCurrentUser(getCurrentUser());
+  }, []);
+
+  const displayUser = currentUser ?? { name: 'Jordan Davis', avatar: 'JD' };
+  const myClasses = React.useMemo(() => getDefaultClassesForUser(currentUser), [currentUser]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -123,11 +90,13 @@ export function StudentDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-grid-4">
               <Avatar className="w-16 h-16 ring-4 ring-blue-200/50 ring-offset-4">
-                <AvatarImage src="" alt="Jordan Davis" />
-                <AvatarFallback className="bg-gradient-primary text-white text-xl font-semibold">JD</AvatarFallback>
+                <AvatarImage src="" alt={displayUser.name} />
+                <AvatarFallback className="bg-gradient-primary text-white text-xl font-semibold">
+                  {displayUser.avatar}
+                </AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-2xl font-semibold text-gray-900 mb-1">Welcome back, Jordan! ✨</h1>
+                <h1 className="text-2xl font-semibold text-gray-900 mb-1">Welcome back, {displayUser.name}! ✨</h1>
                 <p className="text-gray-600">Ready to continue your learning journey today?</p>
                 <div className="flex items-center mt-2 space-grid-2">
                   <Badge className="bg-blue-100 text-blue-700">4 assignments due</Badge>
