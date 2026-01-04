@@ -116,9 +116,10 @@ export async function POST(req: NextRequest) {
     const reply: string = data?.choices?.[0]?.message?.content ?? "";
 
     return NextResponse.json({ reply, role: "assistant", modeUsed: selectedMode });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unexpected server error";
     return NextResponse.json(
-      { error: err?.message || "Unexpected server error" },
+      { error: message },
       { status: 500 }
     );
   }

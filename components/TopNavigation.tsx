@@ -6,6 +6,7 @@ import { Badge } from "./ui/badge";
 import { Bell, Settings, LogOut, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -13,20 +14,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import type { CurrentUser } from "app/lib/types";
 
-type UserRole = 'student' | 'parent' | 'advisor';
-
-interface UserData {
-  name: string;
-  email: string;
-  avatar: string;
-  role: UserRole;
-}
+type UserRole = CurrentUser['role'];
 
 interface TopNavigationProps {
   currentRole: UserRole;
   onRoleChange: (role: UserRole) => void;
-  currentUser: UserData | null;
+  currentUser: CurrentUser | null;
   onLogout: () => void;
 }
 
@@ -36,6 +31,7 @@ export function TopNavigation({ currentRole, onRoleChange, currentUser, onLogout
     { value: 'parent', label: 'Parent' },
     { value: 'advisor', label: 'Advisor' }
   ];
+  const hoverBgStyle = { '--hover-bg': 'rgba(59, 130, 246, 0.1)' } as CSSProperties;
 
   return (
     <header className="bg-white/95 backdrop-blur-lg border-b px-6 py-4 flex items-center justify-between shadow-sm" style={{borderColor: 'rgba(59, 130, 246, 0.1)'}}>
@@ -76,7 +72,7 @@ export function TopNavigation({ currentRole, onRoleChange, currentUser, onLogout
       </div>
 
       <div className="flex items-center space-grid-3">
-        <Button variant="ghost" size="sm" className="relative p-3 rounded-2xl transition-colors" style={{'--hover-bg': 'rgba(59, 130, 246, 0.1)'} as any} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+        <Button variant="ghost" size="sm" className="relative p-3 rounded-2xl transition-colors" style={hoverBgStyle} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
           <Bell className="w-5 h-5 text-blue-600" />
           <Badge className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center p-0 animate-pulse">
             3

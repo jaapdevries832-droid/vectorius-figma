@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "./ui/select"
 import { BookOpen, ClipboardCheck, HelpCircle, Briefcase, CalendarDays, Save, X } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import type { Class } from "./WeeklyPlanner"
 
 export type AssignmentType = 'homework' | 'quiz' | 'test' | 'project'
@@ -34,7 +35,7 @@ export interface AssignmentModalProps {
   classes: Class[]
 }
 
-const typeOptions: { key: AssignmentType; label: string; icon: any; color: string }[] = [
+const typeOptions: { key: AssignmentType; label: string; icon: LucideIcon; color: string }[] = [
   { key: 'homework', label: 'Homework', icon: BookOpen, color: 'text-blue-600' },
   { key: 'quiz', label: 'Quiz', icon: HelpCircle, color: 'text-purple-600' },
   { key: 'test', label: 'Test', icon: ClipboardCheck, color: 'text-green-600' },

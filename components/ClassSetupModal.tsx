@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Badge } from "./ui/badge";
 import { 
   Select,
   SelectContent,
@@ -21,8 +20,7 @@ import {
   Palette,
   CalendarDays,
   X,
-  Save,
-  Plus
+  Save
 } from "lucide-react";
 import { cn } from "./ui/utils";
 
@@ -171,8 +169,6 @@ export function ClassSetupModal({
         : [...prev.days, day]
     }));
   };
-
-  const selectedColorOption = COLOR_OPTIONS.find(c => c.value === formData.color);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

@@ -13,6 +13,14 @@ import type { SkillModule, AssignedSkill } from 'app/lib/types'
 import { DEFAULT_SKILL_MODULES } from 'app/lib/skills-data'
 
 type Student = { id: string; name: string }
+type MentorNotification = {
+  studentId: string
+  studentName: string
+  moduleId: string
+  moduleTitle?: string
+  completedAt: string
+  feedback?: string
+}
 
 const STORAGE_KEYS = {
   modules: 'skillModules',
@@ -40,13 +48,13 @@ function saveAssignments(asg: AssignedSkill[]) {
   if (typeof window === 'undefined') return
   localStorage.setItem(STORAGE_KEYS.assignments, JSON.stringify(asg))
 }
-function loadNotifications(): any[] {
+function loadNotifications(): MentorNotification[] {
   if (typeof window === 'undefined') return []
   const raw = localStorage.getItem(STORAGE_KEYS.notifications)
   if (!raw) return []
-  try { return JSON.parse(raw) } catch { return [] }
+  try { return JSON.parse(raw) as MentorNotification[] } catch { return [] }
 }
-function saveNotifications(items: any[]) {
+function saveNotifications(items: MentorNotification[]) {
   if (typeof window === 'undefined') return
   localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(items))
 }
@@ -54,7 +62,7 @@ function saveNotifications(items: any[]) {
 export function MentorSkills() {
   const [modules, setModules] = useState<SkillModule[]>(DEFAULT_SKILL_MODULES)
   const [assignments, setAssignments] = useState<AssignedSkill[]>([])
-  const [notifications, setNotifications] = useState<any[]>([])
+  const [notifications, setNotifications] = useState<MentorNotification[]>([])
   const [query, setQuery] = useState('')
   const [topicFilter, setTopicFilter] = useState<string>('all')
   const [openAssign, setOpenAssign] = useState(false)

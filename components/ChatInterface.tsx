@@ -21,6 +21,11 @@ interface Message {
 }
 
 type Mode = 'tutor' | 'checker' | 'explainer';
+type ChatHistoryMessage = { role: Role; content: string };
+type ChatResponse = { enabled?: boolean; reply?: string; error?: string };
+
+const getErrorMessage = (err: unknown, fallback: string) =>
+  err instanceof Error ? err.message : fallback;
 
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([{
@@ -54,11 +59,11 @@ export function ChatInterface() {
       try {
         const res = await fetch('/api/chat', { method: 'GET' });
         if (!res.ok) throw new Error('Failed to check chat availability');
-        const data = await res.json();
+        const data = (await res.json()) as ChatResponse;
         setEnabled(Boolean(data?.enabled));
-      } catch (e: any) {
+      } catch (e: unknown) {
         setEnabled(false);
-        setErrorMsg(e?.message || 'Failed to check chat availability');
+        setErrorMsg(getErrorMessage(e, 'Failed to check chat availability'));
       }
     })();
   }, []);
@@ -81,7 +86,7 @@ export function ChatInterface() {
     try {
       // Prepare trimmed history: last ~9 exchanges (18 messages)
       const historySource = [...messages, userMessage];
-      const trimmed = historySource.slice(-18).map(m => ({ role: m.role, content: m.content }));
+      const trimmed: ChatHistoryMessage[] = historySource.slice(-18).map(m => ({ role: m.role, content: m.content }));
 
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -94,8 +99,8 @@ export function ChatInterface() {
         throw new Error(text || 'Chat request failed');
       }
 
-      const data = await res.json();
-      const reply: string = data?.reply || '';
+      const data = (await res.json()) as ChatResponse;
+      const reply: string = data.reply || '';
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -104,8 +109,8 @@ export function ChatInterface() {
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, aiMessage]);
-    } catch (e: any) {
-      setErrorMsg(e?.message || 'Failed to get a response');
+    } catch (e: unknown) {
+      setErrorMsg(getErrorMessage(e, 'Failed to get a response'));
     } finally {
       setIsTyping(false);
     }

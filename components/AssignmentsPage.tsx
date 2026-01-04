@@ -6,12 +6,13 @@ import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { DEFAULT_CLASSES, type Class } from "./WeeklyPlanner"
 import { AssignmentModal, type AssignmentInput, type AssignmentType } from "./AssignmentModal"
-import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Clock, Edit, Trash2, Plus, ExternalLink, Copy, ChevronDown, Check, Trophy } from "lucide-react"
+import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Edit, Trash2, Plus, ExternalLink, Copy, ChevronDown, Check, Trophy } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import { GamificationCongratsModal } from "./GamificationCongratsModal"
 
 type Assignment = AssignmentInput & { id: string; completed?: boolean; pointsAvailable?: number; pointsEarned?: number }
 
-const typeMeta: Record<AssignmentType, { icon: any; color: string; badge: string }> = {
+const typeMeta: Record<AssignmentType, { icon: LucideIcon; color: string; badge: string }> = {
   homework: { icon: BookOpen, color: 'text-blue-600', badge: 'bg-blue-100 text-blue-700 border-blue-200' },
   quiz: { icon: HelpCircle, color: 'text-purple-600', badge: 'bg-purple-100 text-purple-700 border-purple-200' },
   test: { icon: ClipboardCheck, color: 'text-green-600', badge: 'bg-green-100 text-green-700 border-green-200' },
@@ -28,8 +29,6 @@ function isSameDate(a: Date, b: Date) {
 }
 
 function startOfDay(d: Date) { const nd = new Date(d); nd.setHours(0,0,0,0); return nd }
-function endOfDay(d: Date) { const nd = new Date(d); nd.setHours(23,59,59,999); return nd }
-
 function categorize(dueIso: string) {
   const today = startOfDay(new Date())
   const due = startOfDay(new Date(dueIso))
@@ -69,7 +68,9 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Class
   const stats = useMemo(() => {
     const today = startOfDay(new Date())
     const endWeek = new Date(today); endWeek.setDate(today.getDate() + 7)
-    let total = assignments.length, overdue = 0, dueThisWeek = 0
+    const total = assignments.length
+    let overdue = 0
+    let dueThisWeek = 0
     assignments.forEach(a => {
       const due = startOfDay(new Date(a.dueDate))
       if (due < today) overdue++

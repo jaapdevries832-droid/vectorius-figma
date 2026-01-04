@@ -4,9 +4,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar, AvatarFallback } from "./ui/avatar";
 import { TrendingUp, Calendar, MessageSquare, Bell, Award, Clock } from "lucide-react";
 
 export function ParentDashboard() {
@@ -17,8 +16,6 @@ export function ParentDashboard() {
     { id: "2", name: "Taylor Davis", grade: "8th Grade", avatar: "TD" },
     { id: "5", name: "Annie de Vries", grade: "9th Grade", avatar: "AV" },
   ];
-
-  const selectedChildData = children.find(child => child.id === selectedChild);
 
   const performanceData = {
     "1": {
@@ -104,7 +101,7 @@ export function ParentDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-semibold text-gray-900 mb-2">Student Overview</h1>
-          <p className="text-gray-600">Monitor your children's academic progress</p>
+          <p className="text-gray-600">Monitor your children&apos;s academic progress</p>
         </div>
         
         <div className="flex items-center gap-4">

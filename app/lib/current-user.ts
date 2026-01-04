@@ -1,9 +1,6 @@
-export type CurrentUser = {
-  name: string;
-  email: string;
-  avatar: string;
-  role: 'student' | 'parent' | 'advisor';
-};
+import type { CurrentUser } from './types';
+
+export type { CurrentUser } from './types';
 
 export const CURRENT_USER_STORAGE_KEY = 'vectoriusCurrentUser';
 

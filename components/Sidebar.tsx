@@ -5,7 +5,6 @@ import { cn } from "./ui/utils";
 import { 
   LayoutDashboard, 
   FileText, 
-  MessageSquare, 
   Bot, 
   Settings,
   BookOpen,
@@ -14,28 +13,22 @@ import {
   Award,
   Brain
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 type UserRole = 'student' | 'parent' | 'advisor';
-import type { SidebarItem } from 'app/lib/types';
-
-interface UserData {
-  name: string;
-  email: string;
-  avatar: string;
-  role: UserRole;
-}
+import type { CurrentUser, SidebarItem } from 'app/lib/types';
 
 interface SidebarProps {
   currentRole: UserRole;
   activeItem: SidebarItem;
   onItemChange: (item: SidebarItem) => void;
-  currentUser: UserData | null;
+  currentUser: CurrentUser | null;
   className?: string;
 }
 
 export function Sidebar({ currentRole, activeItem, onItemChange, currentUser, className }: SidebarProps) {
   const getMenuItems = (role: UserRole) => {
-    const baseItems: { id: SidebarItem; label: string; icon: any; color: string }[] = [
+    const baseItems: { id: SidebarItem; label: string; icon: LucideIcon; color: string }[] = [
       { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard, color: '#3B82F6' },
       { id: 'schedule' as const, label: 'Schedule', icon: Calendar, color: '#8B5CF6' },
       { id: 'assignments' as const, label: 'Assignments', icon: FileText, color: '#10B981' },

@@ -13,6 +13,14 @@ const STORAGE_KEYS = {
   notifications: 'mentorNotifications'
 }
 
+type MentorNotification = {
+  studentId: string
+  studentName: string
+  moduleId: string
+  moduleTitle?: string
+  completedAt: string
+}
+
 function loadModules(): SkillModule[] {
   if (typeof window === 'undefined') return []
   const raw = localStorage.getItem(STORAGE_KEYS.modules)
@@ -29,10 +37,10 @@ function saveAssignments(asg: AssignedSkill[]) {
   if (typeof window === 'undefined') return
   localStorage.setItem(STORAGE_KEYS.assignments, JSON.stringify(asg))
 }
-function pushNotification(n: any) {
+function pushNotification(n: MentorNotification) {
   if (typeof window === 'undefined') return
   const raw = localStorage.getItem(STORAGE_KEYS.notifications)
-  const arr = raw ? (()=>{ try { return JSON.parse(raw) } catch { return [] } })() : []
+  const arr = raw ? (()=>{ try { return JSON.parse(raw) as MentorNotification[] } catch { return [] } })() : []
   arr.unshift(n)
   localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(arr))
 }

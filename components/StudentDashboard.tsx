@@ -3,7 +3,6 @@
 import React from 'react'
 
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -11,6 +10,7 @@ import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, S
 import { useRoleLayout } from "app/lib/role-layout-context";
 import { getCurrentUser, type CurrentUser } from "app/lib/current-user";
 import { getDefaultClassesForUser } from "./WeeklyPlanner";
+import type { AssignedSkill, ClassItem } from "app/lib/types";
 
 export function StudentDashboard() {
   const { setActiveItem, requestOpenClassSetup } = useRoleLayout();
@@ -34,7 +34,7 @@ export function StudentDashboard() {
     try {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('assignedSkills') : null
       if (!raw) return
-      const arr = JSON.parse(raw) as any[]
+      const arr = JSON.parse(raw) as AssignedSkill[]
       setAssignedSkillsCount(arr.filter(a => a.studentId === '1').length)
     } catch {}
   }, [])
@@ -44,7 +44,19 @@ export function StudentDashboard() {
   }, []);
 
   const displayUser = currentUser ?? { name: 'Jordan Davis', avatar: 'JD' };
-  const myClasses = React.useMemo(() => getDefaultClassesForUser(currentUser), [currentUser]);
+  const myClasses = React.useMemo<ClassItem[]>(
+    () => getDefaultClassesForUser(currentUser).map((cls) => ({
+      id: cls.id,
+      name: cls.name,
+      teacher: cls.professor,
+      days: cls.days,
+      startTime: cls.startTime,
+      endTime: cls.endTime,
+      room: cls.room,
+      color: cls.color,
+    })),
+    [currentUser]
+  );
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -155,7 +167,7 @@ export function StudentDashboard() {
             </div>
             <div className="mt-4">
               <button
-                onClick={() => setActiveItem('achievements' as any)}
+                onClick={() => setActiveItem('achievements')}
                 className="text-sm font-medium text-blue-600 hover:underline"
               >
                 View Rewards
@@ -236,7 +248,7 @@ export function StudentDashboard() {
                 <div>
                   <div className="font-semibold text-gray-900 leading-tight">{cls.name}</div>
                   <div className="text-sm text-gray-600 mt-1">
-                    {cls.professor} · {cls.room}
+                    {cls.teacher} · {cls.room}
                   </div>
                 </div>
               </div>
@@ -257,7 +269,7 @@ export function StudentDashboard() {
             </div>
             Learn How to Learn
           </CardTitle>
-          <Button size="sm" variant="outline" className="rounded-xl border-gray-200 hover:bg-gray-50 btn-glow" onClick={()=>setActiveItem('skills' as any)}>
+          <Button size="sm" variant="outline" className="rounded-xl border-gray-200 hover:bg-gray-50 btn-glow" onClick={()=>setActiveItem('skills')}>
             View Modules
           </Button>
         </CardHeader>

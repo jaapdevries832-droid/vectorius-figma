@@ -9,7 +9,6 @@ import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { 
-  User, 
   Users, 
   GraduationCap, 
   Mail, 
@@ -23,11 +22,12 @@ import {
 } from "lucide-react";
 import { cn } from "./ui/utils";
 import { setCurrentUser } from "app/lib/current-user";
+import type { CurrentUser } from "app/lib/types";
 
 type UserRole = 'student' | 'parent' | 'advisor';
 
 interface LoginScreenProps {
-  onLogin?: (role: UserRole, userData: any) => void;
+  onLogin?: (role: UserRole, userData: CurrentUser) => void;
 }
 
 interface UserAccount {

@@ -1,15 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react";
+import type { CurrentUser } from "app/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { 
   Calendar, 
   Clock, 
   Plus, 
-  Settings, 
   ChevronLeft, 
   ChevronRight,
   MoreVertical,
@@ -29,12 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-export interface UserData {
-  name: string;
-  email: string;
-  avatar: string;
-  role: string;
-}
+export type UserData = CurrentUser;
 
 export interface Class {
   id: string;
@@ -204,7 +197,6 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
   const [scheduleEvents, setScheduleEvents] = useState<ScheduleEvent[]>([]);
   const [isClassSetupOpen, setIsClassSetupOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
-  const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
 
   useEffect(() => {
     setClasses(getDefaultClassesForUser(currentUser));
