@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { ParentDashboard } from "@/components/ParentDashboard";
 
 export default function ParentPage() {
   const router = useRouter();
@@ -48,20 +49,11 @@ export default function ParentPage() {
   }
 
   return (
-    <main className="flex min-h-[80vh] items-center justify-center px-4">
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-border bg-background p-6 shadow">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">Parent Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Signed in as {email}</p>
-        </div>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="rounded-lg border border-border px-4 py-2 text-sm"
-        >
-          Sign out
-        </button>
+    <main className="min-h-[80vh]">
+      <div className="mx-auto max-w-6xl px-6 py-6">
+        <p className="text-sm text-muted-foreground">Signed in as {email}</p>
       </div>
+      <ParentDashboard onSignOut={handleSignOut} />
     </main>
   );
 }

@@ -9,7 +9,11 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import { TrendingUp, Calendar, MessageSquare, Bell, Award, Clock } from "lucide-react";
 import type { Student } from "app/lib/domain";
 
-export function ParentDashboard() {
+type ParentDashboardProps = {
+  onSignOut?: () => void;
+};
+
+export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
   const [selectedChild, setSelectedChild] = useState("1");
   
   const children: Student[] = [
@@ -126,6 +130,15 @@ export function ParentDashboard() {
               ))}
             </SelectContent>
           </Select>
+          {onSignOut && (
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="rounded-lg border border-border px-4 py-2 text-sm"
+            >
+              Sign out
+            </button>
+          )}
         </div>
       </div>
 
