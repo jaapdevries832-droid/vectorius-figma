@@ -11,21 +11,22 @@ import { StudentSkills } from '@/components/StudentSkills'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { RoleLayoutProvider } from 'app/lib/role-layout-context'
+import type { Role, User } from 'app/lib/domain'
 import type { SidebarItem } from 'app/lib/types'
-import { clearCurrentUser, getCurrentUser, type CurrentUser } from 'app/lib/current-user'
+import { clearCurrentUser, getCurrentUser } from 'app/lib/current-user'
 
-export default function RoleLayout({ children, params }: { children: React.ReactNode, params: { role: 'student' | 'parent' | 'advisor' }}) {
+export default function RoleLayout({ children, params }: { children: React.ReactNode, params: { role: Role }}) {
   const router = useRouter()
   const role = params.role
   const [activeItem, setActiveItem] = useState<SidebarItem>('dashboard')
   const [openClassSetupTs, setOpenClassSetupTs] = useState(0)
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   function requestOpenClassSetup() {
     setOpenClassSetupTs(Date.now())
   }
 
-  function handleRoleChange(nextRole: 'student' | 'parent' | 'advisor') {
+  function handleRoleChange(nextRole: Role) {
     if (nextRole !== role) router.push(`/${nextRole}`)
   }
 

@@ -23,23 +23,13 @@ import {
   Save
 } from "lucide-react";
 import { cn } from "./ui/utils";
-
-interface Class {
-  id: string;
-  name: string;
-  professor: string;
-  room: string;
-  color: string;
-  startTime: string;
-  endTime: string;
-  days: string[];
-}
+import type { ScheduledCourse } from "app/lib/domain";
 
 interface ClassSetupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (classData: Omit<Class, 'id'>) => void;
-  initialData?: Class | null;
+  onSave: (classData: Omit<ScheduledCourse, 'id'>) => void;
+  initialData?: ScheduledCourse | null;
   isEditing?: boolean;
 }
 
@@ -84,7 +74,7 @@ export function ClassSetupModal({
 }: ClassSetupModalProps) {
   const [formData, setFormData] = useState({
     name: '',
-    professor: '',
+    teacherName: '',
     room: '',
     color: 'bg-blue-500',
     startTime: '09:00',
@@ -98,9 +88,9 @@ export function ClassSetupModal({
     if (initialData) {
       setFormData({
         name: initialData.name,
-        professor: initialData.professor,
-        room: initialData.room,
-        color: initialData.color,
+        teacherName: initialData.teacherName,
+        room: initialData.room ?? '',
+        color: initialData.color ?? 'bg-blue-500',
         startTime: initialData.startTime,
         endTime: initialData.endTime,
         days: initialData.days
@@ -108,7 +98,7 @@ export function ClassSetupModal({
     } else {
       setFormData({
         name: '',
-        professor: '',
+        teacherName: '',
         room: '',
         color: 'bg-blue-500',
         startTime: '09:00',
@@ -126,8 +116,8 @@ export function ClassSetupModal({
       newErrors.name = 'Class name is required';
     }
 
-    if (!formData.professor.trim()) {
-      newErrors.professor = 'Professor name is required';
+    if (!formData.teacherName.trim()) {
+      newErrors.teacherName = 'Professor name is required';
     }
 
     if (!formData.room.trim()) {
@@ -210,21 +200,21 @@ export function ClassSetupModal({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="professor" className="flex items-center space-grid-2">
+                <Label htmlFor="teacherName" className="flex items-center space-grid-2">
                   <User className="w-4 h-4 text-gray-500" />
                   Professor
                 </Label>
                 <Input
-                  id="professor"
+                  id="teacherName"
                   placeholder="e.g., Dr. Johnson"
-                  value={formData.professor}
-                  onChange={(e) => setFormData(prev => ({ ...prev, professor: e.target.value }))}
+                  value={formData.teacherName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, teacherName: e.target.value }))}
                   className={cn(
                     "rounded-xl border-gray-200 bg-white/80 focus:border-indigo-300",
-                    errors.professor && "border-red-300 focus:border-red-300"
+                    errors.teacherName && "border-red-300 focus:border-red-300"
                   )}
                 />
-                {errors.professor && <p className="text-sm text-red-600">{errors.professor}</p>}
+                {errors.teacherName && <p className="text-sm text-red-600">{errors.teacherName}</p>}
               </div>
 
               <div className="space-y-2">
@@ -373,7 +363,7 @@ export function ClassSetupModal({
                   <div>
                     <h4 className="font-medium mb-1">{formData.name}</h4>
                     <p className="text-sm opacity-90 mb-2">
-                      {formData.professor} • {formData.room}
+                      {formData.teacherName} • {formData.room}
                     </p>
                     <div className="flex items-center text-sm opacity-80">
                       <Clock className="w-3 h-3 mr-1" />

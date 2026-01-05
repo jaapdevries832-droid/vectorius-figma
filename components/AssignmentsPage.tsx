@@ -4,7 +4,8 @@ import { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
-import { DEFAULT_CLASSES, type Class } from "./WeeklyPlanner"
+import { DEFAULT_CLASSES } from "./WeeklyPlanner"
+import type { ScheduledCourse } from "app/lib/domain"
 import { AssignmentModal, type AssignmentInput, type AssignmentType } from "./AssignmentModal"
 import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Edit, Trash2, Plus, ExternalLink, Copy, ChevronDown, Check, Trophy } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -41,7 +42,7 @@ function categorize(dueIso: string) {
   return 'Later'
 }
 
-export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Class[] }) {
+export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: ScheduledCourse[] }) {
   const [open, setOpen] = useState<Record<string, boolean>>({
     Overdue: true,
     'Due Today': true,

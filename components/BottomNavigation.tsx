@@ -2,7 +2,7 @@
 
 import { Button } from "./ui/button";
 import { cn } from "./ui/utils";
-import { 
+import {
   LayoutDashboard, 
   FileText, 
   MessageSquare, 
@@ -10,18 +10,17 @@ import {
   Users,
   Calendar
 } from "lucide-react";
-
-type UserRole = 'student' | 'parent' | 'advisor';
+import type { Role } from "app/lib/domain";
 import type { SidebarItem } from 'app/lib/types';
 
 interface BottomNavigationProps {
-  currentRole: UserRole;
+  currentRole: Role;
   activeItem: SidebarItem;
   onItemChange: (item: SidebarItem) => void;
 }
 
 export function BottomNavigation({ currentRole, activeItem, onItemChange }: BottomNavigationProps) {
-  const getMenuItems = (role: UserRole) => {
+  const getMenuItems = (role: Role) => {
     const baseItems = [
       { id: 'dashboard' as const, label: 'Home', icon: LayoutDashboard, color: '#3B82F6' },
       { id: 'schedule' as const, label: 'Schedule', icon: Calendar, color: '#8B5CF6' },

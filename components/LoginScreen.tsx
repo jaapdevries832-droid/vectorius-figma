@@ -22,24 +22,17 @@ import {
 } from "lucide-react";
 import { cn } from "./ui/utils";
 import { setCurrentUser } from "app/lib/current-user";
-import type { CurrentUser } from "app/lib/types";
-
-type UserRole = 'student' | 'parent' | 'advisor';
+import type { Role, User } from "app/lib/domain";
 
 interface LoginScreenProps {
-  onLogin?: (role: UserRole, userData: CurrentUser) => void;
+  onLogin?: (role: Role, userData: User) => void;
 }
 
-interface UserAccount {
-  email: string;
-  password: string;
-  name: string;
-  avatar: string;
-  role: UserRole;
-}
+type UserAccount = User & { password: string };
 
 const demoAccounts: UserAccount[] = [
   {
+    id: "student-1",
     email: "jordan.davis@student.vectorius.edu",
     password: "student123",
     name: "Jordan Davis",
@@ -47,6 +40,7 @@ const demoAccounts: UserAccount[] = [
     role: "student"
   },
   {
+    id: "student-2",
     email: "annie.devries@student.vectorius.edu",
     password: "student123",
     name: "Annie de Vries",
@@ -54,6 +48,7 @@ const demoAccounts: UserAccount[] = [
     role: "student"
   },
   {
+    id: "parent-1",
     email: "sarah.davis@parent.vectorius.edu", 
     password: "parent123",
     name: "Sarah Davis",
@@ -61,6 +56,7 @@ const demoAccounts: UserAccount[] = [
     role: "parent"
   },
   {
+    id: "advisor-1",
     email: "dr.smith@advisor.vectorius.edu",
     password: "advisor123", 
     name: "Dr. Emily Smith",
@@ -71,8 +67,8 @@ const demoAccounts: UserAccount[] = [
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const router = useRouter();
-  const _onLogin = onLogin ?? ((role: UserRole) => { router.push(`/${role}`); });
-  const [selectedRole, setSelectedRole] = useState<UserRole>('student');
+  const _onLogin = onLogin ?? ((role: Role) => { router.push(`/${role}`); });
+  const [selectedRole, setSelectedRole] = useState<Role>('student');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -128,7 +124,8 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     );
 
     if (account) {
-      const userData = {
+      const userData: User = {
+        id: account.id,
         name: account.name,
         email: account.email,
         avatar: account.avatar,

@@ -8,13 +8,14 @@ import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles, Trophy, Flame } from "lucide-react";
 import { useRoleLayout } from "app/lib/role-layout-context";
-import { getCurrentUser, type CurrentUser } from "app/lib/current-user";
+import { getCurrentUser } from "app/lib/current-user";
 import { getDefaultClassesForUser } from "./WeeklyPlanner";
-import type { AssignedSkill, ClassItem } from "app/lib/types";
+import type { AssignedSkill } from "app/lib/types";
+import type { ScheduledCourse, User } from "app/lib/domain";
 
 export function StudentDashboard() {
   const { setActiveItem, requestOpenClassSetup } = useRoleLayout();
-  const [currentUser, setCurrentUser] = React.useState<CurrentUser | null>(null);
+  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   const assignments = [
     { id: 1, title: "Math Homework Ch. 7", subject: "Mathematics", dueDate: "2025-09-06", completed: false, priority: "high" },
     { id: 2, title: "Essay: Climate Change", subject: "English", dueDate: "2025-09-08", completed: true, priority: "medium" },
@@ -44,17 +45,8 @@ export function StudentDashboard() {
   }, []);
 
   const displayUser = currentUser ?? { name: 'Jordan Davis', avatar: 'JD' };
-  const myClasses = React.useMemo<ClassItem[]>(
-    () => getDefaultClassesForUser(currentUser).map((cls) => ({
-      id: cls.id,
-      name: cls.name,
-      teacher: cls.professor,
-      days: cls.days,
-      startTime: cls.startTime,
-      endTime: cls.endTime,
-      room: cls.room,
-      color: cls.color,
-    })),
+  const myClasses = React.useMemo<ScheduledCourse[]>(
+    () => getDefaultClassesForUser(currentUser),
     [currentUser]
   );
 
@@ -248,7 +240,7 @@ export function StudentDashboard() {
                 <div>
                   <div className="font-semibold text-gray-900 leading-tight">{cls.name}</div>
                   <div className="text-sm text-gray-600 mt-1">
-                    {cls.teacher} · {cls.room}
+                    {cls.teacherName} · {cls.room}
                   </div>
                 </div>
               </div>

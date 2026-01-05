@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react";
-import type { CurrentUser } from "app/lib/types";
+import type { ScheduledCourse, User } from "app/lib/domain";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { 
@@ -27,18 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-export type UserData = CurrentUser;
-
-export interface Class {
-  id: string;
-  name: string;
-  professor: string;
-  room: string;
-  color: string;
-  startTime: string;
-  endTime: string;
-  days: string[];
-}
+export type UserData = User;
 
 interface ScheduleEvent {
   id: string;
@@ -63,11 +52,11 @@ const TIME_SLOTS = [
   '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
 ];
 
-export const DEFAULT_CLASSES: Class[] = [
+export const DEFAULT_CLASSES: ScheduledCourse[] = [
   {
     id: '1',
     name: 'Advanced Mathematics',
-    professor: 'Dr. Johnson',
+    teacherName: 'Dr. Johnson',
     room: 'Room 204',
     color: 'bg-blue-500',
     startTime: '09:00',
@@ -77,7 +66,7 @@ export const DEFAULT_CLASSES: Class[] = [
   {
     id: '2',
     name: 'Chemistry Lab',
-    professor: 'Prof. Smith',
+    teacherName: 'Prof. Smith',
     room: 'Lab 301',
     color: 'bg-green-500',
     startTime: '14:00',
@@ -87,7 +76,7 @@ export const DEFAULT_CLASSES: Class[] = [
   {
     id: '3',
     name: 'Literature',
-    professor: 'Ms. Davis',
+    teacherName: 'Ms. Davis',
     room: 'Room 105',
     color: 'bg-purple-500',
     startTime: '11:00',
@@ -97,7 +86,7 @@ export const DEFAULT_CLASSES: Class[] = [
   {
     id: '4',
     name: 'History',
-    professor: 'Mr. Thompson',
+    teacherName: 'Mr. Thompson',
     room: 'Room 210',
     color: 'bg-orange-500',
     startTime: '13:00',
@@ -106,11 +95,11 @@ export const DEFAULT_CLASSES: Class[] = [
   }
 ];
 
-export const ANNIE_CLASSES: Class[] = [
+export const ANNIE_CLASSES: ScheduledCourse[] = [
   {
     id: 'annie-1',
     name: 'Entrepreneurship',
-    professor: 'Jacqueline Collins',
+    teacherName: 'Jacqueline Collins',
     room: 'TBD',
     color: 'bg-blue-500',
     startTime: '08:00',
@@ -120,7 +109,7 @@ export const ANNIE_CLASSES: Class[] = [
   {
     id: 'annie-2',
     name: 'CP Biology 310-007',
-    professor: 'Michael Ganshirt',
+    teacherName: 'Michael Ganshirt',
     room: 'TBD',
     color: 'bg-green-500',
     startTime: '09:00',
@@ -130,7 +119,7 @@ export const ANNIE_CLASSES: Class[] = [
   {
     id: 'annie-3',
     name: 'Spanish 2CP',
-    professor: 'Saul Melendez Loaiza',
+    teacherName: 'Saul Melendez Loaiza',
     room: 'TBD',
     color: 'bg-purple-500',
     startTime: '10:00',
@@ -140,7 +129,7 @@ export const ANNIE_CLASSES: Class[] = [
   {
     id: 'annie-4',
     name: 'Algebra',
-    professor: 'Julia McLintock',
+    teacherName: 'Julia McLintock',
     room: 'TBD',
     color: 'bg-orange-500',
     startTime: '11:00',
@@ -150,7 +139,7 @@ export const ANNIE_CLASSES: Class[] = [
   {
     id: 'annie-5',
     name: 'English 9CPA',
-    professor: 'Shannon Hruzd',
+    teacherName: 'Shannon Hruzd',
     room: 'TBD',
     color: 'bg-red-500',
     startTime: '12:00',
@@ -160,7 +149,7 @@ export const ANNIE_CLASSES: Class[] = [
   {
     id: 'annie-6',
     name: 'World History',
-    professor: 'Kelly Ransom',
+    teacherName: 'Kelly Ransom',
     room: 'TBD',
     color: 'bg-teal-500',
     startTime: '13:00',
@@ -170,7 +159,7 @@ export const ANNIE_CLASSES: Class[] = [
   {
     id: 'annie-7',
     name: 'Art 1',
-    professor: 'Cheyenne Frausto',
+    teacherName: 'Cheyenne Frausto',
     room: 'TBD',
     color: 'bg-pink-500',
     startTime: '15:00',
@@ -193,10 +182,10 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     const monday = new Date(now.setDate(now.getDate() - now.getDay() + 1));
     return monday;
   });
-  const [classes, setClasses] = useState<Class[]>(() => getDefaultClassesForUser(currentUser));
+  const [classes, setClasses] = useState<ScheduledCourse[]>(() => getDefaultClassesForUser(currentUser));
   const [scheduleEvents, setScheduleEvents] = useState<ScheduleEvent[]>([]);
   const [isClassSetupOpen, setIsClassSetupOpen] = useState(false);
-  const [selectedClass, setSelectedClass] = useState<Class | null>(null);
+  const [selectedClass, setSelectedClass] = useState<ScheduledCourse | null>(null);
 
   useEffect(() => {
     setClasses(getDefaultClassesForUser(currentUser));
@@ -211,11 +200,11 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
         events.push({
           id: `${cls.id}-${day}`,
           title: cls.name,
-          description: `${cls.professor} • ${cls.room}`,
+          description: `${cls.teacherName} • ${cls.room}`,
           startTime: cls.startTime,
           endTime: cls.endTime,
           day,
-          color: cls.color,
+          color: cls.color ?? 'bg-blue-500',
           type: 'class',
           classId: cls.id
         });
@@ -268,8 +257,8 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
-  const handleAddClass = (classData: Omit<Class, 'id'>) => {
-    const newClass: Class = {
+  const handleAddClass = (classData: Omit<ScheduledCourse, 'id'>) => {
+    const newClass: ScheduledCourse = {
       ...classData,
       id: Date.now().toString()
     };
@@ -277,7 +266,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     setIsClassSetupOpen(false);
   };
 
-  const handleEditClass = (classData: Omit<Class, 'id'>) => {
+  const handleEditClass = (classData: Omit<ScheduledCourse, 'id'>) => {
     if (selectedClass) {
       setClasses(classes.map(cls => 
         cls.id === selectedClass.id 
@@ -293,7 +282,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     setClasses(classes.filter(cls => cls.id !== classId));
   };
 
-  const openEditModal = (cls: Class) => {
+  const openEditModal = (cls: ScheduledCourse) => {
     setSelectedClass(cls);
     setIsClassSetupOpen(true);
   };

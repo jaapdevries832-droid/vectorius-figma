@@ -17,16 +17,30 @@ import {
   AlertCircle,
   CheckCircle
 } from "lucide-react";
+import type { Student } from "app/lib/domain";
+
+type StudentStatus = "excellent" | "good" | "needs-attention";
+type AdvisorStudent = Student & {
+  subject: string;
+  performance: number;
+  status: StudentStatus;
+  lastActivity: string;
+  assignments: number;
+  pendingTasks: number;
+  avatar: string;
+};
 
 export function AdvisorDashboard() {
   const [selectedStudent, setSelectedStudent] = useState("1");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const students = [
+  const students: AdvisorStudent[] = [
     { 
       id: "1", 
       name: "Jordan Davis", 
       grade: "10th", 
+      email: "jordan.davis@student.vectorius.edu",
+      role: "student",
       subject: "Mathematics", 
       avatar: "JD",
       performance: 92,
@@ -39,6 +53,8 @@ export function AdvisorDashboard() {
       id: "2", 
       name: "Taylor Davis", 
       grade: "8th", 
+      email: "taylor.davis@student.vectorius.edu",
+      role: "student",
       subject: "Science", 
       avatar: "TD",
       performance: 88,
@@ -51,6 +67,8 @@ export function AdvisorDashboard() {
       id: "3", 
       name: "Alex Johnson", 
       grade: "9th", 
+      email: "alex.johnson@student.vectorius.edu",
+      role: "student",
       subject: "English", 
       avatar: "AJ",
       performance: 76,
@@ -63,6 +81,8 @@ export function AdvisorDashboard() {
       id: "4", 
       name: "Sam Wilson", 
       grade: "11th", 
+      email: "sam.wilson@student.vectorius.edu",
+      role: "student",
       subject: "Chemistry", 
       avatar: "SW",
       performance: 94,
@@ -75,6 +95,8 @@ export function AdvisorDashboard() {
       id: "5", 
       name: "Annie de Vries", 
       grade: "9th", 
+      email: "annie.devries@student.vectorius.edu",
+      role: "student",
       subject: "CP Biology", 
       avatar: "AV",
       performance: 86,
@@ -104,7 +126,7 @@ export function AdvisorDashboard() {
 
   const selectedStudentData = students.find(student => student.id === selectedStudent);
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: StudentStatus) => {
     switch (status) {
       case 'excellent': return 'bg-green-100 text-green-700';
       case 'good': return 'bg-blue-100 text-blue-700';
@@ -113,7 +135,7 @@ export function AdvisorDashboard() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: StudentStatus) => {
     switch (status) {
       case 'excellent': return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'good': return <TrendingUp className="w-4 h-4 text-blue-500" />;

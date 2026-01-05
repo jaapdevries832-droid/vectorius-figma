@@ -9,10 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Search, Plus, Edit, Trash2, Send, Users, Brain, ClipboardCheck } from 'lucide-react'
-import type { SkillModule, AssignedSkill } from 'app/lib/types'
+import type { AssignedSkill, SkillModule } from 'app/lib/types'
+import type { Student } from 'app/lib/domain'
 import { DEFAULT_SKILL_MODULES } from 'app/lib/skills-data'
 
-type Student = { id: string; name: string }
 type MentorNotification = {
   studentId: string
   studentName: string
@@ -71,11 +71,11 @@ export function MentorSkills() {
   const [notes, setNotes] = useState('')
 
   const students: Student[] = [
-    { id: '1', name: 'Jordan Davis' },
-    { id: '2', name: 'Taylor Davis' },
-    { id: '3', name: 'Alex Johnson' },
-    { id: '4', name: 'Sam Wilson' },
-    { id: '5', name: 'Annie de Vries' },
+    { id: '1', name: 'Jordan Davis', email: 'jordan.davis@student.vectorius.edu', role: 'student' },
+    { id: '2', name: 'Taylor Davis', email: 'taylor.davis@student.vectorius.edu', role: 'student' },
+    { id: '3', name: 'Alex Johnson', email: 'alex.johnson@student.vectorius.edu', role: 'student' },
+    { id: '4', name: 'Sam Wilson', email: 'sam.wilson@student.vectorius.edu', role: 'student' },
+    { id: '5', name: 'Annie de Vries', email: 'annie.devries@student.vectorius.edu', role: 'student' },
   ]
 
   useEffect(() => {

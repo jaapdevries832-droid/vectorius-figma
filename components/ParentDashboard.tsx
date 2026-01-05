@@ -7,14 +7,15 @@ import { Badge } from "./ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { TrendingUp, Calendar, MessageSquare, Bell, Award, Clock } from "lucide-react";
+import type { Student } from "app/lib/domain";
 
 export function ParentDashboard() {
   const [selectedChild, setSelectedChild] = useState("1");
   
-  const children = [
-    { id: "1", name: "Jordan Davis", grade: "10th Grade", avatar: "JD" },
-    { id: "2", name: "Taylor Davis", grade: "8th Grade", avatar: "TD" },
-    { id: "5", name: "Annie de Vries", grade: "9th Grade", avatar: "AV" },
+  const children: Student[] = [
+    { id: "1", name: "Jordan Davis", grade: "10th Grade", avatar: "JD", email: "jordan.davis@student.vectorius.edu", role: "student" },
+    { id: "2", name: "Taylor Davis", grade: "8th Grade", avatar: "TD", email: "taylor.davis@student.vectorius.edu", role: "student" },
+    { id: "5", name: "Annie de Vries", grade: "9th Grade", avatar: "AV", email: "annie.devries@student.vectorius.edu", role: "student" },
   ];
 
   const performanceData = {

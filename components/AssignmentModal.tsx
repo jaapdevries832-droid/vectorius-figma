@@ -16,7 +16,7 @@ import {
 } from "./ui/select"
 import { BookOpen, ClipboardCheck, HelpCircle, Briefcase, CalendarDays, Save, X } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import type { Class } from "./WeeklyPlanner"
+import type { ScheduledCourse } from "app/lib/domain"
 
 export type AssignmentType = 'homework' | 'quiz' | 'test' | 'project'
 
@@ -32,7 +32,7 @@ export interface AssignmentModalProps {
   isOpen: boolean
   onClose: () => void
   onSave: (assignment: AssignmentInput) => void
-  classes: Class[]
+  classes: ScheduledCourse[]
 }
 
 const typeOptions: { key: AssignmentType; label: string; icon: LucideIcon; color: string }[] = [

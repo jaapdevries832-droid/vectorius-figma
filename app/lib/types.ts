@@ -10,24 +10,6 @@ export type SidebarItem =
   | 'settings'
   | 'students';
 
-export type CurrentUser = {
-  name: string
-  email: string
-  avatar?: string
-  role: 'student' | 'parent' | 'advisor'
-}
-
-export type ClassItem = {
-  id: string
-  name: string
-  teacher: string
-  days: string[]
-  startTime: string
-  endTime: string
-  room?: string
-  color?: string
-}
-
 // Skill modules
 export type SkillModule = {
   id: string

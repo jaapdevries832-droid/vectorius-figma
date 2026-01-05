@@ -14,19 +14,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import type { CurrentUser } from "app/lib/types";
-
-type UserRole = CurrentUser['role'];
+import type { Role, User } from "app/lib/domain";
 
 interface TopNavigationProps {
-  currentRole: UserRole;
-  onRoleChange: (role: UserRole) => void;
-  currentUser: CurrentUser | null;
+  currentRole: Role;
+  onRoleChange: (role: Role) => void;
+  currentUser: User | null;
   onLogout: () => void;
 }
 
 export function TopNavigation({ currentRole, onRoleChange, currentUser, onLogout }: TopNavigationProps) {
-  const roleOptions: { value: UserRole; label: string }[] = [
+  const roleOptions: { value: Role; label: string }[] = [
     { value: 'student', label: 'Student' },
     { value: 'parent', label: 'Parent' },
     { value: 'advisor', label: 'Advisor' }
