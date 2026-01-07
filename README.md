@@ -140,3 +140,16 @@ Tailwind is configured to map semantic color classes:
 
 MIT — use, modify, and ship.
 "trigger preview build" 
+
+## Database & Supabase Workflow
+
+Supabase schema is treated as code.
+
+Rules:
+- All schema changes are SQL migrations in /supabase/migrations
+- Never edit committed migrations
+- UI changes must be followed by `supabase db pull`
+- Apply changes via `supabase db push`
+- Migrations are committed with app code
+
+Supabase UI is for inspection, not source of truth.
