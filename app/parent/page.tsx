@@ -14,7 +14,13 @@ export default function ParentPage() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [lesson29Test, setLesson29Test] = useState("");
+  const [lesson29Status, setLesson29Status] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingLesson29, setIsSavingLesson29] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -44,12 +50,15 @@ export default function ParentPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id, display_name")
+        .select("id, display_name, lesson_29_test")
         .eq("id", data.user.id)
         .single();
 
       if (profile?.display_name) {
         setDisplayName(profile.display_name);
+      }
+      if (profile?.lesson_29_test) {
+        setLesson29Test(profile.lesson_29_test);
       }
 
       setIsLoading(false);
@@ -86,6 +95,26 @@ export default function ParentPage() {
     }
 
     setIsSaving(false);
+  };
+
+  const handleLesson29Save = async () => {
+    if (!userId) return;
+
+    setIsSavingLesson29(true);
+    setLesson29Status(null);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ lesson_29_test: lesson29Test })
+      .eq("id", userId);
+
+    if (error) {
+      setLesson29Status({ type: "error", message: error.message });
+    } else {
+      setLesson29Status({ type: "success", message: "Lesson 29 test saved." });
+    }
+
+    setIsSavingLesson29(false);
   };
 
   if (isLoading) {
@@ -131,6 +160,40 @@ export default function ParentPage() {
               }`}
             >
               {displayNameStatus.message}
+            </p>
+          )}
+        </div>
+        <div className="rounded-lg border border-border bg-white p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex-1">
+              <label htmlFor="lesson-29-test" className="text-sm font-medium text-gray-700">
+                Lesson 29 test
+              </label>
+              <input
+                id="lesson-29-test"
+                type="text"
+                value={lesson29Test}
+                onChange={(event) => setLesson29Test(event.target.value)}
+                className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
+                placeholder="Optional value"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleLesson29Save}
+              disabled={isSavingLesson29}
+              className="rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-60"
+            >
+              {isSavingLesson29 ? "Saving..." : "Save"}
+            </button>
+          </div>
+          {lesson29Status && (
+            <p
+              className={`mt-3 text-xs ${
+                lesson29Status.type === "error" ? "text-red-600" : "text-green-600"
+              }`}
+            >
+              {lesson29Status.message}
             </p>
           )}
         </div>
