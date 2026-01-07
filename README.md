@@ -128,6 +128,20 @@ Tailwind is configured to map semantic color classes:
 
 ---
 
+## How to run scripts/supa-migrate.ps1
+
+```powershell
+.\scripts\supa-migrate.ps1 <migration_name>
+```
+
+Example:
+
+```powershell
+.\scripts\supa-migrate.ps1 add_last_seen_at_to_profiles
+```
+
+---
+
 ## Notes
 
 - The CSS file from Figma (`src/index.css`) was **not** copied; Tailwind will generate needed utilities.

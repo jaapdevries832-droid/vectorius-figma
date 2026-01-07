@@ -33,6 +33,15 @@ export default function ParentPage() {
       setEmail(data.user.email ?? "Unknown");
       setUserId(data.user.id);
 
+      const { error: lastSeenError } = await supabase
+        .from("profiles")
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq("id", data.user.id);
+
+      if (lastSeenError) {
+        console.error("Failed to update last_seen_at", lastSeenError);
+      }
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("id, display_name")
