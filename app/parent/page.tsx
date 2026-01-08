@@ -1,27 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { ParentDashboard } from "@/components/ParentDashboard";
+
+type Student = {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+  grade: string | null;
+};
 
 export default function ParentPage() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState("");
-  const [displayNameStatus, setDisplayNameStatus] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
-  const [lesson29Test, setLesson29Test] = useState("");
-  const [lesson29Status, setLesson29Status] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [grade, setGrade] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isSavingLesson29, setIsSavingLesson29] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const fetchStudents = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("students")
+      .select("id, first_name, last_name, grade, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setLoadError(error.message);
+      return;
+    }
+
+    setLoadError(null);
+    setStudents(data ?? []);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -39,28 +55,15 @@ export default function ParentPage() {
       setEmail(data.user.email ?? "Unknown");
       setUserId(data.user.id);
 
-      const { error: lastSeenError } = await supabase
+      const { error: profileError } = await supabase
         .from("profiles")
-        .update({ last_seen_at: new Date().toISOString() })
-        .eq("id", data.user.id);
+        .upsert({ id: data.user.id }, { onConflict: "id" });
 
-      if (lastSeenError) {
-        console.error("Failed to update last_seen_at", lastSeenError);
+      if (profileError) {
+        setLoadError(profileError.message);
       }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, display_name, lesson_29_test")
-        .eq("id", data.user.id)
-        .single();
-
-      if (profile?.display_name) {
-        setDisplayName(profile.display_name);
-      }
-      if (profile?.lesson_29_test) {
-        setLesson29Test(profile.lesson_29_test);
-      }
-
+      await fetchStudents();
       setIsLoading(false);
     };
 
@@ -69,7 +72,7 @@ export default function ParentPage() {
     return () => {
       isMounted = false;
     };
-  }, [router]);
+  }, [fetchStudents, router]);
 
   const handleSignOut = async () => {
     setIsLoading(true);
@@ -77,44 +80,43 @@ export default function ParentPage() {
     router.replace("/login");
   };
 
-  const handleDisplayNameSave = async () => {
+  const handleAddStudent = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!userId) return;
+
+    const trimmedFirst = firstName.trim();
+    const trimmedLast = lastName.trim();
+    const trimmedGrade = grade.trim();
+
+    if (!trimmedFirst) {
+      setFormError("First name is required.");
+      return;
+    }
 
     setIsSaving(true);
-    setDisplayNameStatus(null);
+    setFormError(null);
 
     const { error } = await supabase
-      .from("profiles")
-      .update({ display_name: displayName })
-      .eq("id", userId);
+      .from("students")
+      .insert({
+        parent_id: userId,
+        first_name: trimmedFirst,
+        last_name: trimmedLast || null,
+        grade: trimmedGrade || null,
+      });
 
     if (error) {
-      setDisplayNameStatus({ type: "error", message: error.message });
-    } else {
-      setDisplayNameStatus({ type: "success", message: "Display name saved." });
+      setFormError(error.message);
+      setIsSaving(false);
+      return;
     }
+
+    setFirstName("");
+    setLastName("");
+    setGrade("");
+    await fetchStudents();
 
     setIsSaving(false);
-  };
-
-  const handleLesson29Save = async () => {
-    if (!userId) return;
-
-    setIsSavingLesson29(true);
-    setLesson29Status(null);
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({ lesson_29_test: lesson29Test })
-      .eq("id", userId);
-
-    if (error) {
-      setLesson29Status({ type: "error", message: error.message });
-    } else {
-      setLesson29Status({ type: "success", message: "Lesson 29 test saved." });
-    }
-
-    setIsSavingLesson29(false);
   };
 
   if (isLoading) {
@@ -127,78 +129,93 @@ export default function ParentPage() {
 
   return (
     <main className="min-h-[80vh]">
-      <div className="mx-auto max-w-6xl px-6 py-6 space-y-4">
-        <p className="text-sm text-muted-foreground">Signed in as {email}</p>
+      <div className="mx-auto max-w-3xl px-6 py-6 space-y-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">Signed in as {email}</p>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="rounded-lg border border-border px-4 py-2 text-sm"
+          >
+            Sign out
+          </button>
+        </div>
+
+        {loadError && <p className="text-sm text-red-600">{loadError}</p>}
+
         <div className="rounded-lg border border-border bg-white p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex-1">
-              <label htmlFor="display-name" className="text-sm font-medium text-gray-700">
-                Display name
-              </label>
-              <input
-                id="display-name"
-                type="text"
-                value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
-                className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
-                placeholder="Your name"
-              />
+          <h2 className="text-base font-semibold text-gray-900">Add student</h2>
+          <form onSubmit={handleAddStudent} className="mt-4 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="first-name" className="text-sm font-medium text-gray-700">
+                  First name
+                </label>
+                <input
+                  id="first-name"
+                  type="text"
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="last-name" className="text-sm font-medium text-gray-700">
+                  Last name
+                </label>
+                <input
+                  id="last-name"
+                  type="text"
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label htmlFor="grade" className="text-sm font-medium text-gray-700">
+                  Grade
+                </label>
+                <input
+                  id="grade"
+                  type="text"
+                  value={grade}
+                  onChange={(event) => setGrade(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
+                />
+              </div>
             </div>
+            {formError && <p className="text-sm text-red-600">{formError}</p>}
             <button
-              type="button"
-              onClick={handleDisplayNameSave}
+              type="submit"
               disabled={isSaving}
               className="rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-60"
             >
-              {isSaving ? "Saving..." : "Save"}
+              {isSaving ? "Saving..." : "Add student"}
             </button>
-          </div>
-          {displayNameStatus && (
-            <p
-              className={`mt-3 text-xs ${
-                displayNameStatus.type === "error" ? "text-red-600" : "text-green-600"
-              }`}
-            >
-              {displayNameStatus.message}
-            </p>
-          )}
+          </form>
         </div>
+
         <div className="rounded-lg border border-border bg-white p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex-1">
-              <label htmlFor="lesson-29-test" className="text-sm font-medium text-gray-700">
-                Lesson 29 test
-              </label>
-              <input
-                id="lesson-29-test"
-                type="text"
-                value={lesson29Test}
-                onChange={(event) => setLesson29Test(event.target.value)}
-                className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
-                placeholder="Optional value"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={handleLesson29Save}
-              disabled={isSavingLesson29}
-              className="rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-60"
-            >
-              {isSavingLesson29 ? "Saving..." : "Save"}
-            </button>
-          </div>
-          {lesson29Status && (
-            <p
-              className={`mt-3 text-xs ${
-                lesson29Status.type === "error" ? "text-red-600" : "text-green-600"
-              }`}
-            >
-              {lesson29Status.message}
-            </p>
+          <h2 className="text-base font-semibold text-gray-900">Your students</h2>
+          {students.length === 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">No students yet.</p>
+          ) : (
+            <ul className="mt-3 space-y-3">
+              {students.map((student) => (
+                <li key={student.id} className="rounded-md border border-border p-3 text-sm">
+                  <div className="font-medium text-gray-900">
+                    {student.first_name} {student.last_name ?? ""}
+                  </div>
+                  {student.grade && (
+                    <div className="text-xs text-gray-600">Grade: {student.grade}</div>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>
-      <ParentDashboard onSignOut={handleSignOut} />
     </main>
   );
 }
