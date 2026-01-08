@@ -1,26 +1,77 @@
 "use client"
 
-import { useState } from "react";
+import { FormEvent } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { TrendingUp, Calendar, MessageSquare, Bell, Award, Clock } from "lucide-react";
-import type { Student } from "app/lib/domain";
+import { cn } from "./ui/utils";
+
+type StudentSummary = {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+  grade: string | null;
+};
+
+type DeleteStatus = {
+  type: "success" | "error";
+  message: string;
+} | null;
 
 type ParentDashboardProps = {
+  email: string | null;
+  students: StudentSummary[];
+  selectedStudentId: string | null;
+  onSelectStudent: (id: string) => void;
+  firstName: string;
+  lastName: string;
+  grade: string;
+  onFirstNameChange: (value: string) => void;
+  onLastNameChange: (value: string) => void;
+  onGradeChange: (value: string) => void;
+  onAddStudent: (event: FormEvent<HTMLFormElement>) => void;
+  isSaving: boolean;
+  deletingStudentId: string | null;
+  formError: string | null;
+  loadError: string | null;
+  deleteStatus: DeleteStatus;
+  onDeleteStudent: (id: string) => void;
   onSignOut?: () => void;
 };
 
-export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
-  const [selectedChild, setSelectedChild] = useState("1");
-  
-  const children: Student[] = [
-    { id: "1", name: "Jordan Davis", grade: "10th Grade", avatar: "JD", email: "jordan.davis@student.vectorius.edu", role: "student" },
-    { id: "2", name: "Taylor Davis", grade: "8th Grade", avatar: "TD", email: "taylor.davis@student.vectorius.edu", role: "student" },
-    { id: "5", name: "Annie de Vries", grade: "9th Grade", avatar: "AV", email: "annie.devries@student.vectorius.edu", role: "student" },
-  ];
+export function ParentDashboard({
+  email,
+  students,
+  selectedStudentId,
+  onSelectStudent,
+  firstName,
+  lastName,
+  grade,
+  onFirstNameChange,
+  onLastNameChange,
+  onGradeChange,
+  onAddStudent,
+  isSaving,
+  deletingStudentId,
+  formError,
+  loadError,
+  deleteStatus,
+  onDeleteStudent,
+  onSignOut,
+}: ParentDashboardProps) {
+  const studentOptions = students.map((student) => {
+    const initials = `${student.first_name[0] ?? ""}${student.last_name?.[0] ?? ""}`.toUpperCase();
+    const displayName = `${student.first_name} ${student.last_name ?? ""}`.trim();
+    return {
+      id: student.id,
+      name: displayName,
+      grade: student.grade ? `Grade ${student.grade}` : "Grade not set",
+      avatar: initials || "ST",
+    };
+  });
 
   const performanceData = {
     "1": {
@@ -77,7 +128,7 @@ export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
       priority: "medium"
     },
     {
-      from: "Mr. Smith - Chemistry Teacher", 
+      from: "Mr. Smith - Chemistry Teacher",
       message: "Outstanding performance in lab work. Jordan shows real aptitude for STEM subjects.",
       date: "2025-09-01",
       priority: "low"
@@ -90,10 +141,15 @@ export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
     { message: "New assignment posted in Chemistry", type: "assignment", urgent: false },
   ];
 
-  const currentData = performanceData[selectedChild as keyof typeof performanceData];
+  const currentData = selectedStudentId
+    ? performanceData[selectedStudentId as keyof typeof performanceData]
+    : undefined;
+  const hasPerformanceData = Boolean(
+    currentData && (currentData.subjects.length > 0 || currentData.recentActivities.length > 0)
+  );
 
   const getTrendIcon = (trend: string) => {
-    return trend === "up" ? "↗️" : trend === "down" ? "↘️" : "→";
+    return trend === "up" ? "^" : trend === "down" ? "v" : "-";
   };
 
   const getTrendColor = (trend: string) => {
@@ -108,14 +164,18 @@ export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
           <h1 className="text-3xl font-semibold text-gray-900 mb-2">Student Overview</h1>
           <p className="text-gray-600">Monitor your children&apos;s academic progress</p>
         </div>
-        
+
         <div className="flex items-center gap-4">
-          <Select value={selectedChild} onValueChange={setSelectedChild}>
+          <Select
+            value={selectedStudentId ?? ""}
+            onValueChange={onSelectStudent}
+            disabled={studentOptions.length === 0}
+          >
             <SelectTrigger className="w-48">
-              <SelectValue />
+              <SelectValue placeholder="Select student" />
             </SelectTrigger>
             <SelectContent>
-              {children.map((child) => (
+              {studentOptions.map((child) => (
                 <SelectItem key={child.id} value={child.id}>
                   <div className="flex items-center gap-2">
                     <Avatar className="w-6 h-6">
@@ -149,7 +209,12 @@ export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-blue-600 mb-1">Overall Grade</p>
-                <p className="text-2xl font-semibold text-blue-700">{currentData.overallGrade}%</p>
+                <p className="text-2xl font-semibold text-blue-700">
+                  {currentData ? `${currentData.overallGrade}%` : "--"}
+                </p>
+                {!hasPerformanceData && (
+                  <p className="mt-1 text-xs text-blue-600">Add a student to see metrics.</p>
+                )}
               </div>
               <Award className="w-8 h-8 text-blue-500" />
             </div>
@@ -161,7 +226,12 @@ export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-green-600 mb-1">Progress</p>
-                <p className="text-2xl font-semibold text-green-700">{currentData.progress}%</p>
+                <p className="text-2xl font-semibold text-green-700">
+                  {currentData ? `${currentData.progress}%` : "--"}
+                </p>
+                {!hasPerformanceData && (
+                  <p className="mt-1 text-xs text-green-700">Progress updates show here.</p>
+                )}
               </div>
               <TrendingUp className="w-8 h-8 text-green-500" />
             </div>
@@ -173,7 +243,12 @@ export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-purple-600 mb-1">Subjects</p>
-                <p className="text-2xl font-semibold text-purple-700">{currentData.subjects.length}</p>
+                <p className="text-2xl font-semibold text-purple-700">
+                  {currentData ? currentData.subjects.length : "--"}
+                </p>
+                {!hasPerformanceData && (
+                  <p className="mt-1 text-xs text-purple-600">Subjects will appear soon.</p>
+                )}
               </div>
               <Calendar className="w-8 h-8 text-purple-500" />
             </div>
@@ -185,7 +260,12 @@ export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-orange-600 mb-1">Activities</p>
-                <p className="text-2xl font-semibold text-orange-700">{currentData.recentActivities.length}</p>
+                <p className="text-2xl font-semibold text-orange-700">
+                  {currentData ? currentData.recentActivities.length : "--"}
+                </p>
+                {!hasPerformanceData && (
+                  <p className="mt-1 text-xs text-orange-700">Activity feed is empty.</p>
+                )}
               </div>
               <Clock className="w-8 h-8 text-orange-500" />
             </div>
@@ -198,11 +278,93 @@ export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
+              <CardTitle>Parent essentials</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="rounded-lg border border-border p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Signed in as</p>
+                    <p className="font-medium text-gray-900">{email ?? "Unknown"}</p>
+                  </div>
+                  {onSignOut && (
+                    <button
+                      type="button"
+                      onClick={onSignOut}
+                      className="rounded-lg border border-border px-4 py-2 text-sm"
+                    >
+                      Sign out
+                    </button>
+                  )}
+                </div>
+                {loadError && <p className="mt-3 text-sm text-red-600">{loadError}</p>}
+              </div>
+
+              <div className="rounded-lg border border-border p-4">
+                <h3 className="text-base font-semibold text-gray-900">Add student</h3>
+                <form onSubmit={onAddStudent} className="mt-4 space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="first-name" className="text-sm font-medium text-gray-700">
+                        First name
+                      </label>
+                      <input
+                        id="first-name"
+                        type="text"
+                        value={firstName}
+                        onChange={(event) => onFirstNameChange(event.target.value)}
+                        className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="last-name" className="text-sm font-medium text-gray-700">
+                        Last name
+                      </label>
+                      <input
+                        id="last-name"
+                        type="text"
+                        value={lastName}
+                        onChange={(event) => onLastNameChange(event.target.value)}
+                        className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="grade" className="text-sm font-medium text-gray-700">
+                        Grade
+                      </label>
+                      <input
+                        id="grade"
+                        type="text"
+                        value={grade}
+                        onChange={(event) => onGradeChange(event.target.value)}
+                        className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  {formError && <p className="text-sm text-red-600">{formError}</p>}
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-60"
+                  >
+                    {isSaving ? "Saving..." : "Add student"}
+                  </button>
+                </form>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Subject Performance</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {currentData.subjects.map((subject, index) => (
+                {(!currentData || currentData.subjects.length === 0) && (
+                  <p className="text-sm text-muted-foreground">No performance data yet.</p>
+                )}
+                {currentData?.subjects.map((subject, index) => (
                   <div key={index} className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50">
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
@@ -229,16 +391,19 @@ export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {currentData.recentActivities.map((activity, index) => (
+                {(!currentData || currentData.recentActivities.length === 0) && (
+                  <p className="text-sm text-muted-foreground">No activities yet.</p>
+                )}
+                {currentData?.recentActivities.map((activity, index) => (
                   <div key={index} className="flex items-center gap-3 p-3 rounded-lg border">
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                     <div className="flex-1">
                       <p className="font-medium text-gray-900">{activity.title}</p>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <span>{activity.type}</span>
-                        {activity.score && <span>• {activity.score}</span>}
-                        {activity.status && <span>• {activity.status}</span>}
-                        <span>• {new Date(activity.date).toLocaleDateString()}</span>
+                        {activity.score && <span>??? {activity.score}</span>}
+                        {activity.status && <span>??? {activity.status}</span>}
+                        <span>??? {new Date(activity.date).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
@@ -250,6 +415,58 @@ export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Your students</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {students.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No students yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {students.map((student) => (
+                    <div
+                      key={student.id}
+                      className={cn(
+                        "rounded-lg border p-3 text-sm",
+                        selectedStudentId === student.id ? "border-blue-200 bg-blue-50" : "border-border"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {student.first_name} {student.last_name ?? ""}
+                          </div>
+                          {student.grade && (
+                            <div className="text-xs text-gray-600">Grade: {student.grade}</div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteStudent(student.id)}
+                          disabled={deletingStudentId === student.id}
+                          className="text-xs text-red-600 hover:underline disabled:opacity-60"
+                        >
+                          {deletingStudentId === student.id ? "Deleting..." : "Delete"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {deleteStatus && (
+                <p
+                  className={cn(
+                    "mt-3 text-xs",
+                    deleteStatus.type === "error" ? "text-red-600" : "text-green-600"
+                  )}
+                >
+                  {deleteStatus.message}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Advisor Notes */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -283,7 +500,7 @@ export function ParentDashboard({ onSignOut }: ParentDashboardProps) {
               <div className="space-y-3">
                 {notifications.map((notification, index) => (
                   <div key={index} className={`p-3 rounded-lg border ${
-                    notification.urgent ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50'
+                    notification.urgent ? "border-red-200 bg-red-50" : "border-gray-200 bg-gray-50"
                   }`}>
                     <div className="flex items-center gap-2 mb-1">
                       {notification.urgent && <div className="w-2 h-2 bg-red-500 rounded-full"></div>}

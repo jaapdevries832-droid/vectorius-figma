@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { ParentDashboard } from "@/components/ParentDashboard";
 
 type Student = {
   id: string;
@@ -16,12 +17,18 @@ export default function ParentPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [grade, setGrade] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
+  const [deleteStatus, setDeleteStatus] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchStudents = useCallback(async () => {
@@ -36,7 +43,13 @@ export default function ParentPage() {
     }
 
     setLoadError(null);
-    setStudents(data ?? []);
+    const nextStudents = data ?? [];
+    setStudents(nextStudents);
+    setSelectedStudentId((current) => {
+      if (!nextStudents.length) return null;
+      if (!current) return nextStudents[0].id;
+      return nextStudents.some((student) => student.id === current) ? current : nextStudents[0].id;
+    });
   }, []);
 
   useEffect(() => {
@@ -95,6 +108,7 @@ export default function ParentPage() {
 
     setIsSaving(true);
     setFormError(null);
+    setDeleteStatus(null);
 
     const { error } = await supabase
       .from("students")
@@ -119,6 +133,24 @@ export default function ParentPage() {
     setIsSaving(false);
   };
 
+  const handleDeleteStudent = async (studentId: string) => {
+    if (!confirm("Delete this student?")) return;
+    setDeleteStatus(null);
+    setDeletingStudentId(studentId);
+
+    const { error } = await supabase.from("students").delete().eq("id", studentId);
+
+    if (error) {
+      setDeleteStatus({ type: "error", message: error.message });
+      setDeletingStudentId(null);
+      return;
+    }
+
+    await fetchStudents();
+    setDeleteStatus({ type: "success", message: "Student deleted." });
+    setDeletingStudentId(null);
+  };
+
   if (isLoading) {
     return (
       <main className="flex min-h-[80vh] items-center justify-center px-4">
@@ -129,93 +161,26 @@ export default function ParentPage() {
 
   return (
     <main className="min-h-[80vh]">
-      <div className="mx-auto max-w-3xl px-6 py-6 space-y-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">Signed in as {email}</p>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="rounded-lg border border-border px-4 py-2 text-sm"
-          >
-            Sign out
-          </button>
-        </div>
-
-        {loadError && <p className="text-sm text-red-600">{loadError}</p>}
-
-        <div className="rounded-lg border border-border bg-white p-4">
-          <h2 className="text-base font-semibold text-gray-900">Add student</h2>
-          <form onSubmit={handleAddStudent} className="mt-4 space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="first-name" className="text-sm font-medium text-gray-700">
-                  First name
-                </label>
-                <input
-                  id="first-name"
-                  type="text"
-                  value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
-                  className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="last-name" className="text-sm font-medium text-gray-700">
-                  Last name
-                </label>
-                <input
-                  id="last-name"
-                  type="text"
-                  value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
-                  className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label htmlFor="grade" className="text-sm font-medium text-gray-700">
-                  Grade
-                </label>
-                <input
-                  id="grade"
-                  type="text"
-                  value={grade}
-                  onChange={(event) => setGrade(event.target.value)}
-                  className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-            {formError && <p className="text-sm text-red-600">{formError}</p>}
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-60"
-            >
-              {isSaving ? "Saving..." : "Add student"}
-            </button>
-          </form>
-        </div>
-
-        <div className="rounded-lg border border-border bg-white p-4">
-          <h2 className="text-base font-semibold text-gray-900">Your students</h2>
-          {students.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">No students yet.</p>
-          ) : (
-            <ul className="mt-3 space-y-3">
-              {students.map((student) => (
-                <li key={student.id} className="rounded-md border border-border p-3 text-sm">
-                  <div className="font-medium text-gray-900">
-                    {student.first_name} {student.last_name ?? ""}
-                  </div>
-                  {student.grade && (
-                    <div className="text-xs text-gray-600">Grade: {student.grade}</div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+      <ParentDashboard
+        email={email}
+        students={students}
+        selectedStudentId={selectedStudentId}
+        onSelectStudent={setSelectedStudentId}
+        firstName={firstName}
+        lastName={lastName}
+        grade={grade}
+        onFirstNameChange={setFirstName}
+        onLastNameChange={setLastName}
+        onGradeChange={setGrade}
+        onAddStudent={handleAddStudent}
+        isSaving={isSaving}
+        deletingStudentId={deletingStudentId}
+        formError={formError}
+        loadError={loadError}
+        deleteStatus={deleteStatus}
+        onDeleteStudent={handleDeleteStudent}
+        onSignOut={handleSignOut}
+      />
     </main>
   );
 }
