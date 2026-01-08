@@ -19,6 +19,12 @@ export default function LoginPage() {
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const handleDemoParentPrefill = () => {
+    setEmail("test@email.com");
+    setPassword("123456");
+    setStatus(null);
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
@@ -79,6 +85,13 @@ export default function LoginPage() {
             Sign Up
           </button>
         </div>
+        <button
+          type="button"
+          onClick={handleDemoParentPrefill}
+          className="w-full rounded-lg border-2 border-primary bg-primary/10 px-3 py-2 text-sm font-semibold text-primary"
+        >
+          Demo Parent Login (Prefill)
+        </button>
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block space-y-2 text-sm">
             <span>Email</span>
