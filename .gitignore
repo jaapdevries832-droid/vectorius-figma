@@ -19,6 +19,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 dev*.log
+dev.err.log
+dev.out.log
 
 # Editor
 .DS_Store
@@ -28,6 +30,7 @@ dev*.log
 
 # TypeScript build info
 *.tsbuildinfo
+tsconfig.tsbuildinfo
 
 # Vercel
 .vercel
