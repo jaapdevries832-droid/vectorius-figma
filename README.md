@@ -152,8 +152,7 @@ Example:
 
 ## License
 
-MIT — use, modify, and ship.
-"trigger preview build" 
+MIT – use, modify, and ship.
 
 ## Database & Supabase Workflow
 

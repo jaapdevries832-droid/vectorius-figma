@@ -100,7 +100,7 @@ export function StudentDashboard() {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-2xl font-semibold text-gray-900 mb-1">Welcome back, {displayUser.name}! ✨</h1>
+                <h1 className="text-2xl font-semibold text-gray-900 mb-1">Welcome back, {displayUser.name}!</h1>
                 <p className="text-gray-600">Ready to continue your learning journey today?</p>
                 <div className="flex items-center mt-2 space-grid-2">
                   <Badge className="bg-blue-100 text-blue-700">4 assignments due</Badge>
