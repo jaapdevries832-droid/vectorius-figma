@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.4"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -251,6 +256,7 @@ export type Database = {
           lesson_29_test: string | null
           name: string | null
           role: string
+          updated_at: string
         }
         Insert: {
           created_at?: string | null
@@ -261,6 +267,7 @@ export type Database = {
           lesson_29_test?: string | null
           name?: string | null
           role: string
+          updated_at?: string
         }
         Update: {
           created_at?: string | null
@@ -271,6 +278,7 @@ export type Database = {
           lesson_29_test?: string | null
           name?: string | null
           role?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -354,9 +362,11 @@ export type Database = {
           created_at: string
           email: string
           first_name: string
+          grade: string | null
           grade_level: number | null
           id: string
           last_name: string
+          parent_id: string
           school_name: string | null
           status: string | null
           updated_at: string
@@ -365,9 +375,11 @@ export type Database = {
           created_at?: string
           email: string
           first_name: string
+          grade?: string | null
           grade_level?: number | null
           id?: string
           last_name: string
+          parent_id: string
           school_name?: string | null
           status?: string | null
           updated_at?: string
@@ -376,14 +388,24 @@ export type Database = {
           created_at?: string
           email?: string
           first_name?: string
+          grade?: string | null
           grade_level?: number | null
           id?: string
           last_name?: string
+          parent_id?: string
           school_name?: string | null
           status?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "students_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -535,4 +557,3 @@ export const Constants = {
     },
   },
 } as const
-
