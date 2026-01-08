@@ -1,7 +1,13 @@
 # Codex Guardrails (Vectorius)
 
+AUTHORITY
+This file is the default authority for AI-assisted changes in this repo.
+If this file conflicts with other instructions, this file wins unless the user explicitly overrides it in the prompt.
+
 This file defines **non-negotiable rules** for AI-assisted changes (Codex / Copilot / agents).
 Goal: keep database + git history clean, prevent silent breakage, and make work repeatable.
+
+When to apply: Follow these rules for any task in this repo that involves code, schema, or workflow changes. If a user prompt adds stricter rules, those override and must be followed.
 
 ---
 
@@ -9,6 +15,29 @@ Goal: keep database + git history clean, prevent silent breakage, and make work 
 
 **Do not be clever. Be correct.**
 If anything is unclear, stop and ask instead of guessing.
+
+---
+
+## 0.1) Mandatory Before Coding (Acknowledge)
+
+Before making any changes, Codex must:
+1. Confirm current branch name.
+2. List the rules it will follow (3-6 bullets).
+3. State explicitly: "I will not modify existing ParentDashboard layout."
+
+Only then proceed.
+
+---
+
+## 0.2) No Assumptions Rule
+
+Do not assume:
+- table names
+- column semantics
+- existing constraints
+- desired UX behavior
+
+If not explicitly stated or visible in code, stop and ask.
 
 ---
 
@@ -61,7 +90,7 @@ For any schema change:
 
 If a CLI step fails:
 - **STOP** and report the error + command output.
-- Do not “make it pass” with unsafe commands.
+- Do not "make it pass" with unsafe commands.
 
 ---
 
@@ -108,6 +137,7 @@ When adding app changes to prove a migration:
 - Avoid refactoring unrelated code.
 - Avoid large formatting-only changes.
 - Prefer adding small, explicit `select(...)` fields (do not rely on `select("*")` if types are strict).
+- UI rule: Do not modify files outside the explicitly mentioned component(s) unless the user approves.
 
 ---
 
@@ -127,7 +157,7 @@ Staging rules:
   - documentation updates if needed
 
 Commit rules:
-- Commit migration + app changes together when they’re logically connected.
+- Commit migration + app changes together when they're logically connected.
 - Use a descriptive commit message:
   - `Lesson XX: <what changed>`
 
@@ -155,7 +185,63 @@ At the end of a task, Codex must report:
 ## 9) If Uncertain, Stop
 
 Stop and ask the user if:
-- You’re not sure which branch to use
-- You can’t verify which migration file is “new”
+- You're not sure which branch to use
+- You can't verify which migration file is "new"
 - You see unexpected file changes
-- A command fails and you’re tempted to “repair” history
+- A command fails and you're tempted to "repair" history
+
+---
+
+## 10) Prompt-Specific Absolute Rules (Example Set)
+
+When a user provides absolute rules in a prompt, treat them as mandatory and do not override them.
+The following example rules are incorporated from the sample prompt and must be followed if the task
+matches that scenario (Next.js + Supabase, Parent dashboard changes).
+If the task does not explicitly match the criteria below, ignore this section.
+
+Applies only when the task explicitly involves:
+- Next.js app
+- Supabase backend
+- ParentDashboard UI changes
+
+Absolute rules:
+- Do not delete, replace, or redesign the existing ParentDashboard UI.
+- Do not remove cards, change page layout, or rewrite the dashboard structure.
+- Only add minimal UI elements (small delete button/icon and small error/success text).
+- All DB schema changes must be SQL migrations in `/supabase/migrations`.
+- Never edit or delete committed migrations.
+- Apply schema changes via `supabase db push`.
+- After schema changes run `supabase db pull`.
+- Regenerate types to `src/types/supabase.ts`.
+- Keep changes minimal, boring, and explicit.
+
+Database rules (duplicates prevention):
+- Create a new migration (example name: `students_prevent_duplicates`).
+- Normalize empty `last_name` values so uniqueness behaves consistently:
+  - convert '' to NULL
+
+Example SQL (intent must remain identical if adapted):
+- Normalize empty string last_name to NULL
+  - `update public.students set last_name = null where last_name = '';`
+- Unique per parent on name + grade
+  - `create unique index if not exists students_unique_per_parent on public.students ( parent_id, lower(first_name), lower(coalesce(last_name, '')), coalesce(grade, '') );`
+
+Required commands after schema changes:
+- `supabase db push`
+- `supabase db pull`
+- `supabase gen types typescript --local > src/types/supabase.ts`
+
+Verification rules (when requested):
+- Run `npm run lint`.
+- Run `npm run build`.
+- Both must pass before committing.
+
+Deliverables rules (when requested):
+- New migration in `/supabase/migrations` for the unique index.
+- Updated `src/types/supabase.ts`.
+- Minimal UI change: delete button + friendly duplicate message.
+- Three commits with the exact messages specified in the prompt.
+- Confirmation that lint and build pass.
+- Stop after completing these changes.
+
+
