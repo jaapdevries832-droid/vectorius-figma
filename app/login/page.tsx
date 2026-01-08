@@ -25,6 +25,10 @@ export default function LoginPage() {
     setStatus(null);
   };
 
+  const handleOpenParentDemo = () => {
+    router.push("/parent-demo");
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
@@ -91,6 +95,13 @@ export default function LoginPage() {
           className="w-full rounded-lg border-2 border-primary bg-primary/10 px-3 py-2 text-sm font-semibold text-primary"
         >
           Demo Parent Login (Prefill)
+        </button>
+        <button
+          type="button"
+          onClick={handleOpenParentDemo}
+          className="w-full rounded-lg border-2 border-emerald-600 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700"
+        >
+          Open Parent Demo Dashboard (No Sign-In)
         </button>
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block space-y-2 text-sm">
