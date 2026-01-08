@@ -120,7 +120,11 @@ export default function ParentPage() {
       });
 
     if (error) {
-      setFormError(error.message);
+      if (error.code === "23505" && error.message.includes("students_unique_per_parent")) {
+        setFormError("That student already exists.");
+      } else {
+        setFormError(error.message);
+      }
       setIsSaving(false);
       return;
     }
