@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile } from "@/lib/profile";
 
 type AuthMode = "sign-in" | "sign-up";
+type SignupRole = "" | "parent" | "student" | "advisor";
 
 type StatusMessage = {
   type: "success" | "error";
@@ -17,6 +18,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [signupRole, setSignupRole] = useState<SignupRole>("");
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -36,11 +38,29 @@ export default function LoginPage() {
     setStatus(null);
 
     if (mode === "sign-up") {
-      const { error } = await supabase.auth.signUp({ email, password });
+      if (!signupRole) {
+        setStatus({ type: "error", message: "Please choose a role to continue." });
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            role: signupRole,
+          },
+        },
+      });
       if (error) {
         setStatus({ type: "error", message: error.message });
       } else {
-        setStatus({ type: "success", message: "Check your email to confirm your account." });
+        if (data.session) {
+          router.push(`/${signupRole}`);
+        } else {
+          setStatus({ type: "success", message: "Check your email to confirm your account." });
+        }
       }
       setIsLoading(false);
       return;
@@ -113,6 +133,25 @@ export default function LoginPage() {
         >
           Open Parent Demo Dashboard (No Sign-In)
         </button>
+        {mode === "sign-up" && (
+          <fieldset className="space-y-2 text-sm">
+            <legend className="text-sm font-medium">Choose your role</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {(["parent", "student", "advisor"] as const).map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => setSignupRole(role)}
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-wide ${
+                    signupRole === role ? "border-primary bg-primary text-white" : "border-border"
+                  }`}
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block space-y-2 text-sm">
             <span>Email</span>
