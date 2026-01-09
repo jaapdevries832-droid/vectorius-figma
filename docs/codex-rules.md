@@ -1,247 +1,201 @@
 # Codex Guardrails (Vectorius)
 
-AUTHORITY
-This file is the default authority for AI-assisted changes in this repo.
+## AUTHORITY
+This file is the default authority for AI-assisted changes in this repo (Codex / agents / Copilot).
 If this file conflicts with other instructions, this file wins unless the user explicitly overrides it in the prompt.
 
-This file defines **non-negotiable rules** for AI-assisted changes (Codex / Copilot / agents).
 Goal: keep database + git history clean, prevent silent breakage, and make work repeatable.
 
-When to apply: Follow these rules for any task in this repo that involves code, schema, or workflow changes. If a user prompt adds stricter rules, those override and must be followed.
+When to apply: Follow these rules for any task in this repo that involves code, schema, workflow, or configuration changes. If a user prompt adds stricter rules, those override and must be followed.
 
 ---
 
 ## 0) Prime Directive
-
-**Do not be clever. Be correct.**
-If anything is unclear, stop and ask instead of guessing.
+Do not be clever. Be correct. If anything is unclear, stop and ask instead of guessing.
 
 ---
 
-## 0.1) Mandatory Before Coding (Acknowledge)
+## 1) Mandatory Before Coding (Acknowledge)
+Before making any changes, the agent must:
 
-Before making any changes, Codex must:
-1. Confirm current branch name.
-2. List the rules it will follow (3-6 bullets).
-3. State explicitly: "I will not modify existing ParentDashboard layout."
+1. Run `git status`
+2. Confirm current branch name AND confirm working tree is clean (or user explicitly approves proceeding dirty)
+3. Restate the objective in 1–2 sentences
+4. List 3–6 rules it will follow for this task
+5. Declare what it will NOT do (e.g., “no UI redesign”, “no schema edits outside migrations”)
+6. Only then proceed
 
-Only then proceed.
+If the branch is wrong:
+- STOP
+- Report the current branch
+- Ask whether to switch/create a branch
+- Do not continue until branch is corrected
 
 ---
 
-## 0.2) No Assumptions Rule
+## 2) Scope Contract (Prevents “agent sprawl”)
+Every task must have an explicit scope before coding:
 
+- What features are being implemented (1–3 bullets)
+- What files/areas are expected to change (e.g., `app/login/page.tsx`, `supabase/migrations/*`)
+- What is explicitly out of scope (e.g., redesigns, refactors, renaming folders)
+
+Hard rule:
+- Avoid “cleanup”, “refactor”, “restructure”, “rename”, “format-only” changes unless the user explicitly asked.
+
+If the request is broad (e.g., “connect everything to DB”), the agent must propose a plan of *vertical slices* and proceed with only the first slice unless the user explicitly authorizes multiple slices.
+
+---
+
+## 3) No Assumptions Rule
 Do not assume:
 - table names
 - column semantics
-- existing constraints
+- existing constraints/policies/triggers
 - desired UX behavior
+- which route should exist (e.g., `/student`) or what roles exist
 
-If not explicitly stated or visible in code, stop and ask.
-
----
-
-## 1) Branch Safety (MUST DO FIRST)
-
-Before making *any* changes or running migrations:
-
-1. Run:
-   - `git status`
-2. Confirm:
-   - You are on the branch the user requested (e.g., `lesson-29`)
-   - Working tree is clean (or user explicitly agrees to proceed with existing changes)
-
-If branch is wrong:
-- **STOP**
-- Tell the user the current branch name
-- Ask whether to switch or create a new branch
-- Do **not** continue until branch is corrected
-
-Codex must not rename branches unless explicitly instructed.
+If not explicitly stated or visible in code or schema, stop and ask.
 
 ---
 
-## 2) Supabase Schema Rules (Source of Truth)
+## 4) Supabase Schema Rules (Source of Truth)
+All schema changes must be SQL migrations in:
 
-**All schema changes must be SQL migrations in:**
-- `/supabase/migrations`
+`/supabase/migrations`
 
 Hard rules:
-- **Never edit an existing migration file** (anything already created/committed/applied).
-- If a migration was wrong or empty:
-  - Create a **new** migration that fixes forward.
-- Supabase UI is for **inspection only**, not the source of truth.
+- Never edit an existing migration file (anything already created/committed/applied).
+- If something needs changing, fix-forward via a new migration.
+- Supabase UI is for inspection/verification only, not the source of truth.
+- Do not use `supabase db reset` unless the user explicitly asks (data-destructive).
+
+Allowed DB changes include:
+- tables, columns, indexes, constraints
+- RLS enablement + policies
+- functions/triggers (via fix-forward migrations)
 
 ---
 
-## 3) Required Supabase Workflow
-
+## 5) Required Supabase Workflow (for any schema change)
 For any schema change:
 
-1. Create a new migration:
-   - `supabase migration new <name>`
-2. Edit **only** the newly created migration file.
-3. Apply changes to remote:
-   - `supabase db push`
-4. Sync local schema artifacts:
-   - `supabase db pull`
-5. Verify history:
-   - `supabase migration list`
+1. `supabase migration new <name>`
+2. Edit only the newly created migration file
+3. `supabase db push`
+4. `supabase db pull`
+5. `supabase migration list`
 
 If a CLI step fails:
-- **STOP** and report the error + command output.
-- Do not "make it pass" with unsafe commands.
+- STOP and report the error + the exact command output
+- Do not “make it pass” with unsafe commands
+- Only continue if the user approves a safe workaround
 
 ---
 
-## 4) Forbidden / High-Risk Commands (Do NOT run)
-
+## 6) Forbidden / High-Risk Commands (Do NOT run)
 Do not run these unless the user explicitly asks:
 
 - `supabase migration repair ...`
 - `supabase db reset` (data-destructive)
 - `supabase db dump` (may expose sensitive data)
-- Any Docker prune/delete commands
-- Any commands that remove files broadly (e.g., `rm -rf`, `del /s`, etc.)
+- Docker prune/delete commands
+- Broad delete commands (e.g., `rm -rf`, `del /s`, removing folders wholesale)
+- Any command likely to expose secrets, tokens, or private data
 
 If migration history is inconsistent:
-- Prefer fix-forward via new migration.
-- Escalate to the user with a clear explanation.
+- Prefer fix-forward via a new migration
+- Escalate to the user with a clear explanation
 
 ---
 
-## 5) Handling `supabase db pull` Quirks
+## 7) Handling `supabase db pull` Quirks
+If `supabase db pull` prints “No schema changes found” but exits non-zero:
 
-If `supabase db pull` prints **"No schema changes found"** but exits non-zero:
-- Treat it as a *likely CLI bug*.
-- Confirm there were no repo file changes:
-  - `git status`
-- Continue only if working tree remains unchanged and user approves.
+- Treat it as a likely CLI bug.
+- Run `git status` to confirm no repo file changes were created.
+- Continue only if working tree remains unchanged AND the user approves.
 
-If `port 54320 already allocated`:
-- Stop and recommend:
-  - `supabase stop --project-id <id>` (or `supabase stop`)
-  - confirm port free (Windows): `netstat -ano | findstr :54320`
-  - Say something like, Port 54320 is in use, which Supabase needs for the shadow database.
-I recommend running supabase stop --project-id vectorius-figma to free it.
-This will stop local Supabase containers for this project.
-Shall I proceed?
-- Retry `supabase db pull` after the port is freed.
+If port 54320 is already allocated:
+- STOP and recommend freeing it (e.g., `supabase stop`)
+- Explain that Supabase needs this port for the shadow database
+- Proceed only after user approval
 
 ---
 
-## 6) Minimalism in App Changes
+## 8) Minimalism in App Changes
+When adding app changes to support/validate schema:
 
-When adding app changes to prove a migration:
 - Keep changes localized to the smallest surface area.
 - Avoid refactoring unrelated code.
-- Avoid large formatting-only changes.
-- Prefer adding small, explicit `select(...)` fields (do not rely on `select("*")` if types are strict).
-- UI rule: Do not modify files outside the explicitly mentioned component(s) unless the user approves.
+- Avoid large formatting-only diffs.
+- Prefer explicit `select(...)` fields (avoid `select("*")` if types are strict).
+- Do not change visual layouts unless explicitly requested.
+
+If changes spread beyond the stated scope:
+- STOP and ask for approval before continuing.
 
 ---
 
-## 7) Pre-Commit Checklist (Codex must do)
+## 9) Definition of Done (DoD) + Verification
+Every task must declare a DoD before coding and verify it after.
 
+Typical DoD items:
+- Feature works end-to-end (UI ↔ DB ↔ RLS)
+- Correct error handling for expected failures (duplicates, permission denied)
+- RLS prevents cross-user leakage
+- Lint/build pass when requested or when changes are significant
+
+Verification rules:
+- If the task touches routing/auth, verify behavior for each role affected.
+- If the task touches DB/RLS, validate with at least one SQL check or real UI test path.
+- If lint/build is required by prompt or the change is non-trivial, run:
+  - `npm run lint`
+  - `npm run build`
+
+---
+
+## 10) Pre-Commit Checklist (Agent must do)
 Before staging:
-1. Show:
-   - `git diff` (or summary if large)
-2. Confirm:
-   - Only intended files changed
-   - No secrets added (`.env*`, keys, tokens, service role keys)
 
-Staging rules:
-- Stage only the files relevant to the change:
-  - the new migration file(s)
-  - the specific app file(s)
-  - documentation updates if needed
+- Show `git diff` (or a summary if large)
+- Confirm:
+  - Only intended files changed
+  - No secrets added (`.env*`, keys, tokens, service role keys)
+  - No old migrations edited
+- Stage only relevant files:
+  - new migration(s)
+  - specific app file(s)
+  - docs updates if needed
 
 Commit rules:
-- Commit migration + app changes together when they're logically connected.
-- Use a descriptive commit message:
-  - `Lesson XX: <what changed>`
+- Commit schema + app changes together when they’re logically connected.
+- Use a descriptive commit message the user requested; otherwise:
+  - `Lesson XX: <what changed>` or `<area>: <what changed>`
 
 Push rules:
-- After commit:
-  - `git push`
-- Then show:
-  - `git status`
+- After commit: `git push`
+- Then show: `git status`
 
 ---
 
-## 8) Output Requirements (Codex response format)
-
-At the end of a task, Codex must report:
+## 11) Output Requirements (Agent response format)
+At the end of a task, the agent must report:
 
 - Current branch name (from `git status`)
 - Commands executed (in order)
 - Files changed (list)
-- Migration filename(s) created
+- Migration filename(s) created (if any)
 - Confirmation that old migrations were not edited
 - Lint/build results if run
 
 ---
 
-## 9) If Uncertain, Stop
-
+## 12) If Uncertain, Stop
 Stop and ask the user if:
-- You're not sure which branch to use
-- You can't verify which migration file is "new"
-- You see unexpected file changes
-- A command fails and you're tempted to "repair" history
 
----
-
-## 10) Prompt-Specific Absolute Rules (Example Set)
-
-When a user provides absolute rules in a prompt, treat them as mandatory and do not override them.
-The following example rules are incorporated from the sample prompt and must be followed if the task
-matches that scenario (Next.js + Supabase, Parent dashboard changes).
-If the task does not explicitly match the criteria below, ignore this section.
-
-Applies only when the task explicitly involves:
-- Next.js app
-- Supabase backend
-- ParentDashboard UI changes
-
-Absolute rules:
-- Do not delete, replace, or redesign the existing ParentDashboard UI.
-- Do not remove cards, change page layout, or rewrite the dashboard structure.
-- Only add minimal UI elements (small delete button/icon and small error/success text).
-- All DB schema changes must be SQL migrations in `/supabase/migrations`.
-- Never edit or delete committed migrations.
-- Apply schema changes via `supabase db push`.
-- After schema changes run `supabase db pull`.
-- Regenerate types to `src/types/supabase.ts`.
-- Keep changes minimal, boring, and explicit.
-
-Database rules (duplicates prevention):
-- Create a new migration (example name: `students_prevent_duplicates`).
-- Normalize empty `last_name` values so uniqueness behaves consistently:
-  - convert '' to NULL
-
-Example SQL (intent must remain identical if adapted):
-- Normalize empty string last_name to NULL
-  - `update public.students set last_name = null where last_name = '';`
-- Unique per parent on name + grade
-  - `create unique index if not exists students_unique_per_parent on public.students ( parent_id, lower(first_name), lower(coalesce(last_name, '')), coalesce(grade, '') );`
-
-Required commands after schema changes:
-- `supabase db push`
-- `supabase db pull`
-- `supabase gen types typescript --local > src/types/supabase.ts`
-
-Verification rules (when requested):
-- Run `npm run lint`.
-- Run `npm run build`.
-- Both must pass before committing.
-
-Deliverables rules (when requested):
-- New migration in `/supabase/migrations` for the unique index.
-- Updated `src/types/supabase.ts`.
-- Minimal UI change: delete button + friendly duplicate message.
-- Three commits with the exact messages specified in the prompt.
-- Confirmation that lint and build pass.
-- Stop after completing these changes.
-
-
+- Unsure which branch to use
+- Unsure which migration file is “new”
+- Unexpected file changes appear
+- A command fails and you’re tempted to “repair” history
+- You need to expand scope beyond the contract
