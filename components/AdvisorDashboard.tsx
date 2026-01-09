@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -17,10 +17,14 @@ import {
   AlertCircle,
   CheckCircle
 } from "lucide-react";
-import type { Student } from "app/lib/domain";
+import { supabase } from "@/lib/supabase/client";
+import { getCurrentProfile } from "@/lib/profile";
 
 type StudentStatus = "excellent" | "good" | "needs-attention";
-type AdvisorStudent = Student & {
+type AdvisorStudent = {
+  id: string;
+  name: string;
+  grade: string | null;
   subject: string;
   performance: number;
   status: StudentStatus;
@@ -31,81 +35,86 @@ type AdvisorStudent = Student & {
 };
 
 export function AdvisorDashboard() {
-  const [selectedStudent, setSelectedStudent] = useState("1");
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [students, setStudents] = useState<AdvisorStudent[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const students: AdvisorStudent[] = [
-    { 
-      id: "1", 
-      name: "Jordan Davis", 
-      grade: "10th", 
-      email: "jordan.davis@student.vectorius.edu",
-      role: "student",
-      subject: "Mathematics", 
-      avatar: "JD",
-      performance: 92,
-      status: "excellent",
-      lastActivity: "2025-09-04",
-      assignments: 3,
-      pendingTasks: 1
-    },
-    { 
-      id: "2", 
-      name: "Taylor Davis", 
-      grade: "8th", 
-      email: "taylor.davis@student.vectorius.edu",
-      role: "student",
-      subject: "Science", 
-      avatar: "TD",
-      performance: 88,
-      status: "good",
-      lastActivity: "2025-09-03",
-      assignments: 2,
-      pendingTasks: 0
-    },
-    { 
-      id: "3", 
-      name: "Alex Johnson", 
-      grade: "9th", 
-      email: "alex.johnson@student.vectorius.edu",
-      role: "student",
-      subject: "English", 
-      avatar: "AJ",
-      performance: 76,
-      status: "needs-attention",
-      lastActivity: "2025-09-02",
-      assignments: 4,
-      pendingTasks: 3
-    },
-    { 
-      id: "4", 
-      name: "Sam Wilson", 
-      grade: "11th", 
-      email: "sam.wilson@student.vectorius.edu",
-      role: "student",
-      subject: "Chemistry", 
-      avatar: "SW",
-      performance: 94,
-      status: "excellent",
-      lastActivity: "2025-09-04",
-      assignments: 2,
-      pendingTasks: 0
-    },
-    { 
-      id: "5", 
-      name: "Annie de Vries", 
-      grade: "9th", 
-      email: "annie.devries@student.vectorius.edu",
-      role: "student",
-      subject: "CP Biology", 
-      avatar: "AV",
-      performance: 86,
-      status: "good",
-      lastActivity: "2025-09-05",
-      assignments: 2,
-      pendingTasks: 1
-    },
-  ];
+  useEffect(() => {
+    let isMounted = true;
+    const subjectOptions = ["Mathematics", "Science", "English", "History", "Biology"];
+    const performanceOptions = [92, 88, 76, 94, 86];
+
+    const loadStudents = async () => {
+      const { user } = await getCurrentProfile();
+
+      if (!isMounted) return;
+
+      if (!user) {
+        setLoadError("Please sign in to view your roster.");
+        setStudents([]);
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("students")
+        .select("id, first_name, last_name, grade, created_at")
+        .eq("advisor_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        setLoadError(error.message);
+        setStudents([]);
+        setIsLoading(false);
+        return;
+      }
+
+      setLoadError(null);
+      const nextStudents = (data ?? []).map((student, index) => {
+        const name = `${student.first_name} ${student.last_name ?? ""}`.trim() || "Student";
+        const subject = subjectOptions[index % subjectOptions.length];
+        const performance = performanceOptions[index % performanceOptions.length];
+        const status: StudentStatus =
+          performance >= 90 ? "excellent" : performance >= 80 ? "good" : "needs-attention";
+        const initials = name
+          .split(" ")
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0])
+          .join("")
+          .toUpperCase();
+
+        return {
+          id: student.id,
+          name,
+          grade: student.grade ?? null,
+          subject,
+          performance,
+          status,
+          lastActivity: student.created_at ?? new Date().toISOString(),
+          assignments: 2 + (index % 3),
+          pendingTasks: index % 2,
+          avatar: initials || "ST",
+        };
+      });
+
+      setStudents(nextStudents);
+      setSelectedStudentId((current) => {
+        if (!nextStudents.length) return null;
+        if (!current) return nextStudents[0].id;
+        return nextStudents.some((student) => student.id === current) ? current : nextStudents[0].id;
+      });
+      setIsLoading(false);
+    };
+
+    loadStudents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const assignments = [
     { id: 1, title: "Chapter 7 Practice Problems", subject: "Mathematics", dueDate: "2025-09-10", assigned: 12, completed: 8 },
@@ -119,12 +128,14 @@ export function AdvisorDashboard() {
     { from: "Parent - Mr. Wilson", message: "Thank you for the detailed progress report!", time: "1 day ago", priority: "low" },
   ];
 
-  const filteredStudents = students.filter(student =>
+  const filteredStudents = students.filter((student) =>
     student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.subject.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const selectedStudentData = students.find(student => student.id === selectedStudent);
+  const selectedStudentData = selectedStudentId
+    ? students.find((student) => student.id === selectedStudentId)
+    : undefined;
 
   const getStatusColor = (status: StudentStatus) => {
     switch (status) {
@@ -193,7 +204,9 @@ export function AdvisorDashboard() {
               <div>
                 <p className="text-sm text-purple-600 mb-1">Avg Performance</p>
                 <p className="text-2xl font-semibold text-purple-700">
-                  {Math.round(students.reduce((acc, s) => acc + s.performance, 0) / students.length)}%
+                  {students.length
+                    ? Math.round(students.reduce((acc, s) => acc + s.performance, 0) / students.length)
+                    : 0}%
                 </p>
               </div>
               <TrendingUp className="w-8 h-8 text-purple-500" />
@@ -239,50 +252,57 @@ export function AdvisorDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {filteredStudents.map((student) => (
-                  <div 
-                    key={student.id} 
-                    className={`flex items-center gap-4 p-4 rounded-lg border hover:bg-gray-50 transition-colors cursor-pointer ${
-                      selectedStudent === student.id ? 'ring-2 ring-blue-500 bg-blue-50' : ''
-                    }`}
-                    onClick={() => setSelectedStudent(student.id)}
-                  >
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage src="" alt={student.name} />
-                      <AvatarFallback className="bg-blue-100 text-blue-600">{student.avatar}</AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-gray-900">{student.name}</h4>
-                        <Badge variant="secondary" className={getStatusColor(student.status)}>
-                          {student.status.replace('-', ' ')}
-                        </Badge>
+                {isLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading roster...</p>
+                ) : loadError ? (
+                  <p className="text-sm text-red-600">{loadError}</p>
+                ) : filteredStudents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No assigned students yet.</p>
+                ) : (
+                  filteredStudents.map((student) => (
+                    <div 
+                      key={student.id} 
+                      className={`flex items-center gap-4 p-4 rounded-lg border hover:bg-gray-50 transition-colors cursor-pointer ${
+                        selectedStudentId === student.id ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+                      }`}
+                      onClick={() => setSelectedStudentId(student.id)}
+                    >
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src="" alt={student.name} />
+                        <AvatarFallback className="bg-blue-100 text-blue-600">{student.avatar}</AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-gray-900">{student.name}</h4>
+                          <Badge variant="secondary" className={getStatusColor(student.status)}>
+                            {student.status.replace('-', ' ')}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <span>{student.grade ? `${student.grade} Grade` : "Grade not set"}</span>
+                          <span>|</span>
+                          <span>{student.subject}</span>
+                          <span>|</span>
+                          <span>{student.performance}% avg</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
-                        <span>{student.grade} Grade</span>
-                        <span>•</span>
-                        <span>{student.subject}</span>
-                        <span>•</span>
-                        <span>{student.performance}% avg</span>
+                      
+                      <div className="flex items-center gap-3">
+                        {getStatusIcon(student.status)}
+                        {student.pendingTasks > 0 && (
+                          <Badge variant="destructive" className="text-xs">
+                            {student.pendingTasks} pending
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-3">
-                      {getStatusIcon(student.status)}
-                      {student.pendingTasks > 0 && (
-                        <Badge variant="destructive" className="text-xs">
-                          {student.pendingTasks} pending
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
-
-          {/* Assignment Management */}
+        {/* Assignment Management */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent Assignments</CardTitle>
@@ -336,7 +356,9 @@ export function AdvisorDashboard() {
                     </AvatarFallback>
                   </Avatar>
                   <h3 className="font-semibold text-gray-900">{selectedStudentData.name}</h3>
-                  <p className="text-sm text-gray-600">{selectedStudentData.grade} Grade • {selectedStudentData.subject}</p>
+                  <p className="text-sm text-gray-600">
+                    {selectedStudentData.grade ? `${selectedStudentData.grade} Grade` : "Grade not set"} | {selectedStudentData.subject}
+                  </p>
                 </div>
                 
                 <div className="space-y-3">

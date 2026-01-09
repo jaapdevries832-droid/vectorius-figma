@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase/client";
 import type { Database } from "@/src/types/supabase";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-type AppRole = Database["public"]["Enums"]["app_role"];
+type AppRole = Database["public"]["Tables"]["profiles"]["Row"]["role"];
 
 export async function getCurrentProfile(): Promise<{
   user: User | null;
