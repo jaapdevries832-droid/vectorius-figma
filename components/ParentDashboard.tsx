@@ -14,12 +14,23 @@ type StudentSummary = {
   first_name: string;
   last_name: string | null;
   grade: string | null;
+  advisor_id?: string | null;
 };
 
 type DeleteStatus = {
   type: "success" | "error";
   message: string;
 } | null;
+
+type AssignmentStatus = {
+  type: "success" | "error";
+  message: string;
+} | null;
+
+type AdvisorOption = {
+  id: string;
+  label: string;
+};
 
 type ParentDashboardProps = {
   email: string | null;
@@ -39,6 +50,13 @@ type ParentDashboardProps = {
   loadError: string | null;
   deleteStatus: DeleteStatus;
   onDeleteStudent: (id: string) => void;
+  advisors?: AdvisorOption[];
+  showAdvisorAssignments?: boolean;
+  advisorLoadError?: string | null;
+  isAdvisorsLoading?: boolean;
+  assigningStudentId?: string | null;
+  assignmentStatusByStudentId?: Record<string, AssignmentStatus | null>;
+  onAssignAdvisor?: (studentId: string, advisorId: string | null) => void;
   onSignOut?: () => void;
 };
 
@@ -60,6 +78,13 @@ export function ParentDashboard({
   loadError,
   deleteStatus,
   onDeleteStudent,
+  advisors = [],
+  showAdvisorAssignments = false,
+  advisorLoadError = null,
+  isAdvisorsLoading = false,
+  assigningStudentId = null,
+  assignmentStatusByStudentId = {},
+  onAssignAdvisor,
   onSignOut,
 }: ParentDashboardProps) {
   const studentOptions = students.map((student) => {
@@ -450,6 +475,49 @@ export function ParentDashboard({
                           {deletingStudentId === student.id ? "Deleting..." : "Delete"}
                         </button>
                       </div>
+                      {showAdvisorAssignments && (
+                        <div className="mt-3 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">Assign advisor</span>
+                            <Select
+                              value={student.advisor_id ?? "unassigned"}
+                              onValueChange={(value) => {
+                                if (!onAssignAdvisor) return;
+                                const nextAdvisorId = value === "unassigned" ? null : value;
+                                if ((student.advisor_id ?? null) === nextAdvisorId) return;
+                                onAssignAdvisor(student.id, nextAdvisorId);
+                              }}
+                              disabled={
+                                assigningStudentId === student.id || !onAssignAdvisor || isAdvisorsLoading
+                              }
+                            >
+                              <SelectTrigger className="h-8 w-44 text-xs">
+                                <SelectValue placeholder="Unassigned" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">Unassigned</SelectItem>
+                                {advisors.map((advisor) => (
+                                  <SelectItem key={advisor.id} value={advisor.id}>
+                                    {advisor.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {assignmentStatusByStudentId[student.id] && (
+                            <p
+                              className={cn(
+                                "text-xs",
+                                assignmentStatusByStudentId[student.id]?.type === "error"
+                                  ? "text-red-600"
+                                  : "text-green-600"
+                              )}
+                            >
+                              {assignmentStatusByStudentId[student.id]?.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -463,6 +531,15 @@ export function ParentDashboard({
                 >
                   {deleteStatus.message}
                 </p>
+              )}
+              {showAdvisorAssignments && advisorLoadError && (
+                <p className="mt-2 text-xs text-red-600">{advisorLoadError}</p>
+              )}
+              {showAdvisorAssignments && isAdvisorsLoading && (
+                <p className="mt-2 text-xs text-muted-foreground">Loading advisors...</p>
+              )}
+              {showAdvisorAssignments && !advisorLoadError && !isAdvisorsLoading && advisors.length === 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">No advisors available.</p>
               )}
             </CardContent>
           </Card>

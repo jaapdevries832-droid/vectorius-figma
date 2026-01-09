@@ -11,6 +11,17 @@ type Student = {
   first_name: string;
   last_name: string | null;
   grade: string | null;
+  advisor_id: string | null;
+};
+
+type AdvisorOption = {
+  id: string;
+  label: string;
+};
+
+type AssignmentStatus = {
+  type: "success" | "error";
+  message: string;
 };
 
 export default function ParentPage() {
@@ -33,12 +44,19 @@ export default function ParentPage() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [advisors, setAdvisors] = useState<AdvisorOption[]>([]);
+  const [advisorLoadError, setAdvisorLoadError] = useState<string | null>(null);
+  const [isAdvisorsLoading, setIsAdvisorsLoading] = useState(false);
+  const [assigningStudentId, setAssigningStudentId] = useState<string | null>(null);
+  const [assignmentStatusByStudentId, setAssignmentStatusByStudentId] = useState<
+    Record<string, AssignmentStatus | null>
+  >({});
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchStudents = useCallback(async () => {
     const { data, error } = await supabase
       .from("students")
-      .select("id, first_name, last_name, grade, created_at")
+      .select("id, first_name, last_name, grade, advisor_id, created_at")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -54,6 +72,32 @@ export default function ParentPage() {
       if (!current) return nextStudents[0].id;
       return nextStudents.some((student) => student.id === current) ? current : nextStudents[0].id;
     });
+  }, []);
+
+  const fetchAdvisors = useCallback(async () => {
+    setIsAdvisorsLoading(true);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, email")
+      .eq("role", "advisor")
+      .order("last_name", { ascending: true });
+
+    if (error) {
+      setAdvisorLoadError(error.message);
+      setAdvisors([]);
+      setIsAdvisorsLoading(false);
+      return;
+    }
+
+    const nextAdvisors = (data ?? []).map((advisor) => {
+      const name = `${advisor.first_name ?? ""} ${advisor.last_name ?? ""}`.trim();
+      const label = name || advisor.email || "Advisor";
+      return { id: advisor.id, label };
+    });
+
+    setAdvisorLoadError(null);
+    setAdvisors(nextAdvisors);
+    setIsAdvisorsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -81,6 +125,9 @@ export default function ParentPage() {
       setProfileRole(profile?.role ?? null);
 
       await fetchStudents();
+      if (profile?.role === "parent") {
+        await fetchAdvisors();
+      }
       setIsLoading(false);
     };
 
@@ -89,7 +136,7 @@ export default function ParentPage() {
     return () => {
       isMounted = false;
     };
-  }, [fetchStudents, router]);
+  }, [fetchAdvisors, fetchStudents, router]);
 
   const handleSignOut = async () => {
     setIsLoading(true);
@@ -159,6 +206,39 @@ export default function ParentPage() {
     setDeletingStudentId(null);
   };
 
+  const handleAssignAdvisor = async (studentId: string, advisorId: string | null) => {
+    setAssigningStudentId(studentId);
+    setAssignmentStatusByStudentId((current) => {
+      const next = { ...current };
+      delete next[studentId];
+      return next;
+    });
+
+    const { error } = await supabase
+      .from("students")
+      .update({ advisor_id: advisorId })
+      .eq("id", studentId);
+
+    if (error) {
+      setAssignmentStatusByStudentId((current) => ({
+        ...current,
+        [studentId]: { type: "error", message: error.message },
+      }));
+      setAssigningStudentId(null);
+      return;
+    }
+
+    await fetchStudents();
+    setAssignmentStatusByStudentId((current) => ({
+      ...current,
+      [studentId]: {
+        type: "success",
+        message: advisorId ? "Advisor assigned." : "Advisor cleared.",
+      },
+    }));
+    setAssigningStudentId(null);
+  };
+
   if (isLoading) {
     return (
       <main className="flex min-h-[80vh] items-center justify-center px-4">
@@ -200,6 +280,13 @@ export default function ParentPage() {
         loadError={loadError}
         deleteStatus={deleteStatus}
         onDeleteStudent={handleDeleteStudent}
+        advisors={advisors}
+        showAdvisorAssignments={profileRole === "parent"}
+        advisorLoadError={advisorLoadError}
+        isAdvisorsLoading={isAdvisorsLoading}
+        assigningStudentId={assigningStudentId}
+        assignmentStatusByStudentId={assignmentStatusByStudentId}
+        onAssignAdvisor={handleAssignAdvisor}
         onSignOut={handleSignOut}
       />
     </main>
