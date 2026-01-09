@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { getCurrentProfile } from "@/lib/profile";
 
 type AuthMode = "sign-in" | "sign-up";
 
@@ -52,7 +53,16 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/parent");
+    const { profile } = await getCurrentProfile();
+    const role = profile?.role ?? "parent";
+
+    if (role === "advisor") {
+      router.push("/advisor");
+    } else if (role === "student") {
+      router.push("/student");
+    } else {
+      router.push("/parent");
+    }
   };
 
   const toggleMode = (nextMode: AuthMode) => {
