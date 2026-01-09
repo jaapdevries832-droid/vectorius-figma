@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.4"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -243,34 +248,46 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string | null
           display_name: string | null
           email: string | null
+          first_name: string | null
           id: string
+          last_name: string | null
           last_seen_at: string | null
           lesson_29_test: string | null
           name: string | null
           role: string
+          updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string | null
           display_name?: string | null
           email?: string | null
+          first_name?: string | null
           id: string
+          last_name?: string | null
           last_seen_at?: string | null
           lesson_29_test?: string | null
           name?: string | null
           role: string
+          updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string | null
           display_name?: string | null
           email?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           last_seen_at?: string | null
           lesson_29_test?: string | null
           name?: string | null
           role?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -352,38 +369,52 @@ export type Database = {
       students: {
         Row: {
           created_at: string
-          email: string
+          email: string | null
           first_name: string
+          grade: string | null
           grade_level: number | null
           id: string
-          last_name: string
+          last_name: string | null
+          parent_id: string
           school_name: string | null
           status: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
-          email: string
+          email?: string | null
           first_name: string
+          grade?: string | null
           grade_level?: number | null
           id?: string
-          last_name: string
+          last_name?: string | null
+          parent_id: string
           school_name?: string | null
           status?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
-          email?: string
+          email?: string | null
           first_name?: string
+          grade?: string | null
           grade_level?: number | null
           id?: string
-          last_name?: string
+          last_name?: string | null
+          parent_id?: string
           school_name?: string | null
           status?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "students_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -393,6 +424,7 @@ export type Database = {
       auth_uid: { Args: never; Returns: string }
     }
     Enums: {
+      app_role: "parent" | "student" | "advisor" | "admin"
       assignment_status:
         | "todo"
         | "in_progress"
@@ -530,9 +562,9 @@ export const Constants = {
   },
   public: {
     Enums: {
+      app_role: ["parent", "student", "advisor", "admin"],
       assignment_status: ["todo", "in_progress", "done", "blocked", "archived"],
       parent_type: ["mother", "father", "guardian", "other"],
     },
   },
 } as const
-

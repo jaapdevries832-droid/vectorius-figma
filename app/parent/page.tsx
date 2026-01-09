@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { ParentDashboard } from "@/components/ParentDashboard";
+import { getCurrentProfile } from "@/lib/profile";
 
 type Student = {
   id: string;
@@ -16,6 +17,9 @@ export default function ParentPage() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [profileRole, setProfileRole] = useState<string | null>(null);
+  const [profileMissing, setProfileMissing] = useState(false);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("");
@@ -56,25 +60,25 @@ export default function ParentPage() {
     let isMounted = true;
 
     const loadUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
+      const { user, profile } = await getCurrentProfile();
 
       if (!isMounted) return;
 
-      if (error || !data.user) {
-        router.replace("/login");
+      if (!user) {
+        setAuthMessage("Please sign in");
+        setProfileMissing(false);
+        setProfileRole(null);
+        setEmail(null);
+        setUserId(null);
+        setIsLoading(false);
         return;
       }
 
-      setEmail(data.user.email ?? "Unknown");
-      setUserId(data.user.id);
-
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .upsert({ id: data.user.id }, { onConflict: "id" });
-
-      if (profileError) {
-        setLoadError(profileError.message);
-      }
+      setAuthMessage(null);
+      setEmail(user.email ?? "Unknown");
+      setUserId(user.id);
+      setProfileMissing(!profile);
+      setProfileRole(profile?.role ?? null);
 
       await fetchStudents();
       setIsLoading(false);
@@ -163,8 +167,21 @@ export default function ParentPage() {
     );
   }
 
+  if (authMessage) {
+    return (
+      <main className="flex min-h-[80vh] items-center justify-center px-4">
+        <p className="text-sm text-muted-foreground">{authMessage}</p>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-[80vh]">
+      {(profileMissing || profileRole) && (
+        <p className="px-4 py-2 text-xs text-muted-foreground">
+          {profileMissing ? "Profile missing (will be created later)" : `Role: ${profileRole}`}
+        </p>
+      )}
       <ParentDashboard
         email={email}
         students={students}
