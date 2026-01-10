@@ -328,17 +328,12 @@ export function StudentDashboard() {
       setCreateCourseError("Class title is required.");
       return;
     }
-    const subject = subjects[0];
-    if (!subject) {
-      setCreateCourseError("No subjects available. Ask an admin to add one.");
-      return;
-    }
     setIsCreatingCourse(true);
     const { id, error } = await createCourse({
       title: trimmedTitle,
       teacher_name: createTeacher.trim() || null,
       location: createLocation.trim() || null,
-      subject_id: subject.id,
+      subject_id: subjects[0]?.id ?? null,
       created_by_student_id: studentId,
     });
     if (error || !id) {
@@ -479,19 +474,8 @@ export function StudentDashboard() {
             </div>
           </div>
           
-          <div className="grid grid-cols-4 gap-6 pt-4">
-            {[
-              { label: "Mathematics", progress: 89, color: "bg-yellow-400" },
-              { label: "English", progress: 76, color: "bg-green-400" },
-              { label: "Chemistry", progress: 94, color: "bg-purple-400" },
-              { label: "History", progress: 67, color: "bg-pink-400" }
-            ].map((subject, index) => (
-              <div key={index} className="text-center">
-                <div className="text-lg font-semibold text-white mb-1">{subject.progress}%</div>
-                <div className={`h-2 ${subject.color} rounded-full mb-2 shadow-sm`} />
-                <div className="text-xs text-white/80">{subject.label}</div>
-              </div>
-            ))}
+          <div className="pt-4 text-sm text-white/90">
+            Subject breakdown will appear once real progress data is available.
           </div>
         </CardContent>
       </Card>
@@ -570,7 +554,7 @@ export function StudentDashboard() {
               </div>
               {subjects.length === 0 && !subjectsLoading && (
                 <div className="text-xs text-muted-foreground">
-                  No subjects available yet. Ask an admin to add one.
+                  No subjects available yet. You can still create a class.
                 </div>
               )}
               {createCourseError && <div className="text-sm text-red-600">{createCourseError}</div>}
@@ -579,7 +563,7 @@ export function StudentDashboard() {
                   size="sm"
                   type="submit"
                   className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
-                  disabled={isCreatingCourse || subjectsLoading || subjects.length === 0}
+                  disabled={isCreatingCourse || subjectsLoading}
                 >
                   Create Class
                 </Button>
