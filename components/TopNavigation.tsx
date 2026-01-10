@@ -91,14 +91,6 @@ export function TopNavigation({ currentRole, onRoleChange, currentUser, onLogout
                   {currentUser?.avatar || "U"}
                 </AvatarFallback>
               </Avatar>
-              <div className="hidden md:block text-left">
-                <p className="text-sm font-medium leading-none text-gray-900">
-                  {currentUser?.name || "User"}
-                </p>
-                <p className="text-xs capitalize text-blue-600">
-                  {currentUser?.role || currentRole}
-                </p>
-              </div>
               <ChevronDown className="w-4 h-4 text-blue-600" />
             </Button>
           </DropdownMenuTrigger>

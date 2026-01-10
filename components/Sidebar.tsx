@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react";
 import { Button } from "./ui/button";
 import { cn } from "./ui/utils";
 import { 
@@ -16,6 +17,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { Role, User } from "app/lib/domain";
 import type { SidebarItem } from 'app/lib/types';
+import { getCurrentProfile } from "@/lib/profile";
+import { supabase } from "@/lib/supabase/client";
 
 interface SidebarProps {
   currentRole: Role;
@@ -26,6 +29,56 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentRole, activeItem, onItemChange, currentUser, className }: SidebarProps) {
+  const [studentName, setStudentName] = React.useState<string | null>(null);
+  const [isStudentNameLoading, setIsStudentNameLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadStudentName = async () => {
+      if (currentRole !== 'student') {
+        setStudentName(null);
+        setIsStudentNameLoading(false);
+        return;
+      }
+
+      setIsStudentNameLoading(true);
+      const { user } = await getCurrentProfile();
+
+      if (!isMounted) return;
+
+      if (!user) {
+        setStudentName(null);
+        setIsStudentNameLoading(false);
+        return;
+      }
+
+      const { data: student, error } = await supabase
+        .from('students')
+        .select('first_name, last_name')
+        .eq('student_user_id', user.id)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      if (error || !student) {
+        setStudentName(null);
+        setIsStudentNameLoading(false);
+        return;
+      }
+
+      const fullName = `${student.first_name} ${student.last_name ?? ""}`.trim();
+      setStudentName(fullName || null);
+      setIsStudentNameLoading(false);
+    };
+
+    loadStudentName();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentRole]);
+
   const getMenuItems = (role: Role) => {
     const baseItems: { id: SidebarItem; label: string; icon: LucideIcon; color: string }[] = [
       { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard, color: '#3B82F6' },
@@ -48,6 +101,9 @@ export function Sidebar({ currentRole, activeItem, onItemChange, currentUser, cl
   };
 
   const menuItems = getMenuItems(currentRole);
+  const displayName = currentRole === 'student'
+    ? (isStudentNameLoading ? "Loading..." : (studentName ?? "No student profile found"))
+    : (currentUser?.name || "User");
 
   return (
     <aside className={cn(
@@ -106,7 +162,7 @@ export function Sidebar({ currentRole, activeItem, onItemChange, currentUser, cl
               </span>
             </div>
             <p className="font-medium text-gray-900">
-              {currentUser?.name || "User"}
+              {displayName}
             </p>
             <p className="text-sm capitalize text-blue-600">
               {currentUser?.role || currentRole}
