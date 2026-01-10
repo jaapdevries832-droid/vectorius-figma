@@ -1,0 +1,147 @@
+# Codex Guardrails (Vectorius) -- AUTONOMY MODE (Safe + Fast)
+
+## PURPOSE
+Maximize agent autonomy while keeping:
+- migrations clean (fix-forward only)
+- RLS safe (least privilege)
+- UI intact (no redesign)
+- changes testable and revertible (small vertical slices)
+
+This mode is designed for "I'm stepping away; build a meaningful chunk overnight."
+
+---
+
+## 0) Prime Directive
+Keep the app working. Prefer safe defaults over asking questions.
+Only stop on true blockers (commands failing, missing env vars, broken migrations, type errors that cannot be resolved locally).
+
+---
+
+## 1) Mandatory Startup (No pause required)
+Immediately do:
+1. `git status` (record branch + clean/dirty)
+2. If dirty: continue ONLY if uncommitted changes are clearly unrelated to the task; otherwise create a safety commit or stash with a clear message.
+3. Restate the objective in 1--2 sentences.
+4. Declare constraints:
+   - no UI redesign
+   - schema changes via new migrations only
+   - fix-forward only
+
+Then proceed without asking.
+
+---
+
+## 2) Default Decision Rules (Replace "Stop and Ask")
+If something is ambiguous, choose the most conservative option that keeps scope small:
+
+- Table naming: use existing patterns; otherwise choose simple plural nouns (`assignments`, `notes`, `schedule_items`).
+- Schema design: start minimal. Add only columns required to replace hardcoded UI data.
+- Relationships: use `user_id` / `parent_id` / `advisor_id` patterns already present. If unsure, store `owner_id` plus `student_id`.
+- RLS: deny-by-default. Allow only authenticated users to read/write their own rows.
+- UI: do not change layout/styling. Only replace data source and keep component props stable.
+- Types: prefer explicit selects and typed helpers. Avoid `select("*")` unless types are permissive.
+
+Only ask the user if:
+- a required env var is missing
+- a Supabase command fails in a way that requires high-risk repair
+- there's evidence the repo's existing schema contradicts the plan
+
+---
+
+## 3) Autonomy Scope Contract (Vertical Slices)
+Large requests must be executed as vertical slices.
+
+Rules:
+- Build an inventory + plan first (read-only).
+- Then implement slices sequentially.
+- One slice should touch at most:
+  - 1--2 screens OR
+  - 1 data family (table + queries + UI wiring)
+- Stop after completing the approved batch (default: 1--2 slices per run unless prompt says otherwise).
+
+---
+
+## 4) Supabase Schema Rules (Non-Negotiable)
+All schema changes must be SQL migrations in `/supabase/migrations`.
+
+Hard rules:
+- Never edit an existing migration file.
+- Fix-forward via a new migration.
+- Do not use `supabase db reset`.
+- Do not run `supabase migration repair` unless explicitly authorized in the prompt.
+
+Required workflow for schema changes:
+1. Create new migration file
+2. Edit ONLY the new migration
+3. `supabase db push`
+4. `supabase db pull`
+5. `supabase migration list`
+
+If `supabase db pull` is noisy/non-zero but indicates no changes:
+- treat as warning ONLY if `git status` and `supabase migration list` confirm sync.
+
+---
+
+## 5) Inventory-First for "Replace Dummy Data"
+When asked to replace hardcoded/mock data:
+1. Scan for dummy sources using ripgrep:
+   - `dummy|mock|placeholder|sample|TODO|hardcoded`
+   - `const .* = [`
+   - `data = [`
+2. Produce `docs/data-realization-plan.md` containing:
+   - file + symbol + line reference
+   - what UI element is impacted
+   - proposed source table/view
+   - required queries
+   - RLS notes
+   - slice plan (ordered)
+3. Commit the plan doc alone as `docs: add data realization plan` (no code changes).
+
+Then implement slices.
+
+---
+
+## 6) Build/Test Discipline (Per Slice)
+At the end of each slice:
+- run `npm run lint`
+- run `npm run build`
+- if tests exist: run `npm test` or repo's test command
+- fix failures before committing
+
+If lint/build fails and cannot be fixed without scope explosion:
+- stop and report the error, diff summary, and recommended next action.
+
+---
+
+## 7) Commit & Push Strategy (Optimized)
+Do NOT commit after every tiny edit. Commit after each completed slice.
+
+Per slice:
+- commit message format: `slice N: <feature> real data`
+- push immediately after commit
+- record commands executed and results
+
+---
+
+## 8) Safety: Forbidden Commands
+Do not run unless explicitly requested:
+- `supabase db reset`
+- `supabase migration repair`
+- `supabase db dump`
+- destructive deletes (`rm -rf`, deleting folders)
+- anything that prints secrets
+
+Never add secrets to git. Do not modify `.env*` except `.env.example` if needed.
+
+---
+
+## 9) End-of-Run Report (Required)
+At the end, output:
+- branch name + clean/dirty
+- slices completed
+- commands executed (in order)
+- files changed
+- migrations created
+- lint/build/test results
+- manual test paths (click-by-click)
+- known limitations + next recommended slice

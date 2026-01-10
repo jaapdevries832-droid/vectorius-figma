@@ -1,0 +1,51 @@
+# Slice Runner (Vectorius) — Standard Process
+
+Purpose: run one vertical slice end-to-end with minimal supervision, keeping UI stable and migrations clean.
+
+## Inputs
+- Slice definition lives in `docs/data-realization-plan.md` under “Chunked implementation plan (8 slices)”.
+- The agent run must target exactly ONE slice per execution.
+
+## Non-negotiable rules
+- No UI redesign. Keep layouts/styling intact; only swap data sources and wire to Supabase.
+- No broad refactors/renames/cleanup/format-only diffs.
+- All DB changes are new SQL migrations in `/supabase/migrations`. Never edit existing migrations. Fix-forward only.
+- Forbidden unless explicitly requested: `supabase db reset`, `supabase migration repair`, destructive deletes, commands that could expose secrets.
+
+## Standard execution steps (always)
+1) **Read-only discovery**
+   - Confirm current branch and clean/dirty state (`git status`).
+   - Open `docs/data-realization-plan.md` and extract the exact scope for the selected slice:
+     - files to touch
+     - hardcoded sources to replace
+     - proposed DB objects
+   - Inspect existing migrations/schema patterns; reuse naming conventions where possible.
+
+2) **Implementation (slice-only)**
+   - Create the minimum schema required (tables first; avoid views unless underlying tables are confirmed to exist).
+   - Enable RLS and implement least-privilege policies sufficient for the slice.
+   - Wire the UI to Supabase for that slice (read + write flows as required), keeping UI identical.
+
+3) **Verification**
+   - If schema changed: `supabase db push`, `supabase db pull`, `supabase migration list`.
+   - Run `npm run lint` and `npm run build` (and tests if present).
+   - Fix failures before committing.
+
+4) **Mark slice status in plan**
+   - Update `docs/data-realization-plan.md` by marking the slice as ✅ complete (or ⛔ blocked) with:
+     - date
+     - commit SHA
+     - brief notes (schema objects created, key UI files updated)
+     - manual test path
+
+5) **Commit & push (one commit per slice)**
+   - Stage only relevant files (migrations, touched code, plan doc + any slice docs).
+   - Commit message: `slice N: <short description> real data`
+   - `git push`
+
+## Stop conditions (only hard blockers)
+Stop only if:
+- missing required env var / config
+- Supabase command fails in a way that requires high-risk repair
+- schema mismatch prevents progress
+When stopping, output exact error, commands run, files changed, and smallest next action.
