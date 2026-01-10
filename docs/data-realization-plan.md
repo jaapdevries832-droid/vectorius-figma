@@ -106,7 +106,7 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 
 | Slice | Name | Status | PR/Commit | Completed (date) | Notes |
 |---:|---|---|---|---|---|
-| 1 | Skills modules | ⬜ |  |  |  |
+| 1 | Skills modules | ? | 0e3c7d0 | 2026-01-10 | skill_modules table + seed; MentorSkills reads modules from Supabase (read-only); manual: Mentor dashboard -> Skills -> modules list renders |
 | 2 | Skill assignments + notifications | ⬜ |  |  |  |
 | 3 | Student notes | ✅ | 5db9251 | 2026-01-10 | student_notes table + RLS; StudentDashboard notes read/add/delete; manual: Student dashboard -> Quick Notes add/delete |
 | 4 | Schedule | ⬜ |  |  |  |
