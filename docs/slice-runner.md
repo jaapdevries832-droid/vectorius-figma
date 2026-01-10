@@ -43,6 +43,17 @@ Purpose: run one vertical slice end-to-end with minimal supervision, keeping UI 
    - Commit message: `slice N: <short description> real data`
    - `git push`
 
+### Commit ordering rule
+
+A slice may require two commits:
+1) A code/schema commit implementing the slice.
+2) A documentation-only commit that records the slice commit SHA in
+   `docs/data-realization-plan.md`.
+
+Both commits together constitute a completed slice.
+
+Commit amendment is NOT required and should not be assumed.
+
 ## Stop conditions (only hard blockers)
 Stop only if:
 - missing required env var / config

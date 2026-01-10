@@ -23,3 +23,7 @@ When the user asks to “implement Slice X”, follow `docs/slice-runner.md`.
 
 The slice definitions and status live in `docs/data-realization-plan.md`.
 After each successful slice, update the status in the plan doc with ✅ + commit SHA.
+
+If implementing a slice, default behavior is to EXECUTE and commit.
+
+Documentation updates may follow in a second commit if required.

@@ -121,6 +121,24 @@ Per slice:
 - push immediately after commit
 - record commands executed and results
 
+Documentation-only commits are allowed when required for slice tracking.
+
+---
+
+## 7.1) Slice Completion Bookkeeping (Important)
+
+Some slices require updating documentation (e.g., `docs/data-realization-plan.md`)
+with the commit SHA of the slice implementation.
+
+Rules:
+- It is acceptable and expected to use TWO commits for a slice:
+  1) a code/schema commit that implements the slice
+  2) a documentation-only commit that records the slice commit SHA
+- Do NOT require `git commit --amend` unless the user explicitly approves it.
+- A slice is considered complete only after both commits are pushed (if a tracker update is required).
+
+This avoids blocking execution due to commit-SHA timing.
+
 ---
 
 ## 8) Safety: Forbidden Commands
