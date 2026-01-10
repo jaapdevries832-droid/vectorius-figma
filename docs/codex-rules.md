@@ -114,9 +114,14 @@ If migration history is inconsistent:
 ## 7) Handling `supabase db pull` Quirks
 If `supabase db pull` prints “No schema changes found” but exits non-zero:
 
-- Treat it as a likely CLI bug.
-- Run `git status` to confirm no repo file changes were created.
-- Continue only if working tree remains unchanged AND the user approves.
+-Exception: supabase db pull non-zero but no-op
+
+If supabase db pull prints “No schema changes found”
+
+AND git status shows no new migrations (or only the intended new migration)
+
+AND supabase migration list shows local/remote are in sync
+ Then treat it as a non-blocking warning and continue.
 
 If port 54320 is already allocated:
 - STOP and recommend freeing it (e.g., `supabase stop`)

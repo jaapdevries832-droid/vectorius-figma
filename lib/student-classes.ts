@@ -21,11 +21,29 @@ export type EnrollmentWithCourse = {
   course: CourseWithMeetings | null;
 };
 
+export type Subject = {
+  id: string;
+  name: string;
+};
+
 export async function fetchCourses(): Promise<CourseWithMeetings[]> {
   const { data, error } = await supabase
     .from("courses")
     .select("id, title, teacher_name, location, course_meetings(day_of_week, start_time, end_time)")
     .order("title", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function fetchSubjects(): Promise<Subject[]> {
+  const { data, error } = await supabase
+    .from("subjects")
+    .select("id, name")
+    .order("name", { ascending: true });
 
   if (error) {
     throw error;
@@ -67,6 +85,28 @@ export async function addEnrollment(studentId: string, courseId: string): Promis
   });
 
   return error ?? null;
+}
+
+export async function createCourse(params: {
+  title: string;
+  teacher_name?: string | null;
+  location?: string | null;
+  subject_id: string;
+  created_by_student_id: string;
+}): Promise<{ id: string | null; error: PostgrestError | null }> {
+  const { data, error } = await supabase
+    .from("courses")
+    .insert({
+      title: params.title,
+      teacher_name: params.teacher_name ?? null,
+      location: params.location ?? null,
+      subject_id: params.subject_id,
+      created_by_student_id: params.created_by_student_id,
+    })
+    .select("id")
+    .single();
+
+  return { id: data?.id ?? null, error: error ?? null };
 }
 
 export async function removeEnrollment(studentId: string, courseId: string): Promise<PostgrestError | null> {

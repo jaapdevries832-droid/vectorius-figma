@@ -12,13 +12,17 @@ import { getCurrentProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase/client";
 import {
   addEnrollment,
+  createCourse,
   fetchCourses,
   fetchMyEnrollments,
+  fetchSubjects,
   removeEnrollment,
   type CourseWithMeetings,
   type EnrollmentWithCourse,
+  type Subject,
 } from "@/lib/student-classes";
 import type { AssignedSkill } from "app/lib/types";
+import { Input } from "./ui/input";
 import {
   Select,
   SelectContent,
@@ -59,15 +63,23 @@ export function StudentDashboard() {
   const dueCountDisplay = dashboardMetrics ? dashboardMetrics.due : "--";
   const [assignedSkillsCount, setAssignedSkillsCount] = React.useState<number>(0)
   const [courses, setCourses] = React.useState<CourseWithMeetings[]>([]);
+  const [subjects, setSubjects] = React.useState<Subject[]>([]);
   const [enrollments, setEnrollments] = React.useState<EnrollmentWithCourse[]>([]);
   const [coursesLoading, setCoursesLoading] = React.useState(false);
+  const [subjectsLoading, setSubjectsLoading] = React.useState(false);
   const [enrollmentsLoading, setEnrollmentsLoading] = React.useState(false);
   const [coursesError, setCoursesError] = React.useState<string | null>(null);
+  const [subjectsError, setSubjectsError] = React.useState<string | null>(null);
   const [enrollmentsError, setEnrollmentsError] = React.useState<string | null>(null);
   const [enrollmentActionError, setEnrollmentActionError] = React.useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = React.useState<string>("");
   const [isAddingEnrollment, setIsAddingEnrollment] = React.useState(false);
   const [removingCourseId, setRemovingCourseId] = React.useState<string | null>(null);
+  const [createTitle, setCreateTitle] = React.useState("");
+  const [createTeacher, setCreateTeacher] = React.useState("");
+  const [createLocation, setCreateLocation] = React.useState("");
+  const [createCourseError, setCreateCourseError] = React.useState<string | null>(null);
+  const [isCreatingCourse, setIsCreatingCourse] = React.useState(false);
   React.useEffect(() => {
     try {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('assignedSkills') : null
@@ -106,6 +118,20 @@ export function StudentDashboard() {
       setCoursesError("Unable to load available classes right now.");
     } finally {
       setCoursesLoading(false);
+    }
+  }, []);
+
+  const loadSubjects = React.useCallback(async () => {
+    setSubjectsLoading(true);
+    setSubjectsError(null);
+    try {
+      const data = await fetchSubjects();
+      setSubjects(data);
+    } catch (error) {
+      console.error("Failed to load subjects", error);
+      setSubjectsError("Subjects are unavailable right now.");
+    } finally {
+      setSubjectsLoading(false);
     }
   }, []);
 
@@ -199,7 +225,8 @@ export function StudentDashboard() {
     if (!studentId) return;
     refreshEnrollments(studentId);
     loadCourses();
-  }, [studentId, refreshEnrollments, loadCourses]);
+    loadSubjects();
+  }, [studentId, refreshEnrollments, loadCourses, loadSubjects]);
 
   const enrolledCourseIds = React.useMemo(() => new Set(enrollments.map((item) => item.course_id)), [enrollments]);
   const availableCourses = React.useMemo(
@@ -290,6 +317,47 @@ export function StudentDashboard() {
     }
     await refreshEnrollments(studentId);
     setRemovingCourseId(null);
+  };
+
+  const handleCreateCourse = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!studentId) return;
+    setCreateCourseError(null);
+    const trimmedTitle = createTitle.trim();
+    if (!trimmedTitle) {
+      setCreateCourseError("Class title is required.");
+      return;
+    }
+    const subject = subjects[0];
+    if (!subject) {
+      setCreateCourseError("No subjects available. Ask an admin to add one.");
+      return;
+    }
+    setIsCreatingCourse(true);
+    const { id, error } = await createCourse({
+      title: trimmedTitle,
+      teacher_name: createTeacher.trim() || null,
+      location: createLocation.trim() || null,
+      subject_id: subject.id,
+      created_by_student_id: studentId,
+    });
+    if (error || !id) {
+      setCreateCourseError("Unable to create the class right now.");
+      setIsCreatingCourse(false);
+      return;
+    }
+    const enrollError = await addEnrollment(studentId, id);
+    if (enrollError) {
+      setCreateCourseError("Class created, but enrollment failed.");
+      setIsCreatingCourse(false);
+      await loadCourses();
+      return;
+    }
+    await Promise.all([loadCourses(), refreshEnrollments(studentId)]);
+    setCreateTitle("");
+    setCreateTeacher("");
+    setCreateLocation("");
+    setIsCreatingCourse(false);
   };
 
   return (
@@ -467,9 +535,58 @@ export function StudentDashboard() {
         </CardHeader>
         <CardContent className="space-grid-3">
           {coursesError && <div className="text-sm text-red-600">{coursesError}</div>}
+          {subjectsError && <div className="text-sm text-red-600">{subjectsError}</div>}
           {enrollmentsError && <div className="text-sm text-red-600">{enrollmentsError}</div>}
           {enrollmentActionError && <div className="text-sm text-red-600">{enrollmentActionError}</div>}
-          {availableCourses.length === 0 && !coursesLoading && (
+          {!coursesLoading && courses.length === 0 && (
+            <form
+              onSubmit={handleCreateCourse}
+              className="space-grid-3 rounded-2xl border border-gray-100 bg-white/60 p-4"
+            >
+              <div className="text-sm font-medium text-gray-900">Create a class</div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <Input
+                  placeholder="Class title"
+                  value={createTitle}
+                  onChange={(event) => setCreateTitle(event.target.value)}
+                  disabled={isCreatingCourse || subjectsLoading}
+                  required
+                  className="rounded-xl border-gray-200 bg-white/80"
+                />
+                <Input
+                  placeholder="Teacher (optional)"
+                  value={createTeacher}
+                  onChange={(event) => setCreateTeacher(event.target.value)}
+                  disabled={isCreatingCourse || subjectsLoading}
+                  className="rounded-xl border-gray-200 bg-white/80"
+                />
+                <Input
+                  placeholder="Location (optional)"
+                  value={createLocation}
+                  onChange={(event) => setCreateLocation(event.target.value)}
+                  disabled={isCreatingCourse || subjectsLoading}
+                  className="rounded-xl border-gray-200 bg-white/80"
+                />
+              </div>
+              {subjects.length === 0 && !subjectsLoading && (
+                <div className="text-xs text-muted-foreground">
+                  No subjects available yet. Ask an admin to add one.
+                </div>
+              )}
+              {createCourseError && <div className="text-sm text-red-600">{createCourseError}</div>}
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  type="submit"
+                  className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
+                  disabled={isCreatingCourse || subjectsLoading || subjects.length === 0}
+                >
+                  Create Class
+                </Button>
+              </div>
+            </form>
+          )}
+          {courses.length > 0 && availableCourses.length === 0 && !coursesLoading && (
             <div className="text-sm text-muted-foreground">No additional classes available.</div>
           )}
           {enrollmentsLoading && (
