@@ -474,6 +474,7 @@ export type Database = {
     }
     Functions: {
       auth_uid: { Args: never; Returns: string }
+      current_role: { Args: never; Returns: string }
     }
     Enums: {
       app_role: "parent" | "student" | "advisor" | "admin"
