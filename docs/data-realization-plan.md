@@ -108,7 +108,7 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 |---:|---|---|---|---|---|
 | 1 | Skills modules | ⬜ |  |  |  |
 | 2 | Skill assignments + notifications | ⬜ |  |  |  |
-| 3 | Student notes | ⬜ |  |  |  |
+| 3 | Student notes | ✅ | 5db9251 | 2026-01-10 | student_notes table + RLS; StudentDashboard notes read/add/delete; manual: Student dashboard -> Quick Notes add/delete |
 | 4 | Schedule | ⬜ |  |  |  |
 | 5 | Advisor data | ⬜ |  |  |  |
 | 6 | Parent data | ⬜ |  |  |  |
