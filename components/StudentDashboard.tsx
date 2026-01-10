@@ -33,6 +33,7 @@ import {
 
 export function StudentDashboard() {
   const { setActiveItem } = useRoleLayout();
+  const noteColors = ["sticky-note", "sticky-note-blue", "sticky-note-green"];
   const [studentName, setStudentName] = React.useState<string | null>(null);
   const [studentInitials, setStudentInitials] = React.useState<string | null>(null);
   const [studentId, setStudentId] = React.useState<string | null>(null);
@@ -52,11 +53,9 @@ export function StudentDashboard() {
     { id: 4, title: "History Timeline Project", subject: "History", dueDate: "2025-09-12", completed: false, priority: "medium" },
   ];
 
-  const notes = [
-    { text: "Remember to study for Chemistry quiz next week", color: "sticky-note" },
-    { text: "Ask Ms. Johnson about extra credit opportunities", color: "sticky-note-blue" },
-    { text: "Join study group for Math on Friday", color: "sticky-note-green" },
-  ];
+  const [notes, setNotes] = React.useState<
+    { id: string; body: string; color: string; created_at: string }[]
+  >([]);
 
   const overallProgress = dashboardMetrics?.progressPercent ?? 0;
   const avgGradeDisplay = dashboardMetrics?.avgGradePercent != null ? `${dashboardMetrics.avgGradePercent}%` : "—";
@@ -105,6 +104,22 @@ export function StudentDashboard() {
     } finally {
       setEnrollmentsLoading(false);
     }
+  }, []);
+
+  const loadNotes = React.useCallback(async (studentIdValue: string) => {
+    const { data, error } = await supabase
+      .from("student_notes")
+      .select("id, body, color, created_at")
+      .eq("student_id", studentIdValue)
+      .is("archived_at", null)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Failed to load notes", error);
+      return;
+    }
+
+    setNotes(data ?? []);
   }, []);
 
   const loadCourses = React.useCallback(async () => {
@@ -226,7 +241,8 @@ export function StudentDashboard() {
     refreshEnrollments(studentId);
     loadCourses();
     loadSubjects();
-  }, [studentId, refreshEnrollments, loadCourses, loadSubjects]);
+    loadNotes(studentId);
+  }, [studentId, refreshEnrollments, loadCourses, loadSubjects, loadNotes]);
 
   const enrolledCourseIds = React.useMemo(() => new Set(enrollments.map((item) => item.course_id)), [enrollments]);
   const availableCourses = React.useMemo(
@@ -353,6 +369,46 @@ export function StudentDashboard() {
     setCreateTeacher("");
     setCreateLocation("");
     setIsCreatingCourse(false);
+  };
+
+  const handleAddNote = async () => {
+    if (!studentId) return;
+    const input = window.prompt("Add a quick note");
+    if (!input) return;
+    const body = input.trim();
+    if (!body) return;
+    const color = noteColors[notes.length % noteColors.length];
+    const { data, error } = await supabase
+      .from("student_notes")
+      .insert({ student_id: studentId, body, color })
+      .select("id, body, color, created_at")
+      .single();
+
+    if (error) {
+      console.error("Failed to add note", error);
+      return;
+    }
+
+    if (data) {
+      setNotes((prev) => [data, ...prev]);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!studentId) return;
+    const confirmed = window.confirm("Delete this note?");
+    if (!confirmed) return;
+    const { error } = await supabase
+      .from("student_notes")
+      .delete()
+      .eq("id", noteId);
+
+    if (error) {
+      console.error("Failed to delete note", error);
+      return;
+    }
+
+    setNotes((prev) => prev.filter((note) => note.id !== noteId));
   };
 
   return (
@@ -724,14 +780,18 @@ export function StudentDashboard() {
                 </div>
                 Quick Notes
               </CardTitle>
-              <Button size="sm" variant="ghost" className="p-2 rounded-xl hover:bg-gray-100">
+              <Button size="sm" variant="ghost" className="p-2 rounded-xl hover:bg-gray-100" onClick={handleAddNote}>
                 <Plus className="w-4 h-4" />
               </Button>
             </CardHeader>
             <CardContent className="space-grid-3">
-              {notes.map((note, index) => (
-                <div key={index} className={`p-4 rounded-xl ${note.color} shadow-sm cursor-pointer`}>
-                  <p className="text-sm font-medium text-gray-800 leading-relaxed">{note.text}</p>
+              {notes.map((note) => (
+                <div
+                  key={note.id}
+                  className={`p-4 rounded-xl ${note.color} shadow-sm cursor-pointer`}
+                  onClick={() => handleDeleteNote(note.id)}
+                >
+                  <p className="text-sm font-medium text-gray-800 leading-relaxed">{note.body}</p>
                 </div>
               ))}
             </CardContent>
