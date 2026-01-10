@@ -37,51 +37,56 @@ export default function LoginPage() {
     setIsLoading(true);
     setStatus(null);
 
-    if (mode === "sign-up") {
-      if (!signupRole) {
-        setStatus({ type: "error", message: "Please choose a role to continue." });
-        setIsLoading(false);
-        return;
-      }
+    try {
+      if (mode === "sign-up") {
+        if (!signupRole) {
+          setStatus({ type: "error", message: "Please choose a role to continue." });
+          return;
+        }
 
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            role: signupRole,
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              role: signupRole,
+            },
           },
-        },
-      });
-      if (error) {
-        setStatus({ type: "error", message: error.message });
-      } else {
+        });
+        if (error) {
+          setStatus({ type: "error", message: error.message });
+          return;
+        }
+
         if (data.session) {
           router.push(`/${signupRole}`);
         } else {
           setStatus({ type: "success", message: "Check your email to confirm your account." });
         }
+        return;
       }
+
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setStatus({ type: "error", message: error.message });
+        return;
+      }
+
+      const { profile } = await getCurrentProfile();
+      const role = profile?.role ?? "parent";
+
+      if (role === "advisor") {
+        router.push("/advisor");
+      } else if (role === "student") {
+        router.push("/student");
+      } else {
+        router.push("/parent");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to sign in right now.";
+      setStatus({ type: "error", message });
+    } finally {
       setIsLoading(false);
-      return;
-    }
-
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setStatus({ type: "error", message: error.message });
-      setIsLoading(false);
-      return;
-    }
-
-    const { profile } = await getCurrentProfile();
-    const role = profile?.role ?? "parent";
-
-    if (role === "advisor") {
-      router.push("/advisor");
-    } else if (role === "student") {
-      router.push("/student");
-    } else {
-      router.push("/parent");
     }
   };
 
