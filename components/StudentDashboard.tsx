@@ -23,6 +23,13 @@ export function StudentDashboard() {
   const [studentId, setStudentId] = React.useState<string | null>(null);
   const [headerMessage, setHeaderMessage] = React.useState<string | null>(null);
   const [assignmentCounts, setAssignmentCounts] = React.useState<{ total: number; completed: number } | null>(null);
+  const [dashboardMetrics, setDashboardMetrics] = React.useState<{
+    total: number;
+    completed: number;
+    due: number;
+    avgGradePercent: number | null;
+    progressPercent: number;
+  } | null>(null);
   const assignments = [
     { id: 1, title: "Math Homework Ch. 7", subject: "Mathematics", dueDate: "2025-09-06", completed: false, priority: "high" },
     { id: 2, title: "Essay: Climate Change", subject: "English", dueDate: "2025-09-08", completed: true, priority: "medium" },
@@ -36,7 +43,9 @@ export function StudentDashboard() {
     { text: "Join study group for Math on Friday", color: "sticky-note-green" },
   ];
 
-  const overallProgress = 72;
+  const overallProgress = dashboardMetrics?.progressPercent ?? 0;
+  const avgGradeDisplay = dashboardMetrics?.avgGradePercent != null ? `${dashboardMetrics.avgGradePercent}%` : "—";
+  const dueCountDisplay = dashboardMetrics ? dashboardMetrics.due : "--";
   const [assignedSkillsCount, setAssignedSkillsCount] = React.useState<number>(0)
   React.useEffect(() => {
     try {
@@ -55,6 +64,12 @@ export function StudentDashboard() {
     setCurrentUser(getCurrentUser());
   }, []);
 
+  const endOfDay = (d: Date) => {
+    const nd = new Date(d);
+    nd.setHours(23, 59, 59, 999);
+    return nd;
+  };
+
   React.useEffect(() => {
     let isMounted = true;
 
@@ -68,6 +83,7 @@ export function StudentDashboard() {
         setStudentInitials(null);
         setStudentId(null);
         setAssignmentCounts(null);
+        setDashboardMetrics(null);
         return;
       }
 
@@ -85,6 +101,7 @@ export function StudentDashboard() {
         setStudentInitials(null);
         setStudentId(null);
         setAssignmentCounts(null);
+        setDashboardMetrics(null);
         return;
       }
 
@@ -97,19 +114,33 @@ export function StudentDashboard() {
 
       const { data: assignmentRows } = await supabase
         .from("assignments")
-        .select("id, completed_at, status")
+        .select("id, completed_at, due_at, score, max_score")
         .eq("student_id", student.id);
 
       if (!isMounted) return;
 
       const rows = assignmentRows ?? [];
       const total = rows.length;
-      const completed = rows.filter((row) => {
-        if (row.completed_at) return true;
-        return row.status === "done" || row.status === "completed";
-      }).length;
+      const completed = rows.filter((row) => row.completed_at).length;
+      const endOfToday = endOfDay(new Date());
+      let due = 0;
+      let sumScore = 0;
+      let sumMax = 0;
+      rows.forEach((row) => {
+        if (!row.completed_at && row.due_at) {
+          const dueAt = new Date(row.due_at);
+          if (dueAt < endOfToday) due += 1;
+        }
+        if (row.max_score != null && row.score != null) {
+          sumScore += row.score;
+          sumMax += row.max_score;
+        }
+      });
+      const avgGradePercent = sumMax > 0 ? Math.round((sumScore / sumMax) * 100) : null;
+      const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
       setAssignmentCounts({ total, completed });
+      setDashboardMetrics({ total, completed, due, avgGradePercent, progressPercent });
     };
 
     loadStudent();
@@ -219,7 +250,7 @@ export function StudentDashboard() {
                 <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mb-2 shadow-lg">
                   <TrendingUp className="w-6 h-6 text-white" />
                 </div>
-                <div className="text-2xl font-semibold text-purple-600">92%</div>
+                <div className="text-2xl font-semibold text-purple-600">{avgGradeDisplay}</div>
                 <div className="text-sm text-gray-600">Avg Grade</div>
               </div>
               {/* Points card */}
@@ -227,11 +258,11 @@ export function StudentDashboard() {
                 <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mb-2 shadow-lg">
                   <Trophy className="w-6 h-6 text-white" />
                 </div>
-                <div className="text-2xl font-semibold text-amber-600">350</div>
-                <div className="text-sm text-gray-600">Points</div>
+                <div className="text-2xl font-semibold text-amber-600">{dueCountDisplay}</div>
+                <div className="text-sm text-gray-600">Due</div>
                 <div className="mt-2 flex flex-col items-center gap-1">
                   <button
-                    aria-label="Daily Streak"
+                    aria-label="Due through today"
                     className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-50 text-orange-700 text-xs border border-orange-200 hover:bg-orange-100 transition"
                     onClick={() => {
                       // TODO: open streak history modal
@@ -239,9 +270,9 @@ export function StudentDashboard() {
                     }}
                   >
                     <Flame className="w-3.5 h-3.5" />
-                    Daily Streak · 12 days
+                    Due through today
                   </button>
-                  <div className="text-xs text-gray-500">Earn points for completing tasks on time</div>
+                  <div className="text-xs text-gray-500">Assignments due or overdue by end of today</div>
                 </div>
               </div>
             </div>
