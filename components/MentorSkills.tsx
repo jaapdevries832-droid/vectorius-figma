@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Search, Plus, Edit, Trash2, Send, Users, Brain, ClipboardCheck } from 'lucide-react'
-import type { AssignedSkill, SkillModule } from 'app/lib/types'
+import type { SkillModule } from 'app/lib/types'
 import type { Student } from 'app/lib/domain'
 import { DEFAULT_SKILL_MODULES } from 'app/lib/skills-data'
 import { supabase } from '@/lib/supabase/client'
@@ -24,18 +24,7 @@ type MentorNotification = {
 }
 
 const STORAGE_KEYS = {
-  assignments: 'assignedSkills',
   notifications: 'mentorNotifications'
-}
-function loadAssignments(): AssignedSkill[] {
-  if (typeof window === 'undefined') return []
-  const raw = localStorage.getItem(STORAGE_KEYS.assignments)
-  if (!raw) return []
-  try { return JSON.parse(raw) } catch { return [] }
-}
-function saveAssignments(asg: AssignedSkill[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(STORAGE_KEYS.assignments, JSON.stringify(asg))
 }
 function loadNotifications(): MentorNotification[] {
   if (typeof window === 'undefined') return []
@@ -50,7 +39,6 @@ function saveNotifications(items: MentorNotification[]) {
 
 export function MentorSkills() {
   const [modules, setModules] = useState<SkillModule[]>([])
-  const [assignments, setAssignments] = useState<AssignedSkill[]>([])
   const [notifications, setNotifications] = useState<MentorNotification[]>([])
   const [query, setQuery] = useState('')
   const [topicFilter, setTopicFilter] = useState<string>('all')
@@ -58,18 +46,52 @@ export function MentorSkills() {
   const [selectedModule, setSelectedModule] = useState<SkillModule | null>(null)
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
   const [notes, setNotes] = useState('')
-
-  const students: Student[] = [
-    { id: '1', name: 'Jordan Davis', email: 'jordan.davis@student.vectorius.edu', role: 'student' },
-    { id: '2', name: 'Taylor Davis', email: 'taylor.davis@student.vectorius.edu', role: 'student' },
-    { id: '3', name: 'Alex Johnson', email: 'alex.johnson@student.vectorius.edu', role: 'student' },
-    { id: '4', name: 'Sam Wilson', email: 'sam.wilson@student.vectorius.edu', role: 'student' },
-    { id: '5', name: 'Annie de Vries', email: 'annie.devries@student.vectorius.edu', role: 'student' },
-  ]
+  const [advisorId, setAdvisorId] = useState<string | null>(null)
+  const [students, setStudents] = useState<Student[]>([])
 
   useEffect(() => {
-    setAssignments(loadAssignments())
     setNotifications(loadNotifications())
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+    const loadAdvisorStudents = async () => {
+      const { data: userData, error: userError } = await supabase.auth.getUser()
+      if (userError || !userData.user) {
+        console.error('Failed to load mentor profile for skill assignments', userError)
+        return
+      }
+
+      if (!isMounted) return
+      setAdvisorId(userData.user.id)
+
+      const { data, error } = await supabase
+        .from('students')
+        .select('id, first_name, last_name, email')
+        .eq('advisor_id', userData.user.id)
+        .order('created_at', { ascending: false })
+
+      if (!isMounted) return
+      if (error) {
+        console.error('Failed to load students for skill assignments', error)
+        return
+      }
+
+      const normalized = (data ?? []).map((row) => ({
+        id: row.id,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' '),
+        email: row.email ?? '',
+        role: 'student'
+      })) as Student[]
+
+      setStudents(normalized)
+    }
+
+    loadAdvisorStudents()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   useEffect(() => {
@@ -108,7 +130,6 @@ export function MentorSkills() {
       isMounted = false
     }
   }, [])
-  useEffect(() => { saveAssignments(assignments) }, [assignments])
   useEffect(() => { saveNotifications(notifications) }, [notifications])
 
   const filtered = useMemo(() => {
@@ -131,19 +152,32 @@ export function MentorSkills() {
   function toggleStudent(id: string) {
     setSelectedStudents(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
-  function confirmAssign() {
+  async function confirmAssign() {
     if (!selectedModule || selectedStudents.length === 0) return
-    const created: AssignedSkill[] = selectedStudents.map(sid => ({
-      id: `asg-${Date.now()}-${sid}`,
-      moduleId: selectedModule.id,
-      studentId: sid,
-      notes,
-      status: 'not_started',
-      assignedAt: new Date().toISOString(),
+    if (!advisorId) {
+      console.error('Cannot assign skill modules without a mentor profile')
+      return
+    }
+
+    const payload = selectedStudents.map((studentId) => ({
+      skill_module_id: selectedModule.id,
+      student_id: studentId,
+      assigned_by: advisorId,
+      assigned_at: new Date().toISOString()
     }))
-    setAssignments(prev => [...created, ...prev])
+
+    const { error } = await supabase
+      .from('skill_assignments')
+      .insert(payload)
+
+    if (error) {
+      console.error('Failed to assign skill modules', error)
+      return
+    }
+
     setOpenAssign(false)
-    // Notification to student simulated via localStorage; student dashboard reads assignments
+    setSelectedStudents([])
+    setNotes('')
   }
 
   return (

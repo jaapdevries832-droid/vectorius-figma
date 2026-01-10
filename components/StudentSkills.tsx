@@ -6,12 +6,9 @@ import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Play, ExternalLink, CheckCircle, BookOpen, Trophy } from 'lucide-react'
 import type { SkillModule, AssignedSkill } from 'app/lib/types'
+import { supabase } from '@/lib/supabase/client'
 
-const STORAGE_KEYS = {
-  modules: 'skillModules',
-  assignments: 'assignedSkills',
-  notifications: 'mentorNotifications'
-}
+const NOTIFICATION_STORAGE_KEY = 'mentorNotifications'
 
 type MentorNotification = {
   studentId: string
@@ -21,42 +18,131 @@ type MentorNotification = {
   completedAt: string
 }
 
-function loadModules(): SkillModule[] {
-  if (typeof window === 'undefined') return []
-  const raw = localStorage.getItem(STORAGE_KEYS.modules)
-  if (!raw) return []
-  try { return JSON.parse(raw) } catch { return [] }
-}
-function loadAssignments(): AssignedSkill[] {
-  if (typeof window === 'undefined') return []
-  const raw = localStorage.getItem(STORAGE_KEYS.assignments)
-  if (!raw) return []
-  try { return JSON.parse(raw) } catch { return [] }
-}
-function saveAssignments(asg: AssignedSkill[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(STORAGE_KEYS.assignments, JSON.stringify(asg))
-}
 function pushNotification(n: MentorNotification) {
   if (typeof window === 'undefined') return
-  const raw = localStorage.getItem(STORAGE_KEYS.notifications)
+  const raw = localStorage.getItem(NOTIFICATION_STORAGE_KEY)
   const arr = raw ? (()=>{ try { return JSON.parse(raw) as MentorNotification[] } catch { return [] } })() : []
   arr.unshift(n)
-  localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(arr))
+  localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(arr))
 }
 
 export function StudentSkills() {
-  const studentId = '1' // demo: Jordan Davis
   const [mods, setMods] = useState<SkillModule[]>([])
   const [assignments, setAssignments] = useState<AssignedSkill[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [studentId, setStudentId] = useState<string | null>(null)
+  const [studentName, setStudentName] = useState('Student')
 
   useEffect(() => {
-    setMods(loadModules())
-    setAssignments(loadAssignments())
+    let isMounted = true
+    const loadModules = async () => {
+      const { data, error } = await supabase
+        .from('skill_modules')
+        .select('id, title, description, objectives, media, duration, difficulty, topic')
+        .is('archived_at', null)
+        .order('created_at', { ascending: false })
+
+      if (!isMounted) return
+      if (error) {
+        console.error('Failed to load skill modules', error)
+        return
+      }
+
+      const normalized = (data ?? []).map((row) => ({
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        objectives: row.objectives ?? [],
+        media: Array.isArray(row.media) ? row.media : [],
+        duration: row.duration ?? undefined,
+        difficulty: row.difficulty ?? undefined,
+        topic: row.topic ?? undefined
+      })) as SkillModule[]
+
+      setMods(normalized)
+    }
+
+    loadModules()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
-  const mine = useMemo(() => assignments.filter(a => a.studentId === studentId), [assignments])
+  useEffect(() => {
+    let isMounted = true
+    const loadStudentId = async () => {
+      const { data: userData, error: userError } = await supabase.auth.getUser()
+      if (userError || !userData.user) {
+        console.error('Failed to resolve student profile', userError)
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('students')
+        .select('id, first_name, last_name')
+        .eq('student_user_id', userData.user.id)
+        .maybeSingle()
+
+      if (!isMounted) return
+      if (error) {
+        console.error('Failed to load student profile', error)
+        return
+      }
+      if (!data) {
+        console.error('Student profile missing for current user')
+        return
+      }
+
+      setStudentId(data.id)
+      setStudentName([data.first_name, data.last_name].filter(Boolean).join(' ') || 'Student')
+    }
+
+    loadStudentId()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!studentId) return
+    let isMounted = true
+    const loadAssignments = async () => {
+      const { data, error } = await supabase
+        .from('skill_assignments')
+        .select('id, skill_module_id, student_id, assigned_at, completed_at')
+        .eq('student_id', studentId)
+        .order('assigned_at', { ascending: false })
+
+      if (!isMounted) return
+      if (error) {
+        console.error('Failed to load skill assignments', error)
+        return
+      }
+
+      const normalized = (data ?? []).map((row) => ({
+        id: row.id,
+        moduleId: row.skill_module_id,
+        studentId: row.student_id,
+        status: row.completed_at ? 'completed' : 'not_started',
+        assignedAt: row.assigned_at,
+        completedAt: row.completed_at ?? undefined
+      })) as AssignedSkill[]
+
+      setAssignments(normalized)
+    }
+
+    loadAssignments()
+
+    return () => {
+      isMounted = false
+    }
+  }, [studentId])
+
+  const mine = useMemo(() => (
+    studentId ? assignments.filter(a => a.studentId === studentId) : []
+  ), [assignments, studentId])
   const current = useMemo(() => {
     if (!activeId) return null
     const asg = mine.find(a => a.id === activeId)
@@ -65,27 +151,43 @@ export function StudentSkills() {
   }, [activeId, mine, mods])
 
   function startModule(a: AssignedSkill) {
+    if (!studentId) {
+      console.error('Cannot start a module without a student profile')
+      return
+    }
     setAssignments(prev => {
       const next: AssignedSkill[] = prev.map(x =>
         x.id === a.id ? { ...x, status: "in_progress" } : x
       )
-      saveAssignments(next)
       return next
     })
     setActiveId(a.id)
   }
-  function completeModule(a: AssignedSkill) {
+  async function completeModule(a: AssignedSkill) {
+    if (!studentId) {
+      console.error('Cannot complete a module without a student profile')
+      return
+    }
     const completedAt = new Date().toISOString()
+    const { error } = await supabase
+      .from('skill_assignments')
+      .update({ completed_at: completedAt })
+      .eq('id', a.id)
+
+    if (error) {
+      console.error('Failed to complete skill assignment', error)
+      return
+    }
+
     setAssignments(prev => {
       const next: AssignedSkill[] = prev.map(x =>
         x.id === a.id ? { ...x, status: "completed", completedAt } : x
       )
-      saveAssignments(next)
       return next
     })
     // Notify mentor
     const mod = mods.find(m => m.id === a.moduleId)
-    pushNotification({ studentId, studentName: 'Jordan Davis', moduleId: a.moduleId, moduleTitle: mod?.title, completedAt })
+    pushNotification({ studentId, studentName, moduleId: a.moduleId, moduleTitle: mod?.title, completedAt })
     alert('Great job! You earned +20 points for completing a skill module.')
   }
 
