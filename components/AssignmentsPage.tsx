@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
@@ -10,8 +10,24 @@ import { AssignmentModal, type AssignmentInput, type AssignmentType } from "./As
 import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Edit, Trash2, Plus, ExternalLink, Copy, ChevronDown, Check, Trophy } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { GamificationCongratsModal } from "./GamificationCongratsModal"
+import { supabase } from "@/lib/supabase/client"
+import { getCurrentProfile } from "@/lib/profile"
 
-type Assignment = AssignmentInput & { id: string; completed?: boolean; pointsAvailable?: number; pointsEarned?: number }
+type Assignment = {
+  id: string
+  title: string
+  type: AssignmentType
+  classId: string
+  dueAt: string | null
+  notes?: string | null
+  status: string
+  completedAt: string | null
+  courseTitle?: string | null
+  courseTeacher?: string | null
+  priority?: string | null
+  pointsAvailable?: number
+  pointsEarned?: number
+}
 
 const typeMeta: Record<AssignmentType, { icon: LucideIcon; color: string; badge: string }> = {
   homework: { icon: BookOpen, color: 'text-blue-600', badge: 'bg-blue-100 text-blue-700 border-blue-200' },
@@ -25,88 +41,198 @@ function formatMonthDay(iso: string) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function isSameDate(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-}
-
 function startOfDay(d: Date) { const nd = new Date(d); nd.setHours(0,0,0,0); return nd }
-function categorize(dueIso: string) {
-  const today = startOfDay(new Date())
-  const due = startOfDay(new Date(dueIso))
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
-  const endOfWeek = new Date(today); endOfWeek.setDate(today.getDate() + 7)
-  if (due < today) return 'Overdue'
-  if (isSameDate(due, today)) return 'Due Today'
-  if (isSameDate(due, tomorrow)) return 'Due Tomorrow'
-  if (due <= endOfWeek) return 'This Week'
-  return 'Later'
+function endOfDay(d: Date) { const nd = new Date(d); nd.setHours(23, 59, 59, 999); return nd }
+function categorize(dueIso: string | null) {
+  if (!dueIso) return 'Upcoming'
+  const startToday = startOfDay(new Date())
+  const endToday = endOfDay(startToday)
+  const due = new Date(dueIso)
+  if (due < startToday) return 'Overdue'
+  if (due <= endToday) return 'Today'
+  return 'Upcoming'
 }
 
 export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: ScheduledCourse[] }) {
   const [open, setOpen] = useState<Record<string, boolean>>({
     Overdue: true,
-    'Due Today': true,
-    'Due Tomorrow': true,
-    'This Week': true,
-    Later: true,
+    Today: true,
+    Upcoming: true,
   })
   const [isOpen, setIsOpen] = useState(false)
-  const [assignments, setAssignments] = useState<Assignment[]>([
-    { id: 'a1', title: 'Chapter 7 Homework', type: 'homework', classId: classes[0]?.id ?? '', dueDate: new Date().toISOString().split('T')[0], completed: false },
-    { id: 'a2', title: 'Lab Safety Quiz', type: 'quiz', classId: classes[1]?.id ?? '', dueDate: (()=>{ const d=new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0] })(), completed: false },
-    { id: 'a3', title: 'Poetry Analysis', type: 'project', classId: classes[2]?.id ?? '', dueDate: (()=>{ const d=new Date(); d.setDate(d.getDate()+3); return d.toISOString().split('T')[0] })(), notes: 'Focus on imagery.', completed: false },
-    { id: 'a4', title: 'Midterm Test', type: 'test', classId: classes[3]?.id ?? classes[0]?.id ?? '', dueDate: (()=>{ const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0] })(), completed: false },
-  ])
+  const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [studentId, setStudentId] = useState<string | null>(null)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [congratsOpen, setCongratsOpen] = useState(false)
   const [congratsPoints, setCongratsPoints] = useState(0)
 
+  useEffect(() => {
+    let isMounted = true
+
+    const loadAssignments = async () => {
+      setIsLoading(true)
+      setLoadError(null)
+
+      const { user } = await getCurrentProfile()
+
+      if (!isMounted) return
+
+      if (!user) {
+        setLoadError('Please sign in to view assignments.')
+        setAssignments([])
+        setIsLoading(false)
+        return
+      }
+
+      const { data: student, error: studentError } = await supabase
+        .from('students')
+        .select('id')
+        .eq('student_user_id', user.id)
+        .maybeSingle()
+
+      if (!isMounted) return
+
+      if (studentError) {
+        setLoadError(studentError.message)
+        setAssignments([])
+        setIsLoading(false)
+        return
+      }
+
+      if (!student) {
+        setLoadError('No student profile is linked to this account.')
+        setAssignments([])
+        setIsLoading(false)
+        return
+      }
+
+      setStudentId(student.id)
+
+      const { data, error } = await supabase
+        .from('assignments')
+        .select('id, title, description, due_at, status, completed_at, priority, course_id, score, max_score, course:courses (title, teacher_name)')
+        .eq('student_id', student.id)
+        .order('due_at', { ascending: true })
+
+      if (!isMounted) return
+
+      if (error) {
+        setLoadError(error.message)
+        setAssignments([])
+        setIsLoading(false)
+        return
+      }
+
+      const mapped = (data ?? []).map((row) => {
+        const course = Array.isArray(row.course) ? row.course[0] : row.course
+        return {
+        id: row.id,
+        title: row.title ?? 'Untitled Assignment',
+        type: 'homework' as AssignmentType,
+        classId: row.course_id ?? '',
+        dueAt: row.due_at,
+        notes: row.description ?? null,
+        status: row.status,
+        completedAt: row.completed_at,
+        courseTitle: course?.title ?? null,
+        courseTeacher: course?.teacher_name ?? null,
+        priority: row.priority ?? null,
+        }
+      })
+
+      setAssignments(mapped)
+      setIsLoading(false)
+    }
+
+    loadAssignments()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   const grouped = useMemo(() => {
-    const groups: Record<string, Assignment[]> = { Overdue: [], 'Due Today': [], 'Due Tomorrow': [], 'This Week': [], Later: [] }
-    assignments.forEach(a => { groups[categorize(a.dueDate)].push(a) })
+    const groups: Record<string, Assignment[]> = { Overdue: [], Today: [], Upcoming: [] }
+    assignments.forEach(a => { groups[categorize(a.dueAt)].push(a) })
     return groups
   }, [assignments])
 
   const stats = useMemo(() => {
-    const today = startOfDay(new Date())
-    const endWeek = new Date(today); endWeek.setDate(today.getDate() + 7)
     const total = assignments.length
     let overdue = 0
-    let dueThisWeek = 0
+    let dueToday = 0
+    let upcoming = 0
     assignments.forEach(a => {
-      const due = startOfDay(new Date(a.dueDate))
-      if (due < today) overdue++
-      if (due >= today && due <= endWeek) dueThisWeek++
+      const bucket = categorize(a.dueAt)
+      if (bucket === 'Overdue') overdue++
+      if (bucket === 'Today') dueToday++
+      if (bucket === 'Upcoming') upcoming++
     })
-    return { total, overdue, dueThisWeek }
+    return { total, overdue, dueToday, upcoming }
   }, [assignments])
 
   const classById = useMemo(() => Object.fromEntries(classes.map(c => [c.id, c])), [classes])
 
   const addAssignment = (input: AssignmentInput) => {
     const basePts = computePotentialPoints(input.dueDate)
-    setAssignments(prev => [...prev, { id: Date.now().toString(), ...input, completed: false, pointsAvailable: basePts }])
+    setAssignments(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        title: input.title,
+        type: input.type,
+        classId: input.classId,
+        dueAt: input.dueDate,
+        notes: input.notes ?? null,
+        status: 'todo',
+        completedAt: null,
+        pointsAvailable: basePts,
+      },
+    ])
     setIsOpen(false)
   }
 
-  function computePotentialPoints(dueIso: string) {
+  function computePotentialPoints(dueIso: string | null) {
+    if (!dueIso) return 0
     const today = startOfDay(new Date())
     const due = startOfDay(new Date(dueIso))
     return due < today ? 0 : 10
   }
 
-  function markComplete(a: Assignment) {
-    const earned = a.pointsAvailable ?? computePotentialPoints(a.dueDate)
-    setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, completed: true, pointsEarned: earned } : x))
-    setCongratsPoints(earned)
-    setCongratsOpen(true)
+  async function updateCompletion(a: Assignment, shouldComplete: boolean) {
+    if (!studentId) return
+    setUpdatingId(a.id)
+
+    const nextStatus = shouldComplete ? 'done' : 'todo'
+    const nextCompletedAt = shouldComplete ? new Date().toISOString() : null
+
+    const { error } = await supabase
+      .from('assignments')
+      .update({ status: nextStatus, completed_at: nextCompletedAt })
+      .eq('id', a.id)
+
+    if (error) {
+      setLoadError(error.message)
+      setUpdatingId(null)
+      return
+    }
+
+    const earned = a.pointsAvailable ?? computePotentialPoints(a.dueAt)
+    setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, status: nextStatus, completedAt: nextCompletedAt, pointsEarned: shouldComplete ? earned : undefined } : x))
+    if (shouldComplete) {
+      setCongratsPoints(earned)
+      setCongratsOpen(true)
+    }
+    setUpdatingId(null)
   }
 
   const itemLeftBar = (cat: string) => {
     switch (cat) {
       case 'Overdue': return 'before:bg-red-400/80'
-      case 'Due Today': return 'before:bg-amber-400/80'
-      case 'Due Tomorrow': return 'before:bg-yellow-400/80'
-      case 'This Week': return 'before:bg-blue-400/80'
+      case 'Today': return 'before:bg-amber-400/80'
+      case 'Upcoming': return 'before:bg-blue-400/80'
       default: return 'before:bg-slate-300/80'
     }
   }
@@ -114,9 +240,8 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Sched
   const groupShade = (cat: string) => {
     switch (cat) {
       case 'Overdue': return 'bg-red-50/50'
-      case 'Due Today': return 'bg-amber-50/50'
-      case 'Due Tomorrow': return 'bg-yellow-50/50'
-      case 'This Week': return 'bg-indigo-50/50'
+      case 'Today': return 'bg-amber-50/50'
+      case 'Upcoming': return 'bg-indigo-50/40'
       default: return 'bg-slate-50/40'
     }
   }
@@ -125,15 +250,16 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Sched
     const meta = typeMeta[a.type]
     const Icon = meta.icon
     const cls = classById[a.classId]
-    const cat = categorize(a.dueDate)
+    const cat = categorize(a.dueAt)
+    const isCompleted = a.status === 'done' || a.status === 'completed' || Boolean(a.completedAt)
     const statusBadge = (() => {
       if (cat === 'Overdue') return <Badge className="bg-red-100 text-red-700 border-red-200">Overdue</Badge>
-      if (cat === 'Due Today') return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Today</Badge>
-      if (cat === 'Due Tomorrow') return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">Tomorrow</Badge>
-      const chip = formatMonthDay(a.dueDate)
+      if (cat === 'Today') return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Today</Badge>
+      if (!a.dueAt) return <Badge className="bg-blue-50 text-blue-700 border-blue-200">No due date</Badge>
+      const chip = formatMonthDay(a.dueAt)
       return <Badge className="bg-blue-50 text-blue-700 border-blue-200">{chip}</Badge>
     })()
-    const potential = a.pointsAvailable ?? computePotentialPoints(a.dueDate)
+    const potential = a.pointsAvailable ?? computePotentialPoints(a.dueAt)
     return (
       <div
         key={a.id}
@@ -144,7 +270,7 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Sched
       >
         {/* Points badge in corner */}
         <div className="absolute top-3 right-3">
-          {a.completed ? (
+          {isCompleted ? (
             <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 inline-flex items-center gap-1">
               <Check className="w-3.5 h-3.5" />
               +{a.pointsEarned ?? 0} pts
@@ -167,26 +293,45 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Sched
                 {statusBadge}
               </div>
               <div className="font-semibold text-gray-900 leading-tight mt-1">{a.title}</div>
-              <div className="text-sm text-gray-600 mt-1">
-                <span className={`inline-block w-2 h-2 rounded-full mr-2 ${cls?.color ?? 'bg-gray-300'}`} />
-                {cls?.name ?? 'Class'}
-              </div>
-              <div className="flex items-center space-grid-3 text-xs text-gray-600 mt-2">
-                <div className="flex items-center space-grid">
-                  <Calendar className="w-3 h-3" />
-                  <span>Due {new Date(a.dueDate).toLocaleDateString()}</span>
+                <div className="text-sm text-gray-600 mt-1">
+                  <span className={`inline-block w-2 h-2 rounded-full mr-2 ${cls?.color ?? 'bg-gray-300'}`} />
+                  {cls?.name ?? a.courseTitle ?? 'Class'}
                 </div>
-                {a.notes && <div className="text-gray-600 truncate bg-gray-100/70 px-3 py-1 rounded-lg">{a.notes}</div>}
-              </div>
-              {!a.completed && (
-                <div className="mt-3">
-                  <Button size="sm" className="rounded-xl bg-gradient-primary text-white btn-glow" onClick={() => markComplete(a)}>
-                    <Trophy className="w-4 h-4 mr-2" /> Mark Complete
-                  </Button>
+                <div className="flex items-center space-grid-3 text-xs text-gray-600 mt-2">
+                  <div className="flex items-center space-grid">
+                    <Calendar className="w-3 h-3" />
+                    <span>
+                      {a.dueAt ? `Due ${new Date(a.dueAt).toLocaleDateString()}` : 'No due date'}
+                    </span>
+                  </div>
+                  {a.notes && <div className="text-gray-600 truncate bg-gray-100/70 px-3 py-1 rounded-lg">{a.notes}</div>}
                 </div>
-              )}
+                {!isCompleted ? (
+                  <div className="mt-3">
+                    <Button
+                      size="sm"
+                      className="rounded-xl bg-gradient-primary text-white btn-glow"
+                      onClick={() => updateCompletion(a, true)}
+                      disabled={updatingId === a.id}
+                    >
+                      <Trophy className="w-4 h-4 mr-2" /> Mark Complete
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="mt-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl"
+                      onClick={() => updateCompletion(a, false)}
+                      disabled={updatingId === a.id}
+                    >
+                      Mark Incomplete
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
           <div className="flex items-center space-grid-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button variant="ghost" size="sm" className="p-2 h-auto rounded-xl hover:bg-gray-100"><ExternalLink className="w-4 h-4 text-gray-600" /></Button>
             <Button variant="ghost" size="sm" className="p-2 h-auto rounded-xl hover:bg-gray-100"><Copy className="w-4 h-4 text-gray-600" /></Button>
@@ -198,7 +343,7 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Sched
     )
   }
 
-  const groupsOrder: Array<keyof typeof grouped> = ['Overdue', 'Due Today', 'Due Tomorrow', 'This Week', 'Later']
+  const groupsOrder: Array<keyof typeof grouped> = ['Overdue', 'Today', 'Upcoming']
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-grid-6">
@@ -207,6 +352,8 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Sched
         <h1 className="text-2xl font-semibold text-gray-900">Assignments</h1>
         <p className="text-gray-600">Manage your assignments and track due dates</p>
       </div>
+      {loadError && <p className="text-sm text-red-600">{loadError}</p>}
+      {isLoading && <p className="text-sm text-muted-foreground">Loading assignments...</p>}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left: Assignments grouped */}
         <div className="lg:col-span-2 space-grid-6">
@@ -255,7 +402,11 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Sched
               </div>
               <h3 className="text-lg font-semibold mb-1">Add Assignment</h3>
               <p className="text-gray-600 mb-4">Create a new assignment with due date and class information</p>
-              <Button onClick={() => setIsOpen(true)} className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow">
+              <Button
+                onClick={() => setIsOpen(true)}
+                className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
+                disabled={!studentId}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Assignment
               </Button>
@@ -273,8 +424,8 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Sched
                 <div className="text-gray-600 text-sm">Total Assignments</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-semibold text-red-600">{stats.dueThisWeek}</div>
-                <div className="text-red-600 text-sm">Due This Week</div>
+                <div className="text-2xl font-semibold text-amber-600">{stats.dueToday}</div>
+                <div className="text-amber-600 text-sm">Due Today</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-semibold text-red-600">{stats.overdue}</div>

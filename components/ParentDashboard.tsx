@@ -58,6 +58,7 @@ type ParentDashboardProps = {
   assignmentStatusByStudentId?: Record<string, AssignmentStatus | null>;
   onAssignAdvisor?: (studentId: string, advisorId: string | null) => void;
   onSignOut?: () => void;
+  gradeMetricsByStudentId?: Record<string, number | null>;
 };
 
 export function ParentDashboard({
@@ -86,6 +87,7 @@ export function ParentDashboard({
   assignmentStatusByStudentId = {},
   onAssignAdvisor,
   onSignOut,
+  gradeMetricsByStudentId = {},
 }: ParentDashboardProps) {
   const studentOptions = students.map((student) => {
     const initials = `${student.first_name[0] ?? ""}${student.last_name?.[0] ?? ""}`.toUpperCase();
@@ -172,6 +174,8 @@ export function ParentDashboard({
   const hasPerformanceData = Boolean(
     currentData && (currentData.subjects.length > 0 || currentData.recentActivities.length > 0)
   );
+  const selectedGradeMetric = selectedStudentId ? gradeMetricsByStudentId[selectedStudentId] ?? null : null;
+  const selectedGradePercent = selectedGradeMetric !== null ? Math.round(selectedGradeMetric * 100) : null;
 
   const getTrendIcon = (trend: string) => {
     return trend === "up" ? "^" : trend === "down" ? "v" : "-";
@@ -235,7 +239,11 @@ export function ParentDashboard({
               <div>
                 <p className="text-sm text-blue-600 mb-1">Overall Grade</p>
                 <p className="text-2xl font-semibold text-blue-700">
-                  {currentData ? `${currentData.overallGrade}%` : "--"}
+                  {selectedGradePercent !== null
+                    ? `${selectedGradePercent}%`
+                    : currentData
+                      ? `${currentData.overallGrade}%`
+                      : "--"}
                 </p>
                 {!hasPerformanceData && (
                   <p className="mt-1 text-xs text-blue-600">Add a student to see metrics.</p>
@@ -449,77 +457,82 @@ export function ParentDashboard({
                 <p className="text-sm text-muted-foreground">No students yet.</p>
               ) : (
                 <div className="space-y-3">
-                  {students.map((student) => (
-                    <div
-                      key={student.id}
-                      className={cn(
-                        "rounded-lg border p-3 text-sm",
-                        selectedStudentId === student.id ? "border-blue-200 bg-blue-50" : "border-border"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            {student.first_name} {student.last_name ?? ""}
+                  {students.map((student) => {
+                    const gradeMetric = gradeMetricsByStudentId[student.id] ?? null;
+                    const gradeLabel = gradeMetric !== null ? `${Math.round(gradeMetric * 100)}%` : "No grades yet";
+                    return (
+                      <div
+                        key={student.id}
+                        className={cn(
+                          "rounded-lg border p-3 text-sm",
+                          selectedStudentId === student.id ? "border-blue-200 bg-blue-50" : "border-border"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {student.first_name} {student.last_name ?? ""}
+                            </div>
+                            {student.grade && (
+                              <div className="text-xs text-gray-600">Grade: {student.grade}</div>
+                            )}
+                            <div className="text-xs text-gray-600">Grade metric: {gradeLabel}</div>
                           </div>
-                          {student.grade && (
-                            <div className="text-xs text-gray-600">Grade: {student.grade}</div>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => onDeleteStudent(student.id)}
+                            disabled={deletingStudentId === student.id}
+                            className="text-xs text-red-600 hover:underline disabled:opacity-60"
+                          >
+                            {deletingStudentId === student.id ? "Deleting..." : "Delete"}
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => onDeleteStudent(student.id)}
-                          disabled={deletingStudentId === student.id}
-                          className="text-xs text-red-600 hover:underline disabled:opacity-60"
-                        >
-                          {deletingStudentId === student.id ? "Deleting..." : "Delete"}
-                        </button>
+                        {showAdvisorAssignments && (
+                          <div className="mt-3 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">Assign advisor</span>
+                              <Select
+                                value={student.advisor_id ?? "unassigned"}
+                                onValueChange={(value) => {
+                                  if (!onAssignAdvisor) return;
+                                  const nextAdvisorId = value === "unassigned" ? null : value;
+                                  if ((student.advisor_id ?? null) === nextAdvisorId) return;
+                                  onAssignAdvisor(student.id, nextAdvisorId);
+                                }}
+                                disabled={
+                                  assigningStudentId === student.id || !onAssignAdvisor || isAdvisorsLoading
+                                }
+                              >
+                                <SelectTrigger className="h-8 w-44 text-xs">
+                                  <SelectValue placeholder="Unassigned" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                                  {advisors.map((advisor) => (
+                                    <SelectItem key={advisor.id} value={advisor.id}>
+                                      {advisor.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {assignmentStatusByStudentId[student.id] && (
+                              <p
+                                className={cn(
+                                  "text-xs",
+                                  assignmentStatusByStudentId[student.id]?.type === "error"
+                                    ? "text-red-600"
+                                    : "text-green-600"
+                                )}
+                              >
+                                {assignmentStatusByStudentId[student.id]?.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      {showAdvisorAssignments && (
-                        <div className="mt-3 space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">Assign advisor</span>
-                            <Select
-                              value={student.advisor_id ?? "unassigned"}
-                              onValueChange={(value) => {
-                                if (!onAssignAdvisor) return;
-                                const nextAdvisorId = value === "unassigned" ? null : value;
-                                if ((student.advisor_id ?? null) === nextAdvisorId) return;
-                                onAssignAdvisor(student.id, nextAdvisorId);
-                              }}
-                              disabled={
-                                assigningStudentId === student.id || !onAssignAdvisor || isAdvisorsLoading
-                              }
-                            >
-                              <SelectTrigger className="h-8 w-44 text-xs">
-                                <SelectValue placeholder="Unassigned" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="unassigned">Unassigned</SelectItem>
-                                {advisors.map((advisor) => (
-                                  <SelectItem key={advisor.id} value={advisor.id}>
-                                    {advisor.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {assignmentStatusByStudentId[student.id] && (
-                            <p
-                              className={cn(
-                                "text-xs",
-                                assignmentStatusByStudentId[student.id]?.type === "error"
-                                  ? "text-red-600"
-                                  : "text-green-600"
-                              )}
-                            >
-                              {assignmentStatusByStudentId[student.id]?.message}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               {deleteStatus && (

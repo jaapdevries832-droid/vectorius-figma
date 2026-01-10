@@ -51,7 +51,45 @@ export default function ParentPage() {
   const [assignmentStatusByStudentId, setAssignmentStatusByStudentId] = useState<
     Record<string, AssignmentStatus | null>
   >({});
+  const [gradeMetricsByStudentId, setGradeMetricsByStudentId] = useState<Record<string, number | null>>({});
   const [isLoading, setIsLoading] = useState(true);
+
+  const fetchGradeMetrics = useCallback(async (studentIds: string[]) => {
+    if (studentIds.length === 0) {
+      setGradeMetricsByStudentId({});
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("assignments")
+      .select("student_id, score, max_score")
+      .in("student_id", studentIds);
+
+    if (error) {
+      setGradeMetricsByStudentId({});
+      return;
+    }
+
+    const totals: Record<string, { score: number; max: number }> = {};
+    studentIds.forEach((id) => {
+      totals[id] = { score: 0, max: 0 };
+    });
+
+    (data ?? []).forEach((row) => {
+      if (row.max_score === null) return;
+      const entry = totals[row.student_id] ?? { score: 0, max: 0 };
+      entry.score += row.score ?? 0;
+      entry.max += row.max_score ?? 0;
+      totals[row.student_id] = entry;
+    });
+
+    const metrics: Record<string, number | null> = {};
+    Object.entries(totals).forEach(([id, entry]) => {
+      metrics[id] = entry.max > 0 ? entry.score / entry.max : null;
+    });
+
+    setGradeMetricsByStudentId(metrics);
+  }, []);
 
   const fetchStudents = useCallback(async () => {
     const { data, error } = await supabase
@@ -72,7 +110,8 @@ export default function ParentPage() {
       if (!current) return nextStudents[0].id;
       return nextStudents.some((student) => student.id === current) ? current : nextStudents[0].id;
     });
-  }, []);
+    await fetchGradeMetrics(nextStudents.map((student) => student.id));
+  }, [fetchGradeMetrics]);
 
   const fetchAdvisors = useCallback(async () => {
     setIsAdvisorsLoading(true);
@@ -288,6 +327,7 @@ export default function ParentPage() {
         assignmentStatusByStudentId={assignmentStatusByStudentId}
         onAssignAdvisor={handleAssignAdvisor}
         onSignOut={handleSignOut}
+        gradeMetricsByStudentId={gradeMetricsByStudentId}
       />
     </main>
   );

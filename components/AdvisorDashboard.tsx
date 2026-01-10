@@ -32,6 +32,7 @@ type AdvisorStudent = {
   assignments: number;
   pendingTasks: number;
   avatar: string;
+  gradeMetric: number | null;
 };
 
 export function AdvisorDashboard() {
@@ -72,10 +73,43 @@ export function AdvisorDashboard() {
       }
 
       setLoadError(null);
+      const studentIds = (data ?? []).map((student) => student.id);
+      let gradeMetricsByStudentId: Record<string, number | null> = {};
+
+      if (studentIds.length > 0) {
+        const { data: assignmentData, error: assignmentError } = await supabase
+          .from("assignments")
+          .select("student_id, score, max_score")
+          .in("student_id", studentIds);
+
+        if (!assignmentError) {
+          const totals: Record<string, { score: number; max: number }> = {};
+          studentIds.forEach((id) => {
+            totals[id] = { score: 0, max: 0 };
+          });
+
+          (assignmentData ?? []).forEach((row) => {
+            if (row.max_score === null) return;
+            const entry = totals[row.student_id] ?? { score: 0, max: 0 };
+            entry.score += row.score ?? 0;
+            entry.max += row.max_score ?? 0;
+            totals[row.student_id] = entry;
+          });
+
+          gradeMetricsByStudentId = Object.fromEntries(
+            Object.entries(totals).map(([id, entry]) => [
+              id,
+              entry.max > 0 ? entry.score / entry.max : null,
+            ])
+          );
+        }
+      }
+
       const nextStudents = (data ?? []).map((student, index) => {
         const name = `${student.first_name} ${student.last_name ?? ""}`.trim() || "Student";
         const subject = subjectOptions[index % subjectOptions.length];
         const performance = performanceOptions[index % performanceOptions.length];
+        const gradeMetric = gradeMetricsByStudentId[student.id] ?? null;
         const status: StudentStatus =
           performance >= 90 ? "excellent" : performance >= 80 ? "good" : "needs-attention";
         const initials = name
@@ -97,6 +131,7 @@ export function AdvisorDashboard() {
           assignments: 2 + (index % 3),
           pendingTasks: index % 2,
           avatar: initials || "ST",
+          gradeMetric,
         };
       });
 
@@ -285,6 +320,10 @@ export function AdvisorDashboard() {
                           <span>{student.subject}</span>
                           <span>|</span>
                           <span>{student.performance}% avg</span>
+                          <span>|</span>
+                          <span>
+                            Grade metric: {student.gradeMetric !== null ? `${Math.round(student.gradeMetric * 100)}%` : "--"}
+                          </span>
                         </div>
                       </div>
                       
@@ -365,6 +404,14 @@ export function AdvisorDashboard() {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Performance</span>
                     <span className="font-medium">{selectedStudentData.performance}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Grade metric</span>
+                    <span className="font-medium">
+                      {selectedStudentData.gradeMetric !== null
+                        ? `${Math.round(selectedStudentData.gradeMetric * 100)}%`
+                        : "--"}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Active Assignments</span>
