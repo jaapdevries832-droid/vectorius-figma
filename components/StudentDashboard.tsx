@@ -8,16 +8,27 @@ import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles, Trophy, Flame } from "lucide-react";
 import { useRoleLayout } from "app/lib/role-layout-context";
-import { getCurrentUser } from "app/lib/current-user";
 import { getCurrentProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase/client";
-import { getDefaultClassesForUser } from "./WeeklyPlanner";
+import {
+  addEnrollment,
+  fetchCourses,
+  fetchMyEnrollments,
+  removeEnrollment,
+  type CourseWithMeetings,
+  type EnrollmentWithCourse,
+} from "@/lib/student-classes";
 import type { AssignedSkill } from "app/lib/types";
-import type { ScheduledCourse, User } from "app/lib/domain";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 export function StudentDashboard() {
-  const { setActiveItem, requestOpenClassSetup } = useRoleLayout();
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const { setActiveItem } = useRoleLayout();
   const [studentName, setStudentName] = React.useState<string | null>(null);
   const [studentInitials, setStudentInitials] = React.useState<string | null>(null);
   const [studentId, setStudentId] = React.useState<string | null>(null);
@@ -47,6 +58,16 @@ export function StudentDashboard() {
   const avgGradeDisplay = dashboardMetrics?.avgGradePercent != null ? `${dashboardMetrics.avgGradePercent}%` : "—";
   const dueCountDisplay = dashboardMetrics ? dashboardMetrics.due : "--";
   const [assignedSkillsCount, setAssignedSkillsCount] = React.useState<number>(0)
+  const [courses, setCourses] = React.useState<CourseWithMeetings[]>([]);
+  const [enrollments, setEnrollments] = React.useState<EnrollmentWithCourse[]>([]);
+  const [coursesLoading, setCoursesLoading] = React.useState(false);
+  const [enrollmentsLoading, setEnrollmentsLoading] = React.useState(false);
+  const [coursesError, setCoursesError] = React.useState<string | null>(null);
+  const [enrollmentsError, setEnrollmentsError] = React.useState<string | null>(null);
+  const [enrollmentActionError, setEnrollmentActionError] = React.useState<string | null>(null);
+  const [selectedCourseId, setSelectedCourseId] = React.useState<string>("");
+  const [isAddingEnrollment, setIsAddingEnrollment] = React.useState(false);
+  const [removingCourseId, setRemovingCourseId] = React.useState<string | null>(null);
   React.useEffect(() => {
     try {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('assignedSkills') : null
@@ -60,8 +81,32 @@ export function StudentDashboard() {
     } catch {}
   }, [studentId])
 
-  React.useEffect(() => {
-    setCurrentUser(getCurrentUser());
+  const refreshEnrollments = React.useCallback(async (studentIdValue: string) => {
+    setEnrollmentsLoading(true);
+    setEnrollmentsError(null);
+    try {
+      const data = await fetchMyEnrollments(studentIdValue);
+      setEnrollments(data);
+    } catch (error) {
+      console.error("Failed to load enrollments", error);
+      setEnrollmentsError("Unable to load your classes right now.");
+    } finally {
+      setEnrollmentsLoading(false);
+    }
+  }, []);
+
+  const loadCourses = React.useCallback(async () => {
+    setCoursesLoading(true);
+    setCoursesError(null);
+    try {
+      const data = await fetchCourses();
+      setCourses(data);
+    } catch (error) {
+      console.error("Failed to load courses", error);
+      setCoursesError("Unable to load available classes right now.");
+    } finally {
+      setCoursesLoading(false);
+    }
   }, []);
 
   const endOfDay = (d: Date) => {
@@ -150,9 +195,16 @@ export function StudentDashboard() {
     };
   }, []);
 
-  const myClasses = React.useMemo<ScheduledCourse[]>(
-    () => getDefaultClassesForUser(currentUser),
-    [currentUser]
+  React.useEffect(() => {
+    if (!studentId) return;
+    refreshEnrollments(studentId);
+    loadCourses();
+  }, [studentId, refreshEnrollments, loadCourses]);
+
+  const enrolledCourseIds = React.useMemo(() => new Set(enrollments.map((item) => item.course_id)), [enrollments]);
+  const availableCourses = React.useMemo(
+    () => courses.filter((course) => !enrolledCourseIds.has(course.id)),
+    [courses, enrolledCourseIds],
   );
 
   const getPriorityColor = (priority: string) => {
@@ -189,6 +241,55 @@ export function StudentDashboard() {
       return <Badge className="bg-green-100 text-green-700 border-green-200">Completed</Badge>;
     }
     return <Badge className="bg-blue-100 text-blue-700 border-blue-200">In Progress</Badge>;
+  };
+
+  const dayNameFromIndex = (dayIndex: number) => {
+    const names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    return names[dayIndex] ?? "Day";
+  };
+
+  const summarizeMeeting = (meetings: CourseWithMeetings["course_meetings"]) => {
+    if (!meetings || meetings.length === 0) return null;
+    const sorted = [...meetings].sort((a, b) => (a.start_time < b.start_time ? -1 : 1));
+    const days = Array.from(new Set(sorted.map((meeting) => dayNameFromIndex(meeting.day_of_week))));
+    return {
+      days,
+      startTime: sorted[0].start_time,
+      endTime: sorted[0].end_time,
+    };
+  };
+
+  const handleAddEnrollment = async () => {
+    if (!studentId || !selectedCourseId) return;
+    setEnrollmentActionError(null);
+    setIsAddingEnrollment(true);
+    const error = await addEnrollment(studentId, selectedCourseId);
+    if (error) {
+      if (error.code === "23505") {
+        setEnrollmentActionError("You're already enrolled in that class.");
+      } else {
+        setEnrollmentActionError("Unable to add that class right now.");
+      }
+      setIsAddingEnrollment(false);
+      return;
+    }
+    await refreshEnrollments(studentId);
+    setSelectedCourseId("");
+    setIsAddingEnrollment(false);
+  };
+
+  const handleRemoveEnrollment = async (courseId: string) => {
+    if (!studentId) return;
+    setEnrollmentActionError(null);
+    setRemovingCourseId(courseId);
+    const error = await removeEnrollment(studentId, courseId);
+    if (error) {
+      setEnrollmentActionError("Unable to remove that class right now.");
+      setRemovingCourseId(null);
+      return;
+    }
+    await refreshEnrollments(studentId);
+    setRemovingCourseId(null);
   };
 
   return (
@@ -336,38 +437,88 @@ export function StudentDashboard() {
             </div>
             My Classes
           </CardTitle>
-          <Button
-            size="sm"
-            className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
-            onClick={() => {
-              setActiveItem('schedule');
-              requestOpenClassSetup();
-            }}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Class
-          </Button>
+          <div className="flex items-center space-grid-2">
+            <Select
+              value={selectedCourseId}
+              onValueChange={setSelectedCourseId}
+              disabled={coursesLoading || availableCourses.length === 0}
+            >
+              <SelectTrigger className="w-[220px] rounded-xl border-gray-200 bg-white/80">
+                <SelectValue placeholder={coursesLoading ? "Loading courses..." : "Select a class"} />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                {availableCourses.map((course) => (
+                  <SelectItem key={course.id} value={course.id} className="rounded-lg">
+                    {course.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
+              disabled={!selectedCourseId || isAddingEnrollment}
+              onClick={handleAddEnrollment}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Class
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-grid-3">
-          {myClasses.map((cls) => (
-            <div
-              key={cls.id}
-              className="flex items-start justify-between p-6 rounded-2xl border border-gray-100 bg-white/60 hover:bg-white hover:border-gray-200 transition-all duration-200 hover:shadow-md"
-            >
-              <div className="flex items-start space-grid-4">
-                <span className={`mt-1 w-3 h-3 rounded-full ${cls.color}`}></span>
-                <div>
-                  <div className="font-semibold text-gray-900 leading-tight">{cls.name}</div>
-                  <div className="text-sm text-gray-600 mt-1">
-                    {cls.teacherName} · {cls.room}
+          {coursesError && <div className="text-sm text-red-600">{coursesError}</div>}
+          {enrollmentsError && <div className="text-sm text-red-600">{enrollmentsError}</div>}
+          {enrollmentActionError && <div className="text-sm text-red-600">{enrollmentActionError}</div>}
+          {availableCourses.length === 0 && !coursesLoading && (
+            <div className="text-sm text-muted-foreground">No additional classes available.</div>
+          )}
+          {enrollmentsLoading && (
+            <div className="text-sm text-muted-foreground">Loading your classes...</div>
+          )}
+          {!enrollmentsLoading && enrollments.length === 0 && (
+            <div className="text-sm text-muted-foreground">You are not enrolled in any classes yet.</div>
+          )}
+          {enrollments.map((enrollment) => {
+            const course = enrollment.course;
+            if (!course) return null;
+            const meeting = summarizeMeeting(course.course_meetings);
+            return (
+              <div
+                key={enrollment.id}
+                className="flex items-start justify-between p-6 rounded-2xl border border-gray-100 bg-white/60 hover:bg-white hover:border-gray-200 transition-all duration-200 hover:shadow-md"
+              >
+                <div className="flex items-start space-grid-4">
+                  <span className="mt-1 w-3 h-3 rounded-full bg-blue-500"></span>
+                  <div>
+                    <div className="font-semibold text-gray-900 leading-tight">{course.title}</div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      {course.teacher_name ?? "Staff"} - {course.location ?? "TBD"}
+                    </div>
                   </div>
                 </div>
+                <div className="flex items-center space-grid-3">
+                  {meeting ? (
+                    <Badge className="bg-gray-100 text-gray-700 border-gray-200 text-xs font-medium rounded-lg">
+                      {abbrevDays(meeting.days)} {formatTimeHuman(meeting.startTime)} - {formatTimeHuman(meeting.endTime)}
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-gray-100 text-gray-700 border-gray-200 text-xs font-medium rounded-lg">
+                      Schedule TBD
+                    </Badge>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg"
+                    disabled={removingCourseId === course.id}
+                    onClick={() => handleRemoveEnrollment(course.id)}
+                  >
+                    Remove
+                  </Button>
+                </div>
               </div>
-              <Badge className="bg-gray-100 text-gray-700 border-gray-200 text-xs font-medium rounded-lg">
-                {abbrevDays(cls.days)} {formatTimeHuman(cls.startTime)} – {formatTimeHuman(cls.endTime)}
-              </Badge>
-            </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
 

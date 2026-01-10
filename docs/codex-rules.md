@@ -69,6 +69,8 @@ Hard rules:
 - If something needs changing, fix-forward via a new migration.
 - Supabase UI is for inspection/verification only, not the source of truth.
 - Do not use `supabase db reset` unless the user explicitly asks (data-destructive).
+- If a migration version exists in the remote history, keep the matching local file.
+- Do not delete `remote_schema` migrations unless you also run a user-approved `supabase migration repair`.
 
 Allowed DB changes include:
 - tables, columns, indexes, constraints
