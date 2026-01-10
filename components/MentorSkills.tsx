@@ -12,6 +12,7 @@ import { Search, Plus, Edit, Trash2, Send, Users, Brain, ClipboardCheck } from '
 import type { AssignedSkill, SkillModule } from 'app/lib/types'
 import type { Student } from 'app/lib/domain'
 import { DEFAULT_SKILL_MODULES } from 'app/lib/skills-data'
+import { supabase } from '@/lib/supabase/client'
 
 type MentorNotification = {
   studentId: string
@@ -23,20 +24,8 @@ type MentorNotification = {
 }
 
 const STORAGE_KEYS = {
-  modules: 'skillModules',
   assignments: 'assignedSkills',
   notifications: 'mentorNotifications'
-}
-
-function loadModules(): SkillModule[] {
-  if (typeof window === 'undefined') return DEFAULT_SKILL_MODULES
-  const raw = localStorage.getItem(STORAGE_KEYS.modules)
-  if (!raw) return DEFAULT_SKILL_MODULES
-  try { return JSON.parse(raw) } catch { return DEFAULT_SKILL_MODULES }
-}
-function saveModules(mods: SkillModule[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(STORAGE_KEYS.modules, JSON.stringify(mods))
 }
 function loadAssignments(): AssignedSkill[] {
   if (typeof window === 'undefined') return []
@@ -60,7 +49,7 @@ function saveNotifications(items: MentorNotification[]) {
 }
 
 export function MentorSkills() {
-  const [modules, setModules] = useState<SkillModule[]>(DEFAULT_SKILL_MODULES)
+  const [modules, setModules] = useState<SkillModule[]>([])
   const [assignments, setAssignments] = useState<AssignedSkill[]>([])
   const [notifications, setNotifications] = useState<MentorNotification[]>([])
   const [query, setQuery] = useState('')
@@ -79,12 +68,46 @@ export function MentorSkills() {
   ]
 
   useEffect(() => {
-    setModules(loadModules())
     setAssignments(loadAssignments())
     setNotifications(loadNotifications())
   }, [])
 
-  useEffect(() => { saveModules(modules) }, [modules])
+  useEffect(() => {
+    let isMounted = true
+    const loadModules = async () => {
+      const { data, error } = await supabase
+        .from('skill_modules')
+        .select('id, title, description, objectives, media, duration, difficulty, topic')
+        .is('archived_at', null)
+        .order('created_at', { ascending: false })
+
+      if (!isMounted) return
+      if (error) {
+        console.error('Failed to load skill modules', error)
+        setModules(DEFAULT_SKILL_MODULES)
+        return
+      }
+
+      const normalized = (data ?? []).map((row) => ({
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        objectives: row.objectives ?? [],
+        media: Array.isArray(row.media) ? row.media : [],
+        duration: row.duration ?? undefined,
+        difficulty: row.difficulty ?? undefined,
+        topic: row.topic ?? undefined
+      })) as SkillModule[]
+
+      setModules(normalized)
+    }
+
+    loadModules()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
   useEffect(() => { saveAssignments(assignments) }, [assignments])
   useEffect(() => { saveNotifications(notifications) }, [notifications])
 
@@ -95,21 +118,8 @@ export function MentorSkills() {
     )
   }, [modules, query, topicFilter])
 
-  function addModule() {
-    const newMod: SkillModule = {
-      id: `skill-${Date.now()}`,
-      title: 'New Skill Module',
-      description: 'Describe learning objectives and resources.',
-      objectives: ['Objective 1'],
-      media: [],
-      duration: '10–20 min',
-      difficulty: 'beginner',
-      topic: 'general'
-    }
-    setModules(prev => [newMod, ...prev])
-  }
-  function removeModule(id: string) {
-    setModules(prev => prev.filter(m => m.id !== id))
+  function logReadOnly(action: string) {
+    console.error(`Skill modules are read-only in this view; ${action} is disabled.`)
   }
 
   function openAssignModal(m: SkillModule) {
@@ -159,7 +169,7 @@ export function MentorSkills() {
                 <SelectItem value="general">General</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="bg-green-600 hover:bg-green-700 rounded-xl" onClick={addModule}><Plus className="w-4 h-4 mr-2" />New Module</Button>
+            <Button className="bg-green-600 hover:bg-green-700 rounded-xl" onClick={() => logReadOnly('adding modules')}><Plus className="w-4 h-4 mr-2" />New Module</Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -179,13 +189,9 @@ export function MentorSkills() {
                     <div className="flex items-center justify-between">
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" className="rounded-xl" onClick={() => openAssignModal(m)}><Users className="w-4 h-4 mr-1" />Assign</Button>
-                        <Button size="sm" variant="outline" className="rounded-xl" onClick={() => removeModule(m.id)}><Trash2 className="w-4 h-4" /></Button>
+                        <Button size="sm" variant="outline" className="rounded-xl" onClick={() => logReadOnly('removing modules')}><Trash2 className="w-4 h-4" /></Button>
                       </div>
-                    <Button size="sm" variant="ghost" className="rounded-xl" onClick={() => {
-                      const nextTitle = window.prompt('Edit title', m.title) ?? m.title
-                      const nextDesc = window.prompt('Edit description', m.description) ?? m.description
-                      setModules(prev => prev.map(x => x.id === m.id ? { ...x, title: nextTitle, description: nextDesc } : x))
-                    }}><Edit className="w-4 h-4" /></Button>
+                    <Button size="sm" variant="ghost" className="rounded-xl" onClick={() => logReadOnly('editing modules')}><Edit className="w-4 h-4" /></Button>
                     </div>
                   </CardContent>
                 </Card>
