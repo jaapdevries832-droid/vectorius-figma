@@ -9,6 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles, Trophy, Flame } from "lucide-react";
 import { useRoleLayout } from "app/lib/role-layout-context";
 import { getCurrentUser } from "app/lib/current-user";
+import { getCurrentProfile } from "@/lib/profile";
+import { supabase } from "@/lib/supabase/client";
 import { getDefaultClassesForUser } from "./WeeklyPlanner";
 import type { AssignedSkill } from "app/lib/types";
 import type { ScheduledCourse, User } from "app/lib/domain";
@@ -16,6 +18,11 @@ import type { ScheduledCourse, User } from "app/lib/domain";
 export function StudentDashboard() {
   const { setActiveItem, requestOpenClassSetup } = useRoleLayout();
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const [studentName, setStudentName] = React.useState<string | null>(null);
+  const [studentInitials, setStudentInitials] = React.useState<string | null>(null);
+  const [studentId, setStudentId] = React.useState<string | null>(null);
+  const [headerMessage, setHeaderMessage] = React.useState<string | null>(null);
+  const [assignmentCounts, setAssignmentCounts] = React.useState<{ total: number; completed: number } | null>(null);
   const assignments = [
     { id: 1, title: "Math Homework Ch. 7", subject: "Mathematics", dueDate: "2025-09-06", completed: false, priority: "high" },
     { id: 2, title: "Essay: Climate Change", subject: "English", dueDate: "2025-09-08", completed: true, priority: "medium" },
@@ -36,15 +43,82 @@ export function StudentDashboard() {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('assignedSkills') : null
       if (!raw) return
       const arr = JSON.parse(raw) as AssignedSkill[]
-      setAssignedSkillsCount(arr.filter(a => a.studentId === '1').length)
+      if (!studentId) {
+        setAssignedSkillsCount(0)
+        return
+      }
+      setAssignedSkillsCount(arr.filter(a => a.studentId === studentId).length)
     } catch {}
-  }, [])
+  }, [studentId])
 
   React.useEffect(() => {
     setCurrentUser(getCurrentUser());
   }, []);
 
-  const displayUser = currentUser ?? { name: 'Jordan Davis', avatar: 'JD' };
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadStudent = async () => {
+      const { user } = await getCurrentProfile();
+      if (!isMounted) return;
+
+      if (!user) {
+        setHeaderMessage("No student profile found.");
+        setStudentName(null);
+        setStudentInitials(null);
+        setStudentId(null);
+        setAssignmentCounts(null);
+        return;
+      }
+
+      const { data: student, error } = await supabase
+        .from("students")
+        .select("id, first_name, last_name")
+        .eq("student_user_id", user.id)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      if (error || !student) {
+        setHeaderMessage("No student profile found.");
+        setStudentName(null);
+        setStudentInitials(null);
+        setStudentId(null);
+        setAssignmentCounts(null);
+        return;
+      }
+
+      const fullName = `${student.first_name} ${student.last_name ?? ""}`.trim();
+      const initials = `${student.first_name?.[0] ?? ""}${student.last_name?.[0] ?? ""}`.toUpperCase();
+      setHeaderMessage(null);
+      setStudentName(fullName || "Student");
+      setStudentInitials(initials || "ST");
+      setStudentId(student.id);
+
+      const { data: assignmentRows } = await supabase
+        .from("assignments")
+        .select("id, completed_at, status")
+        .eq("student_id", student.id);
+
+      if (!isMounted) return;
+
+      const rows = assignmentRows ?? [];
+      const total = rows.length;
+      const completed = rows.filter((row) => {
+        if (row.completed_at) return true;
+        return row.status === "done" || row.status === "completed";
+      }).length;
+
+      setAssignmentCounts({ total, completed });
+    };
+
+    loadStudent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const myClasses = React.useMemo<ScheduledCourse[]>(
     () => getDefaultClassesForUser(currentUser),
     [currentUser]
@@ -93,22 +167,34 @@ export function StudentDashboard() {
         <CardContent className="p-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-grid-4">
-              <Avatar className="w-16 h-16 ring-4 ring-blue-200/50 ring-offset-4">
-                <AvatarImage src="" alt={displayUser.name} />
-                <AvatarFallback className="bg-gradient-primary text-white text-xl font-semibold">
-                  {displayUser.avatar}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900 mb-1">Welcome back, {displayUser.name}!</h1>
-                <p className="text-gray-600">Ready to continue your learning journey today?</p>
-                <div className="flex items-center mt-2 space-grid-2">
-                  <Badge className="bg-blue-100 text-blue-700">4 assignments due</Badge>
-                  {assignedSkillsCount > 0 && (
-                    <Badge className="bg-emerald-100 text-emerald-700">{assignedSkillsCount} skill module{assignedSkillsCount>1?'s':''} assigned</Badge>
-                  )}
-                </div>
-              </div>
+              {headerMessage ? (
+                <div className="text-gray-600">{headerMessage}</div>
+              ) : (
+                <>
+                  <Avatar className="w-16 h-16 ring-4 ring-blue-200/50 ring-offset-4">
+                    <AvatarImage src="" alt={studentName ?? "Student"} />
+                    <AvatarFallback className="bg-gradient-primary text-white text-xl font-semibold">
+                      {studentInitials ?? "ST"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h1 className="text-2xl font-semibold text-gray-900 mb-1">
+                      Welcome back, {studentName ?? "Student"}!
+                    </h1>
+                    <p className="text-gray-600">Ready to continue your learning journey today?</p>
+                    <div className="flex items-center mt-2 space-grid-2">
+                      <Badge className="bg-blue-100 text-blue-700">
+                        {assignmentCounts ? `${assignmentCounts.total} assignments` : "Assignments"}
+                      </Badge>
+                      {assignedSkillsCount > 0 && (
+                        <Badge className="bg-emerald-100 text-emerald-700">
+                          {assignedSkillsCount} skill module{assignedSkillsCount > 1 ? 's' : ''} assigned
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
             
             {/* Quick Stats */}
@@ -124,7 +210,9 @@ export function StudentDashboard() {
                 <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mb-2 shadow-lg">
                   <Book className="w-6 h-6 text-white" />
                 </div>
-                <div className="text-2xl font-semibold text-green-600">8</div>
+                <div className="text-2xl font-semibold text-green-600">
+                  {assignmentCounts ? assignmentCounts.completed : "--"}
+                </div>
                 <div className="text-sm text-gray-600">Completed</div>
               </div>
               <div className="text-center">
