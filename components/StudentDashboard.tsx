@@ -244,6 +244,30 @@ export function StudentDashboard() {
     loadNotes(studentId);
   }, [studentId, refreshEnrollments, loadCourses, loadSubjects, loadNotes]);
 
+  const resolveStudentId = React.useCallback(async () => {
+    if (studentId) return studentId;
+    const { user, profile } = await getCurrentProfile();
+    if (!user) {
+      console.error("Quick Notes: no authenticated user; cannot add note.");
+      return null;
+    }
+    if (profile?.role && profile.role !== "student") {
+      console.error("Quick Notes: current user is not a student; cannot add note.");
+      return null;
+    }
+    const { data: student, error } = await supabase
+      .from("students")
+      .select("id")
+      .eq("student_user_id", user.id)
+      .maybeSingle();
+    if (error || !student?.id) {
+      console.error("Quick Notes: student profile not found for current user.", error);
+      return null;
+    }
+    setStudentId(student.id);
+    return student.id;
+  }, [studentId]);
+
   const enrolledCourseIds = React.useMemo(() => new Set(enrollments.map((item) => item.course_id)), [enrollments]);
   const availableCourses = React.useMemo(
     () => courses.filter((course) => !enrolledCourseIds.has(course.id)),
@@ -372,7 +396,8 @@ export function StudentDashboard() {
   };
 
   const handleAddNote = async () => {
-    if (!studentId) return;
+    const resolvedStudentId = await resolveStudentId();
+    if (!resolvedStudentId) return;
     const input = window.prompt("Add a quick note");
     if (!input) return;
     const body = input.trim();
@@ -380,7 +405,7 @@ export function StudentDashboard() {
     const color = noteColors[notes.length % noteColors.length];
     const { data, error } = await supabase
       .from("student_notes")
-      .insert({ student_id: studentId, body, color })
+      .insert({ student_id: resolvedStudentId, body, color })
       .select("id, body, color, created_at")
       .single();
 
