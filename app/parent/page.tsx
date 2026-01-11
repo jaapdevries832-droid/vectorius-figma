@@ -24,6 +24,31 @@ type AssignmentStatus = {
   message: string;
 };
 
+type StudentOverview = {
+  parent_id: string;
+  student_id: string;
+  student_name: string;
+  upcoming_assignments_count: number;
+  completed_assignments_count: number;
+  overdue_assignments_count: number;
+  next_due_at: string | null;
+  last_activity_at: string | null;
+};
+
+type AdvisorNote = {
+  id: string;
+  advisor_id: string;
+  student_id: string;
+  message: string;
+  priority: string;
+  created_at: string;
+  advisor?: {
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+  } | null;
+};
+
 export default function ParentPage() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
@@ -53,6 +78,8 @@ export default function ParentPage() {
   >({});
   const [gradeMetricsByStudentId, setGradeMetricsByStudentId] = useState<Record<string, number | null>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [studentOverviews, setStudentOverviews] = useState<StudentOverview[]>([]);
+  const [advisorNotes, setAdvisorNotes] = useState<AdvisorNote[]>([]);
 
   const fetchGradeMetrics = useCallback(async (studentIds: string[]) => {
     if (studentIds.length === 0) {
@@ -139,6 +166,62 @@ export default function ParentPage() {
     setIsAdvisorsLoading(false);
   }, []);
 
+  const fetchStudentOverviews = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("parent_student_overview")
+      .select("*");
+
+    if (error) {
+      setStudentOverviews([]);
+      return;
+    }
+
+    setStudentOverviews(data ?? []);
+  }, []);
+
+  const fetchAdvisorNotes = useCallback(async (studentId: string | null) => {
+    if (!studentId) {
+      setAdvisorNotes([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("advisor_notes")
+      .select(`
+        id,
+        advisor_id,
+        student_id,
+        message,
+        priority,
+        created_at
+      `)
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setAdvisorNotes([]);
+      return;
+    }
+
+    // Fetch advisor profiles separately for each note
+    const notesWithAdvisors = await Promise.all(
+      (data ?? []).map(async (note) => {
+        const { data: advisorData } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, email")
+          .eq("id", note.advisor_id)
+          .single();
+
+        return {
+          ...note,
+          advisor: advisorData || null
+        };
+      })
+    );
+
+    setAdvisorNotes(notesWithAdvisors);
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -166,6 +249,7 @@ export default function ParentPage() {
       await fetchStudents();
       if (profile?.role === "parent") {
         await fetchAdvisors();
+        await fetchStudentOverviews();
       }
       setIsLoading(false);
     };
@@ -175,7 +259,11 @@ export default function ParentPage() {
     return () => {
       isMounted = false;
     };
-  }, [fetchAdvisors, fetchStudents, router]);
+  }, [fetchAdvisors, fetchStudents, fetchStudentOverviews, router]);
+
+  useEffect(() => {
+    fetchAdvisorNotes(selectedStudentId);
+  }, [selectedStudentId, fetchAdvisorNotes]);
 
   const handleSignOut = async () => {
     setIsLoading(true);
@@ -328,6 +416,8 @@ export default function ParentPage() {
         onAssignAdvisor={handleAssignAdvisor}
         onSignOut={handleSignOut}
         gradeMetricsByStudentId={gradeMetricsByStudentId}
+        studentOverviews={studentOverviews}
+        advisorNotes={advisorNotes}
       />
     </main>
   );

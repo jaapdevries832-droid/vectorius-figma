@@ -2,11 +2,9 @@
 
 import { FormEvent } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Progress } from "./ui/progress";
-import { Badge } from "./ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { TrendingUp, Calendar, MessageSquare, Bell, Award, Clock } from "lucide-react";
+import { TrendingUp, Calendar, MessageSquare, Award, Clock } from "lucide-react";
 import { cn } from "./ui/utils";
 
 type StudentSummary = {
@@ -30,6 +28,31 @@ type AssignmentStatus = {
 type AdvisorOption = {
   id: string;
   label: string;
+};
+
+type StudentOverview = {
+  parent_id: string;
+  student_id: string;
+  student_name: string;
+  upcoming_assignments_count: number;
+  completed_assignments_count: number;
+  overdue_assignments_count: number;
+  next_due_at: string | null;
+  last_activity_at: string | null;
+};
+
+type AdvisorNote = {
+  id: string;
+  advisor_id: string;
+  student_id: string;
+  message: string;
+  priority: string;
+  created_at: string;
+  advisor?: {
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+  } | null;
 };
 
 type ParentDashboardProps = {
@@ -59,6 +82,8 @@ type ParentDashboardProps = {
   onAssignAdvisor?: (studentId: string, advisorId: string | null) => void;
   onSignOut?: () => void;
   gradeMetricsByStudentId?: Record<string, number | null>;
+  studentOverviews?: StudentOverview[];
+  advisorNotes?: AdvisorNote[];
 };
 
 export function ParentDashboard({
@@ -88,6 +113,8 @@ export function ParentDashboard({
   onAssignAdvisor,
   onSignOut,
   gradeMetricsByStudentId = {},
+  studentOverviews = [],
+  advisorNotes = [],
 }: ParentDashboardProps) {
   const studentOptions = students.map((student) => {
     const initials = `${student.first_name[0] ?? ""}${student.last_name?.[0] ?? ""}`.toUpperCase();
@@ -100,90 +127,20 @@ export function ParentDashboard({
     };
   });
 
-  const performanceData = {
-    "1": {
-      overallGrade: 92,
-      progress: 78,
-      subjects: [
-        { name: "Mathematics", grade: 94, trend: "up" },
-        { name: "English", grade: 89, trend: "stable" },
-        { name: "Chemistry", grade: 96, trend: "up" },
-        { name: "History", grade: 87, trend: "down" },
-      ],
-      recentActivities: [
-        { type: "assignment", title: "Math Homework Ch. 7", status: "completed", date: "2025-09-04" },
-        { type: "quiz", title: "Chemistry Quiz", score: "A+", date: "2025-09-03" },
-        { type: "assignment", title: "Essay: Climate Change", status: "submitted", date: "2025-09-02" },
-      ]
-    },
-    "2": {
-      overallGrade: 88,
-      progress: 85,
-      subjects: [
-        { name: "Mathematics", grade: 91, trend: "up" },
-        { name: "English", grade: 86, trend: "up" },
-        { name: "Science", grade: 89, trend: "stable" },
-        { name: "Social Studies", grade: 84, trend: "stable" },
-      ],
-      recentActivities: [
-        { type: "assignment", title: "Science Project", status: "in-progress", date: "2025-09-04" },
-        { type: "test", title: "Math Test Ch. 5", score: "B+", date: "2025-09-01" },
-      ]
-    },
-    "5": {
-      overallGrade: 90,
-      progress: 82,
-      subjects: [
-        { name: "CP Biology", grade: 92, trend: "up" },
-        { name: "Algebra", grade: 88, trend: "stable" },
-        { name: "English 9CPA", grade: 90, trend: "up" },
-        { name: "World History", grade: 87, trend: "stable" },
-      ],
-      recentActivities: [
-        { type: "assignment", title: "Biology Lab Notes", status: "submitted", date: "2025-09-04" },
-        { type: "quiz", title: "Spanish 2CP Quiz", score: "A-", date: "2025-09-02" },
-        { type: "assignment", title: "Entrepreneurship Pitch Outline", status: "in-progress", date: "2025-09-01" },
-      ]
-    }
-  };
-
-  const advisorNotes = [
-    {
-      from: "Ms. Johnson - Math Teacher",
-      message: "Jordan is excelling in advanced calculus. Consider enrolling in AP Calculus next semester.",
-      date: "2025-09-03",
-      priority: "medium"
-    },
-    {
-      from: "Mr. Smith - Chemistry Teacher",
-      message: "Outstanding performance in lab work. Jordan shows real aptitude for STEM subjects.",
-      date: "2025-09-01",
-      priority: "low"
-    }
-  ];
-
-  const notifications = [
-    { message: "Parent-Teacher Conference scheduled for Sept 15", type: "event", urgent: true },
-    { message: "Jordan's essay received an A grade", type: "achievement", urgent: false },
-    { message: "New assignment posted in Chemistry", type: "assignment", urgent: false },
-  ];
-
-  const currentData = selectedStudentId
-    ? performanceData[selectedStudentId as keyof typeof performanceData]
+  // Get current student overview from real data
+  const currentOverview = selectedStudentId
+    ? studentOverviews.find(overview => overview.student_id === selectedStudentId)
     : undefined;
-  const hasPerformanceData = Boolean(
-    currentData && (currentData.subjects.length > 0 || currentData.recentActivities.length > 0)
-  );
   const selectedGradeMetric = selectedStudentId ? gradeMetricsByStudentId[selectedStudentId] ?? null : null;
   const selectedGradePercent = selectedGradeMetric !== null ? Math.round(selectedGradeMetric * 100) : null;
 
-  const getTrendIcon = (trend: string) => {
-    return trend === "up" ? "^" : trend === "down" ? "v" : "-";
-  };
-
-  const getTrendColor = (trend: string) => {
-    return trend === "up" ? "text-green-600" : trend === "down" ? "text-red-600" : "text-gray-600";
-  };
+  // Calculate progress percentage based on completed vs total assignments
+  const totalAssignments = (currentOverview?.upcoming_assignments_count ?? 0) +
+                          (currentOverview?.completed_assignments_count ?? 0) +
+                          (currentOverview?.overdue_assignments_count ?? 0);
+  const progressPercent = totalAssignments > 0
+    ? Math.round(((currentOverview?.completed_assignments_count ?? 0) / totalAssignments) * 100)
+    : 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -241,12 +198,10 @@ export function ParentDashboard({
                 <p className="text-2xl font-semibold text-blue-700">
                   {selectedGradePercent !== null
                     ? `${selectedGradePercent}%`
-                    : currentData
-                      ? `${currentData.overallGrade}%`
-                      : "--"}
+                    : "--"}
                 </p>
-                {!hasPerformanceData && (
-                  <p className="mt-1 text-xs text-blue-600">Add a student to see metrics.</p>
+                {!currentOverview && (
+                  <p className="mt-1 text-xs text-blue-600">Select a student to see metrics.</p>
                 )}
               </div>
               <Award className="w-8 h-8 text-blue-500" />
@@ -260,9 +215,9 @@ export function ParentDashboard({
               <div>
                 <p className="text-sm text-green-600 mb-1">Progress</p>
                 <p className="text-2xl font-semibold text-green-700">
-                  {currentData ? `${currentData.progress}%` : "--"}
+                  {currentOverview ? `${progressPercent}%` : "--"}
                 </p>
-                {!hasPerformanceData && (
+                {!currentOverview && (
                   <p className="mt-1 text-xs text-green-700">Progress updates show here.</p>
                 )}
               </div>
@@ -275,12 +230,12 @@ export function ParentDashboard({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-purple-600 mb-1">Subjects</p>
+                <p className="text-sm text-purple-600 mb-1">Upcoming</p>
                 <p className="text-2xl font-semibold text-purple-700">
-                  {currentData ? currentData.subjects.length : "--"}
+                  {currentOverview ? currentOverview.upcoming_assignments_count : "--"}
                 </p>
-                {!hasPerformanceData && (
-                  <p className="mt-1 text-xs text-purple-600">Subjects will appear soon.</p>
+                {!currentOverview && (
+                  <p className="mt-1 text-xs text-purple-600">Upcoming assignments appear here.</p>
                 )}
               </div>
               <Calendar className="w-8 h-8 text-purple-500" />
@@ -292,12 +247,12 @@ export function ParentDashboard({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-orange-600 mb-1">Activities</p>
+                <p className="text-sm text-orange-600 mb-1">Completed</p>
                 <p className="text-2xl font-semibold text-orange-700">
-                  {currentData ? currentData.recentActivities.length : "--"}
+                  {currentOverview ? currentOverview.completed_assignments_count : "--"}
                 </p>
-                {!hasPerformanceData && (
-                  <p className="mt-1 text-xs text-orange-700">Activity feed is empty.</p>
+                {!currentOverview && (
+                  <p className="mt-1 text-xs text-orange-700">Completed assignments appear here.</p>
                 )}
               </div>
               <Clock className="w-8 h-8 text-orange-500" />
@@ -390,60 +345,71 @@ export function ParentDashboard({
 
           <Card>
             <CardHeader>
-              <CardTitle>Subject Performance</CardTitle>
+              <CardTitle>Assignment Summary</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {(!currentData || currentData.subjects.length === 0) && (
-                  <p className="text-sm text-muted-foreground">No performance data yet.</p>
+                {!currentOverview && (
+                  <p className="text-sm text-muted-foreground">Select a student to see assignment data.</p>
                 )}
-                {currentData?.subjects.map((subject, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-gray-900">{subject.name}</h4>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-sm ${getTrendColor(subject.trend)}`}>
-                            {getTrendIcon(subject.trend)}
-                          </span>
-                          <span className="font-semibold">{subject.grade}%</span>
+                {currentOverview && (
+                  <>
+                    <div className="flex items-center justify-between p-4 rounded-lg border">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">Upcoming Assignments</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {currentOverview.upcoming_assignments_count} assignment{currentOverview.upcoming_assignments_count !== 1 ? 's' : ''} due soon
+                        </p>
+                        {currentOverview.next_due_at && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Next due: {new Date(currentOverview.next_due_at).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-2xl font-semibold text-purple-600">
+                        {currentOverview.upcoming_assignments_count}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-lg border">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">Completed Assignments</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {currentOverview.completed_assignments_count} assignment{currentOverview.completed_assignments_count !== 1 ? 's' : ''} completed
+                        </p>
+                      </div>
+                      <div className="text-2xl font-semibold text-green-600">
+                        {currentOverview.completed_assignments_count}
+                      </div>
+                    </div>
+
+                    {currentOverview.overdue_assignments_count > 0 && (
+                      <div className="flex items-center justify-between p-4 rounded-lg border border-red-200 bg-red-50">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-red-900">Overdue Assignments</h4>
+                          <p className="text-sm text-red-700 mt-1">
+                            {currentOverview.overdue_assignments_count} assignment{currentOverview.overdue_assignments_count !== 1 ? 's' : ''} need attention
+                          </p>
+                        </div>
+                        <div className="text-2xl font-semibold text-red-600">
+                          {currentOverview.overdue_assignments_count}
                         </div>
                       </div>
-                      <Progress value={subject.grade} className="h-2" />
-                    </div>
-                  </div>
-                ))}
+                    )}
+
+                    {currentOverview.last_activity_at && (
+                      <div className="mt-4 p-3 rounded-lg bg-gray-50 border">
+                        <p className="text-xs text-gray-600">
+                          Last activity: {new Date(currentOverview.last_activity_at).toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Recent Activities */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activities</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {(!currentData || currentData.recentActivities.length === 0) && (
-                  <p className="text-sm text-muted-foreground">No activities yet.</p>
-                )}
-                {currentData?.recentActivities.map((activity, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 rounded-lg border">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{activity.title}</p>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <span>{activity.type}</span>
-                        {activity.score && <span>??? {activity.score}</span>}
-                        {activity.status && <span>??? {activity.status}</span>}
-                        <span>??? {new Date(activity.date).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Sidebar */}
@@ -567,43 +533,35 @@ export function ParentDashboard({
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {advisorNotes.map((note, index) => (
-                  <div key={index} className="p-3 rounded-lg border-l-4 border-blue-400 bg-blue-50">
-                    <p className="font-medium text-sm text-gray-900 mb-1">{note.from}</p>
-                    <p className="text-sm text-gray-700 mb-2">{note.message}</p>
-                    <p className="text-xs text-gray-500">{new Date(note.date).toLocaleDateString()}</p>
-                  </div>
-                ))}
+                {advisorNotes.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No advisor notes yet.</p>
+                )}
+                {advisorNotes.map((note) => {
+                  const advisorName = note.advisor
+                    ? `${note.advisor.first_name ?? ""} ${note.advisor.last_name ?? ""}`.trim() || note.advisor.email
+                    : "Advisor";
+                  const borderColor = note.priority === "high"
+                    ? "border-red-400"
+                    : note.priority === "medium"
+                      ? "border-yellow-400"
+                      : "border-blue-400";
+                  const bgColor = note.priority === "high"
+                    ? "bg-red-50"
+                    : note.priority === "medium"
+                      ? "bg-yellow-50"
+                      : "bg-blue-50";
+                  return (
+                    <div key={note.id} className={`p-3 rounded-lg border-l-4 ${borderColor} ${bgColor}`}>
+                      <p className="font-medium text-sm text-gray-900 mb-1">{advisorName}</p>
+                      <p className="text-sm text-gray-700 mb-2">{note.message}</p>
+                      <p className="text-xs text-gray-500">{new Date(note.created_at).toLocaleDateString()}</p>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
 
-          {/* Notifications */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="w-4 h-4" />
-                Notifications
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {notifications.map((notification, index) => (
-                  <div key={index} className={`p-3 rounded-lg border ${
-                    notification.urgent ? "border-red-200 bg-red-50" : "border-gray-200 bg-gray-50"
-                  }`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      {notification.urgent && <div className="w-2 h-2 bg-red-500 rounded-full"></div>}
-                      <Badge variant={notification.urgent ? "destructive" : "secondary"} className="text-xs">
-                        {notification.type}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-gray-700">{notification.message}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
