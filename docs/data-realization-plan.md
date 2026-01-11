@@ -112,7 +112,7 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 | 4 | Schedule | ✅ | e961c0a | 2026-01-10 | student_schedule_events view; WeeklyPlanner + AssignmentsPage read from view; manual: Student dashboard -> Schedule tab shows classes; Assignments uses class labels |
 | 5 | Advisor data | ⬜ |  |  |  |
 | 6 | Parent data | ⬜ |  |  |  |
-| 7 | Assignments | �o. | 9029ec5 | 2026-01-10 | assignments.type column + student insert policy; AssignmentsPage + StudentDashboard wired to Supabase; manual: Student dashboard -> Assignments add assignment, mark complete, upcoming list matches |
+| 7 | Assignments | ✅ | 9029ec5 | 2026-01-10 | assignments.type column + student insert policy; AssignmentsPage + StudentDashboard wired to Supabase; manual: Student dashboard -> Assignments add assignment, mark complete, upcoming list matches |
 | 8 | Achievements | ⬜ |  |  |  |
 
 ## Execution order (recommended)
