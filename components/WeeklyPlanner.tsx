@@ -20,6 +20,8 @@ import {
 import { cn } from "./ui/utils";
 import { ClassSetupModal } from "./ClassSetupModal";
 import { useRoleLayout } from "app/lib/role-layout-context";
+import { getCurrentProfile } from "@/lib/profile";
+import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -46,134 +48,11 @@ interface WeeklyPlannerProps {
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TIME_SLOTS = [
   '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', 
   '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
 ];
 
-export const DEFAULT_CLASSES: ScheduledCourse[] = [
-  {
-    id: '1',
-    name: 'Advanced Mathematics',
-    teacherName: 'Dr. Johnson',
-    room: 'Room 204',
-    color: 'bg-blue-500',
-    startTime: '09:00',
-    endTime: '10:30',
-    days: ['Monday', 'Wednesday', 'Friday']
-  },
-  {
-    id: '2',
-    name: 'Chemistry Lab',
-    teacherName: 'Prof. Smith',
-    room: 'Lab 301',
-    color: 'bg-green-500',
-    startTime: '14:00',
-    endTime: '16:00',
-    days: ['Tuesday', 'Thursday']
-  },
-  {
-    id: '3',
-    name: 'Literature',
-    teacherName: 'Ms. Davis',
-    room: 'Room 105',
-    color: 'bg-purple-500',
-    startTime: '11:00',
-    endTime: '12:30',
-    days: ['Monday', 'Wednesday']
-  },
-  {
-    id: '4',
-    name: 'History',
-    teacherName: 'Mr. Thompson',
-    room: 'Room 210',
-    color: 'bg-orange-500',
-    startTime: '13:00',
-    endTime: '14:30',
-    days: ['Tuesday', 'Thursday']
-  }
-];
-
-export const ANNIE_CLASSES: ScheduledCourse[] = [
-  {
-    id: 'annie-1',
-    name: 'Entrepreneurship',
-    teacherName: 'Jacqueline Collins',
-    room: 'TBD',
-    color: 'bg-blue-500',
-    startTime: '08:00',
-    endTime: '09:00',
-    days: WEEKDAYS
-  },
-  {
-    id: 'annie-2',
-    name: 'CP Biology 310-007',
-    teacherName: 'Michael Ganshirt',
-    room: 'TBD',
-    color: 'bg-green-500',
-    startTime: '09:00',
-    endTime: '10:00',
-    days: WEEKDAYS
-  },
-  {
-    id: 'annie-3',
-    name: 'Spanish 2CP',
-    teacherName: 'Saul Melendez Loaiza',
-    room: 'TBD',
-    color: 'bg-purple-500',
-    startTime: '10:00',
-    endTime: '11:00',
-    days: WEEKDAYS
-  },
-  {
-    id: 'annie-4',
-    name: 'Algebra',
-    teacherName: 'Julia McLintock',
-    room: 'TBD',
-    color: 'bg-orange-500',
-    startTime: '11:00',
-    endTime: '12:00',
-    days: WEEKDAYS
-  },
-  {
-    id: 'annie-5',
-    name: 'English 9CPA',
-    teacherName: 'Shannon Hruzd',
-    room: 'TBD',
-    color: 'bg-red-500',
-    startTime: '12:00',
-    endTime: '13:00',
-    days: WEEKDAYS
-  },
-  {
-    id: 'annie-6',
-    name: 'World History',
-    teacherName: 'Kelly Ransom',
-    room: 'TBD',
-    color: 'bg-teal-500',
-    startTime: '13:00',
-    endTime: '14:00',
-    days: WEEKDAYS
-  },
-  {
-    id: 'annie-7',
-    name: 'Art 1',
-    teacherName: 'Cheyenne Frausto',
-    room: 'TBD',
-    color: 'bg-pink-500',
-    startTime: '15:00',
-    endTime: '16:00',
-    days: WEEKDAYS
-  }
-];
-
-export function getDefaultClassesForUser(user: UserData | null) {
-  if (user?.name === 'Annie de Vries') {
-    return ANNIE_CLASSES;
-  }
-  return DEFAULT_CLASSES;
-}
 
 export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
   const { openClassSetupTs, activeItem } = useRoleLayout()
@@ -182,14 +61,68 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     const monday = new Date(now.setDate(now.getDate() - now.getDay() + 1));
     return monday;
   });
-  const [classes, setClasses] = useState<ScheduledCourse[]>(() => getDefaultClassesForUser(currentUser));
+  const [classes, setClasses] = useState<ScheduledCourse[]>([]);
   const [scheduleEvents, setScheduleEvents] = useState<ScheduleEvent[]>([]);
   const [isClassSetupOpen, setIsClassSetupOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<ScheduledCourse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setClasses(getDefaultClassesForUser(currentUser));
-  }, [currentUser]);
+    let isMounted = true;
+
+    const loadSchedule = async () => {
+      setIsLoading(true);
+
+      try {
+        const { user, profile } = await getCurrentProfile();
+
+        if (!isMounted) return;
+
+        if (!user) {
+          setClasses([]);
+          setIsLoading(false);
+          window.alert("Please sign in to view your schedule.");
+          return;
+        }
+
+        if (profile?.role && profile.role !== "student") {
+          setClasses([]);
+          setIsLoading(false);
+          window.alert("Schedules are available for student accounts only.");
+          return;
+        }
+
+        const { data, error } = await fetchStudentScheduleEvents();
+
+        if (!isMounted) return;
+
+        if (error) {
+          console.error("Failed to load schedule events", error);
+          setClasses([]);
+          setIsLoading(false);
+          window.alert("Unable to load your schedule right now.");
+          return;
+        }
+
+        setClasses(mapScheduleEventsToCourses(data));
+      } catch (error) {
+        if (!isMounted) return;
+        console.error("Failed to load schedule events", error);
+        setClasses([]);
+        window.alert("Unable to load your schedule right now.");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadSchedule();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id]);
 
   // Generate schedule events from classes
   useEffect(() => {
@@ -200,7 +133,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
         events.push({
           id: `${cls.id}-${day}`,
           title: cls.name,
-          description: `${cls.teacherName} • ${cls.room}`,
+          description: `${cls.teacherName}${cls.room ? ` - ${cls.room}` : ""}`,
           startTime: cls.startTime,
           endTime: cls.endTime,
           day,
@@ -347,7 +280,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
         <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg rounded-2xl card-hover">
           <CardContent className="p-6 text-center">
             <BookOpen className="w-8 h-8 mx-auto mb-3 opacity-90" />
-            <div className="text-2xl font-semibold mb-1">{classes.length}</div>
+            <div className="text-2xl font-semibold mb-1">{isLoading ? "--" : classes.length}</div>
             <div className="text-blue-100 text-sm">Total Classes</div>
           </CardContent>
         </Card>

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
-import { DEFAULT_CLASSES } from "./WeeklyPlanner"
 import type { ScheduledCourse } from "app/lib/domain"
 import { AssignmentModal, type AssignmentInput, type AssignmentType } from "./AssignmentModal"
 import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Edit, Trash2, Plus, ExternalLink, Copy, ChevronDown, Check, Trophy } from "lucide-react"
@@ -12,6 +11,7 @@ import type { LucideIcon } from "lucide-react"
 import { GamificationCongratsModal } from "./GamificationCongratsModal"
 import { supabase } from "@/lib/supabase/client"
 import { getCurrentProfile } from "@/lib/profile"
+import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule"
 
 type Assignment = {
   id: string
@@ -53,7 +53,7 @@ function categorize(dueIso: string | null) {
   return 'Upcoming'
 }
 
-export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: ScheduledCourse[] }) {
+export function AssignmentsPage() {
   const [open, setOpen] = useState<Record<string, boolean>>({
     Overdue: true,
     Today: true,
@@ -63,6 +63,7 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Sched
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [classes, setClasses] = useState<ScheduledCourse[]>([])
   const [studentId, setStudentId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [congratsOpen, setCongratsOpen] = useState(false)
@@ -75,12 +76,19 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Sched
       setIsLoading(true)
       setLoadError(null)
 
-      const { user } = await getCurrentProfile()
+      const { user, profile } = await getCurrentProfile()
 
       if (!isMounted) return
 
       if (!user) {
         setLoadError('Please sign in to view assignments.')
+        setAssignments([])
+        setIsLoading(false)
+        return
+      }
+
+      if (profile?.role && profile.role !== "student") {
+        setLoadError("Assignments are available for student accounts only.")
         setAssignments([])
         setIsLoading(false)
         return
@@ -147,6 +155,45 @@ export function AssignmentsPage({ classes = DEFAULT_CLASSES }: { classes?: Sched
     }
 
     loadAssignments()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadSchedule = async () => {
+      const { user, profile } = await getCurrentProfile()
+
+      if (!isMounted) return
+
+      if (!user) {
+        setClasses([])
+        return
+      }
+
+      if (profile?.role && profile.role !== "student") {
+        setClasses([])
+        return
+      }
+
+      const { data, error } = await fetchStudentScheduleEvents()
+
+      if (!isMounted) return
+
+      if (error) {
+        console.error("Failed to load schedule events", error)
+        setLoadError("Unable to load class labels right now.")
+        setClasses([])
+        return
+      }
+
+      setClasses(mapScheduleEventsToCourses(data))
+    }
+
+    loadSchedule()
 
     return () => {
       isMounted = false
