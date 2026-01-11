@@ -109,7 +109,7 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 | 1 | Skills modules | ✅ | 0e3c7d0 | 2026-01-10 | skill_modules table + seed; MentorSkills reads modules from Supabase (read-only); manual: Mentor dashboard -> Skills -> modules list renders |
 | 2 | Skill assignments + notifications | ✅ | 8a2f505 | 2026-01-10 | skill_assignments table + RLS; MentorSkills/StudentSkills wired to Supabase; manual: Mentor dashboard -> Skills -> Assign; Student dashboard -> Skills -> Mark Completed |
 | 3 | Student notes | ✅ | 5db9251 | 2026-01-10 | student_notes table + RLS; StudentDashboard notes read/add/delete; manual: Student dashboard -> Quick Notes add/delete |
-| 4 | Schedule | ? | e961c0a | 2026-01-10 | student_schedule_events view; WeeklyPlanner + AssignmentsPage read from view; manual: Student dashboard -> Schedule tab shows classes; Assignments uses class labels |
+| 4 | Schedule | ✅ | e961c0a | 2026-01-10 | student_schedule_events view; WeeklyPlanner + AssignmentsPage read from view; manual: Student dashboard -> Schedule tab shows classes; Assignments uses class labels |
 | 5 | Advisor data | ⬜ |  |  |  |
 | 6 | Parent data | ⬜ |  |  |  |
 | 7 | Assignments | ⬜ |  |  |  |

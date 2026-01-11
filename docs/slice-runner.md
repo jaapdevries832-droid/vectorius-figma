@@ -61,3 +61,15 @@ Stop only if:
 - Supabase command fails in a way that requires high-risk repair
 - schema mismatch prevents progress
 When stopping, output exact error, commands run, files changed, and smallest next action.
+
+### Tracker status normalization (required)
+
+When updating the Slice Status Tracker in `docs/data-realization-plan.md`:
+
+- Status MUST be one of: ⬜, 🟨, ✅, ⛔ (no other symbols like "?" are allowed).
+- If the slice has:
+  - a slice implementation commit SHA, AND
+  - lint/build passed (when required), AND
+  - a manual test path,
+  then Status MUST be set to ✅ complete.
+- If blocked, set Status to ⛔ and briefly explain the blocker in Notes.
