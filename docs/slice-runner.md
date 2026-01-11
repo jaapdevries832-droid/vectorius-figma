@@ -37,6 +37,7 @@ Purpose: run one vertical slice end-to-end with minimal supervision, keeping UI 
      - commit SHA
      - brief notes (schema objects created, key UI files updated)
      - manual test path
+     - If a slice has a commit SHA and a completed manual test path, its status MUST be set to ✅ complete.
 
 5) **Commit & push (one commit per slice)**
    - Stage only relevant files (migrations, touched code, plan doc + any slice docs).
