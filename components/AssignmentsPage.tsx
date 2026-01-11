@@ -53,6 +53,13 @@ function categorize(dueIso: string | null) {
   return 'Upcoming'
 }
 
+function normalizeAssignmentType(value: string | null | undefined): AssignmentType {
+  if (value === 'homework' || value === 'quiz' || value === 'test' || value === 'project') {
+    return value
+  }
+  return 'homework'
+}
+
 export function AssignmentsPage() {
   const [open, setOpen] = useState<Record<string, boolean>>({
     Overdue: true,
@@ -120,7 +127,7 @@ export function AssignmentsPage() {
 
       const { data, error } = await supabase
         .from('assignments')
-        .select('id, title, description, due_at, status, completed_at, priority, course_id, score, max_score, course:courses (title, teacher_name)')
+        .select('id, title, type, description, due_at, status, completed_at, priority, course_id, course:courses (title, teacher_name)')
         .eq('student_id', student.id)
         .order('due_at', { ascending: true })
 
@@ -138,7 +145,7 @@ export function AssignmentsPage() {
         return {
         id: row.id,
         title: row.title ?? 'Untitled Assignment',
-        type: 'homework' as AssignmentType,
+        type: normalizeAssignmentType(row.type),
         classId: row.course_id ?? '',
         dueAt: row.due_at,
         notes: row.description ?? null,
@@ -222,23 +229,53 @@ export function AssignmentsPage() {
 
   const classById = useMemo(() => Object.fromEntries(classes.map(c => [c.id, c])), [classes])
 
-  const addAssignment = (input: AssignmentInput) => {
-    const basePts = computePotentialPoints(input.dueDate)
-    setAssignments(prev => [
-      ...prev,
-      {
-        id: Date.now().toString(),
+  const addAssignment = async (input: AssignmentInput) => {
+    if (!studentId) {
+      console.error("Assignments: missing student id, cannot create assignment.")
+      setLoadError("Unable to create assignment right now.")
+      return
+    }
+
+    const dueAt = input.dueDate ? new Date(`${input.dueDate}T00:00:00`).toISOString() : null
+
+    const { data, error } = await supabase
+      .from('assignments')
+      .insert({
+        student_id: studentId,
+        course_id: input.classId || null,
         title: input.title,
+        description: input.notes ?? null,
         type: input.type,
-        classId: input.classId,
-        dueAt: input.dueDate,
-        notes: input.notes ?? null,
+        due_at: dueAt,
         status: 'todo',
-        completedAt: null,
-        pointsAvailable: basePts,
-      },
-    ])
-    setIsOpen(false)
+      })
+      .select('id, title, type, description, due_at, status, completed_at, priority, course_id, course:courses (title, teacher_name)')
+      .single()
+
+    if (error) {
+      console.error("Assignments: failed to create assignment", error)
+      setLoadError("Unable to create assignment right now.")
+      return
+    }
+
+    const basePts = computePotentialPoints(input.dueDate)
+    const course = Array.isArray(data?.course) ? data?.course[0] : data?.course
+    const nextAssignment: Assignment = {
+      id: data.id,
+      title: data.title ?? input.title,
+      type: normalizeAssignmentType(data.type ?? input.type),
+      classId: data.course_id ?? input.classId,
+      dueAt: data.due_at,
+      notes: data.description ?? input.notes ?? null,
+      status: data.status,
+      completedAt: data.completed_at,
+      courseTitle: course?.title ?? null,
+      courseTeacher: course?.teacher_name ?? null,
+      priority: data.priority ?? null,
+      pointsAvailable: basePts,
+    }
+
+    setAssignments(prev => [...prev, nextAssignment])
   }
 
   function computePotentialPoints(dueIso: string | null) {
@@ -249,7 +286,10 @@ export function AssignmentsPage() {
   }
 
   async function updateCompletion(a: Assignment, shouldComplete: boolean) {
-    if (!studentId) return
+    if (!studentId) {
+      console.error("Assignments: missing student id, cannot update completion.")
+      return
+    }
     setUpdatingId(a.id)
 
     const nextStatus = shouldComplete ? 'done' : 'todo'

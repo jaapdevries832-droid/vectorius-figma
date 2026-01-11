@@ -46,12 +46,9 @@ export function StudentDashboard() {
     avgGradePercent: number | null;
     progressPercent: number;
   } | null>(null);
-  const assignments = [
-    { id: 1, title: "Math Homework Ch. 7", subject: "Mathematics", dueDate: "2025-09-06", completed: false, priority: "high" },
-    { id: 2, title: "Essay: Climate Change", subject: "English", dueDate: "2025-09-08", completed: true, priority: "medium" },
-    { id: 3, title: "Science Lab Report", subject: "Chemistry", dueDate: "2025-09-10", completed: false, priority: "low" },
-    { id: 4, title: "History Timeline Project", subject: "History", dueDate: "2025-09-12", completed: false, priority: "medium" },
-  ];
+  const [upcomingAssignments, setUpcomingAssignments] = React.useState<
+    { id: string; title: string; subject: string; dueDate: string; completed: boolean; priority: string }[]
+  >([]);
 
   const [notes, setNotes] = React.useState<
     { id: string; body: string; color: string; created_at: string }[]
@@ -164,14 +161,15 @@ export function StudentDashboard() {
       if (!isMounted) return;
 
       if (!user) {
-        setHeaderMessage("No student profile found.");
-        setStudentName(null);
-        setStudentInitials(null);
-        setStudentId(null);
-        setAssignmentCounts(null);
-        setDashboardMetrics(null);
-        return;
-      }
+      setHeaderMessage("No student profile found.");
+      setStudentName(null);
+      setStudentInitials(null);
+      setStudentId(null);
+      setAssignmentCounts(null);
+      setDashboardMetrics(null);
+      setUpcomingAssignments([]);
+      return;
+    }
 
       const { data: student, error } = await supabase
         .from("students")
@@ -188,6 +186,7 @@ export function StudentDashboard() {
         setStudentId(null);
         setAssignmentCounts(null);
         setDashboardMetrics(null);
+        setUpcomingAssignments([]);
         return;
       }
 
@@ -198,16 +197,22 @@ export function StudentDashboard() {
       setStudentInitials(initials || "ST");
       setStudentId(student.id);
 
-      const { data: assignmentRows } = await supabase
+      const { data: assignmentRows, error: assignmentError } = await supabase
         .from("assignments")
-        .select("id, completed_at, due_at, score, max_score")
-        .eq("student_id", student.id);
+        .select("id, title, due_at, status, completed_at, priority, score, max_score, course:courses (title)")
+        .eq("student_id", student.id)
+        .order("due_at", { ascending: true })
+        .limit(6);
+
+      if (assignmentError) {
+        console.error("Failed to load assignments for dashboard", assignmentError);
+      }
 
       if (!isMounted) return;
 
       const rows = assignmentRows ?? [];
       const total = rows.length;
-      const completed = rows.filter((row) => row.completed_at).length;
+      const completed = rows.filter((row) => row.completed_at || row.status === "done" || row.status === "completed").length;
       const endOfToday = endOfDay(new Date());
       let due = 0;
       let sumScore = 0;
@@ -225,8 +230,21 @@ export function StudentDashboard() {
       const avgGradePercent = sumMax > 0 ? Math.round((sumScore / sumMax) * 100) : null;
       const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
+      const mappedAssignments = rows.map((row) => {
+        const course = Array.isArray(row.course) ? row.course[0] : row.course;
+        return {
+          id: row.id,
+          title: row.title ?? "Untitled Assignment",
+          subject: course?.title ?? "Class",
+          dueDate: row.due_at ?? new Date().toISOString(),
+          completed: Boolean(row.completed_at) || row.status === "done" || row.status === "completed",
+          priority: row.priority ?? "medium",
+        };
+      });
+
       setAssignmentCounts({ total, completed });
       setDashboardMetrics({ total, completed, due, avgGradePercent, progressPercent });
+      setUpcomingAssignments(mappedAssignments);
     };
 
     loadStudent();
@@ -745,7 +763,7 @@ export function StudentDashboard() {
               </Button>
             </CardHeader>
             <CardContent className="space-grid-3">
-              {assignments.map((assignment) => (
+              {upcomingAssignments.map((assignment) => (
                 <div key={assignment.id} className="group p-6 rounded-2xl border border-gray-100 hover:border-gray-200 bg-white/60 hover:bg-white transition-all duration-200 hover:shadow-md">
                   <div className="flex items-start space-grid-4">
                     <Button
