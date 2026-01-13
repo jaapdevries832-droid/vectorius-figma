@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { ScheduledCourse, User } from "app/lib/domain";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -22,6 +22,8 @@ import { ClassSetupModal } from "./ClassSetupModal";
 import { useRoleLayout } from "app/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
 import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
+import { supabase } from "@/lib/supabase/client";
+import { addEnrollment, createCourse, deleteCourse, replaceCourseMeetings, updateCourse } from "@/lib/student-classes";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +50,15 @@ interface WeeklyPlannerProps {
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY_INDEX_BY_NAME: Record<string, number> = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+};
 const TIME_SLOTS = [
   '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', 
   '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
@@ -66,6 +77,51 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
   const [isClassSetupOpen, setIsClassSetupOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<ScheduledCourse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const reloadSchedule = useCallback(async () => {
+    setIsLoading(true);
+
+    const { data, error } = await fetchStudentScheduleEvents();
+
+    if (error) {
+      console.error("Failed to load schedule events", error);
+      setClasses([]);
+      setIsLoading(false);
+      window.alert("Unable to load your schedule right now.");
+      return;
+    }
+
+    setClasses(mapScheduleEventsToCourses(data));
+    setIsLoading(false);
+  }, []);
+
+  const resolveStudentId = useCallback(async () => {
+    const { user, profile } = await getCurrentProfile();
+
+    if (!user) {
+      window.alert("Please sign in to manage your schedule.");
+      return null;
+    }
+
+    if (profile?.role && profile.role !== "student") {
+      window.alert("Schedules are available for student accounts only.");
+      return null;
+    }
+
+    const { data: student, error } = await supabase
+      .from("students")
+      .select("id")
+      .eq("student_user_id", user.id)
+      .maybeSingle();
+
+    if (error || !student?.id) {
+      console.error("Failed to resolve student id", error);
+      window.alert("Unable to load your student profile.");
+      return null;
+    }
+
+    return student.id;
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -190,29 +246,94 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
-  const handleAddClass = (classData: Omit<ScheduledCourse, 'id'>) => {
-    const newClass: ScheduledCourse = {
-      ...classData,
-      id: Date.now().toString()
-    };
-    setClasses([...classes, newClass]);
+  const buildMeetingsPayload = (classData: Omit<ScheduledCourse, "id">) =>
+    classData.days.map((day) => ({
+      day_of_week: DAY_INDEX_BY_NAME[day] ?? 0,
+      start_time: classData.startTime,
+      end_time: classData.endTime,
+    }));
+
+  const handleAddClass = async (classData: Omit<ScheduledCourse, 'id'>) => {
+    const studentId = await resolveStudentId();
+    if (!studentId) return;
+
+    setIsLoading(true);
+    const { id, error } = await createCourse({
+      title: classData.name,
+      teacher_name: classData.teacherName,
+      location: classData.room ?? null,
+      created_by_student_id: studentId,
+    });
+
+    if (error || !id) {
+      console.error("Failed to create course", error);
+      window.alert("Unable to add that class right now.");
+      setIsLoading(false);
+      return;
+    }
+
+    const meetingError = await replaceCourseMeetings(id, buildMeetingsPayload(classData));
+    if (meetingError) {
+      console.error("Failed to create class meetings", meetingError);
+      window.alert("Unable to save the class schedule right now.");
+      setIsLoading(false);
+      return;
+    }
+
+    const enrollError = await addEnrollment(studentId, id);
+    if (enrollError) {
+      console.error("Failed to enroll in class", enrollError);
+      window.alert("Class created, but enrollment failed.");
+      setIsLoading(false);
+      return;
+    }
+
+    await reloadSchedule();
     setIsClassSetupOpen(false);
   };
 
-  const handleEditClass = (classData: Omit<ScheduledCourse, 'id'>) => {
-    if (selectedClass) {
-      setClasses(classes.map(cls => 
-        cls.id === selectedClass.id 
-          ? { ...classData, id: selectedClass.id }
-          : cls
-      ));
-      setSelectedClass(null);
-      setIsClassSetupOpen(false);
+  const handleEditClass = async (classData: Omit<ScheduledCourse, 'id'>) => {
+    if (!selectedClass) return;
+    const courseId = selectedClass.id;
+
+    setIsLoading(true);
+    const updateError = await updateCourse(courseId, {
+      title: classData.name,
+      teacher_name: classData.teacherName,
+      location: classData.room ?? null,
+    });
+
+    if (updateError) {
+      console.error("Failed to update class", updateError);
+      window.alert("Unable to update that class right now.");
+      setIsLoading(false);
+      return;
     }
+
+    const meetingError = await replaceCourseMeetings(courseId, buildMeetingsPayload(classData));
+    if (meetingError) {
+      console.error("Failed to update class meetings", meetingError);
+      window.alert("Unable to save the class schedule right now.");
+      setIsLoading(false);
+      return;
+    }
+
+    await reloadSchedule();
+    setSelectedClass(null);
+    setIsClassSetupOpen(false);
   };
 
-  const handleDeleteClass = (classId: string) => {
-    setClasses(classes.filter(cls => cls.id !== classId));
+  const handleDeleteClass = async (classId: string) => {
+    setIsLoading(true);
+    const deleteError = await deleteCourse(classId);
+    if (deleteError) {
+      console.error("Failed to delete class", deleteError);
+      window.alert("Unable to delete that class right now.");
+      setIsLoading(false);
+      return;
+    }
+
+    await reloadSchedule();
   };
 
   const openEditModal = (cls: ScheduledCourse) => {

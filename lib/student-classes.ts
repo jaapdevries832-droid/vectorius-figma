@@ -109,6 +109,56 @@ export async function createCourse(params: {
   return { id: data?.id ?? null, error: error ?? null };
 }
 
+export async function updateCourse(
+  courseId: string,
+  params: {
+    title: string;
+    teacher_name?: string | null;
+    location?: string | null;
+  },
+): Promise<PostgrestError | null> {
+  const { error } = await supabase
+    .from("courses")
+    .update({
+      title: params.title,
+      teacher_name: params.teacher_name ?? null,
+      location: params.location ?? null,
+    })
+    .eq("id", courseId);
+
+  return error ?? null;
+}
+
+export async function deleteCourse(courseId: string): Promise<PostgrestError | null> {
+  const { error } = await supabase.from("courses").delete().eq("id", courseId);
+  return error ?? null;
+}
+
+export async function replaceCourseMeetings(
+  courseId: string,
+  meetings: Array<{ day_of_week: number; start_time: string; end_time: string }>,
+): Promise<PostgrestError | null> {
+  const { error: deleteError } = await supabase.from("course_meetings").delete().eq("course_id", courseId);
+  if (deleteError) {
+    return deleteError;
+  }
+
+  if (meetings.length === 0) {
+    return null;
+  }
+
+  const { error: insertError } = await supabase.from("course_meetings").insert(
+    meetings.map((meeting) => ({
+      course_id: courseId,
+      day_of_week: meeting.day_of_week,
+      start_time: meeting.start_time,
+      end_time: meeting.end_time,
+    })),
+  );
+
+  return insertError ?? null;
+}
+
 export async function removeEnrollment(studentId: string, courseId: string): Promise<PostgrestError | null> {
   const { error } = await supabase
     .from("student_course_enrollments")

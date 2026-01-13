@@ -18,17 +18,11 @@ import type { Role, User } from "app/lib/domain";
 
 interface TopNavigationProps {
   currentRole: Role;
-  onRoleChange: (role: Role) => void;
   currentUser: User | null;
   onLogout: () => void;
 }
 
-export function TopNavigation({ currentRole, onRoleChange, currentUser, onLogout }: TopNavigationProps) {
-  const roleOptions: { value: Role; label: string }[] = [
-    { value: 'student', label: 'Student' },
-    { value: 'parent', label: 'Parent' },
-    { value: 'advisor', label: 'Advisor' }
-  ];
+export function TopNavigation({ currentRole, currentUser, onLogout }: TopNavigationProps) {
   const hoverBgStyle = { '--hover-bg': 'rgba(59, 130, 246, 0.1)' } as CSSProperties;
 
   return (
@@ -45,28 +39,6 @@ export function TopNavigation({ currentRole, onRoleChange, currentUser, onLogout
             priority
           />
         </Link>
-        
-        <div className="flex items-center rounded-2xl p-1 space-grid" style={{backgroundColor: 'rgba(59, 130, 246, 0.1)'}}>
-          {roleOptions.map((role) => (
-            <Button
-              key={role.value}
-              variant={currentRole === role.value ? "default" : "ghost"}
-              size="sm"
-              onClick={() => onRoleChange(role.value)}
-              className={`px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                currentRole === role.value 
-                  ? "shadow-md rounded-xl btn-glow" 
-                  : "hover:bg-white/50 rounded-xl"
-              }`}
-              style={currentRole === role.value 
-                ? {backgroundColor: '#3B82F6', color: 'white'} 
-                : {color: '#3B82F6'}
-              }
-            >
-              {role.label}
-            </Button>
-          ))}
-        </div>
       </div>
 
       <div className="flex items-center space-grid-3">

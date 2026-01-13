@@ -14,6 +14,7 @@ import { RoleLayoutProvider } from 'app/lib/role-layout-context'
 import type { Role, User } from 'app/lib/domain'
 import type { SidebarItem } from 'app/lib/types'
 import { clearCurrentUser, getCurrentUser } from 'app/lib/current-user'
+import { getCurrentProfile } from '@/lib/profile'
 
 export default function RoleLayout({ children, params }: { children: React.ReactNode, params: { role: Role }}) {
   const router = useRouter()
@@ -26,13 +27,33 @@ export default function RoleLayout({ children, params }: { children: React.React
     setOpenClassSetupTs(Date.now())
   }
 
-  function handleRoleChange(nextRole: Role) {
-    if (nextRole !== role) router.push(`/${nextRole}`)
-  }
-
   useEffect(() => {
     setCurrentUser(getCurrentUser())
   }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const verifyRole = async () => {
+      const { user, profile } = await getCurrentProfile()
+      if (!isMounted) return
+
+      if (!user) {
+        router.push('/login')
+        return
+      }
+
+      if (profile?.role && profile.role !== role) {
+        router.push(`/${profile.role}`)
+      }
+    }
+
+    verifyRole()
+
+    return () => {
+      isMounted = false
+    }
+  }, [role, router])
 
   function handleLogout() {
     clearCurrentUser()
@@ -102,7 +123,7 @@ export default function RoleLayout({ children, params }: { children: React.React
   return (
     <RoleLayoutProvider value={{ activeItem, setActiveItem, openClassSetupTs, requestOpenClassSetup }}>
       <div className="min-h-screen flex flex-col bg-white bg-gradient-secondary">
-        <TopNavigation currentRole={role} onRoleChange={handleRoleChange} currentUser={currentUser} onLogout={handleLogout} />
+        <TopNavigation currentRole={role} currentUser={currentUser} onLogout={handleLogout} />
         <div className="flex-1 flex overflow-hidden">
           <Sidebar currentRole={role} activeItem={activeItem} onItemChange={setActiveItem} currentUser={currentUser} className="hidden md:flex" />
           <main className="flex-1 overflow-y-auto">{renderContent()}</main>

@@ -10,25 +10,17 @@ import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, S
 import { useRoleLayout } from "app/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase/client";
-import {
-  addEnrollment,
-  createCourse,
-  fetchCourses,
-  fetchMyEnrollments,
-  fetchSubjects,
-  removeEnrollment,
-  type CourseWithMeetings,
-  type EnrollmentWithCourse,
-  type Subject,
-} from "@/lib/student-classes";
+  import {
+    addEnrollment,
+    createCourse,
+    fetchMyEnrollments,
+    removeEnrollment,
+    type CourseWithMeetings,
+    type EnrollmentWithCourse,
+  } from "@/lib/student-classes";
 import type { AssignedSkill } from "app/lib/types";
 import { Input } from "./ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "./ui/select";
 
 export function StudentDashboard() {
@@ -58,18 +50,10 @@ export function StudentDashboard() {
   const avgGradeDisplay = dashboardMetrics?.avgGradePercent != null ? `${dashboardMetrics.avgGradePercent}%` : "—";
   const dueCountDisplay = dashboardMetrics ? dashboardMetrics.due : "--";
   const [assignedSkillsCount, setAssignedSkillsCount] = React.useState<number>(0)
-  const [courses, setCourses] = React.useState<CourseWithMeetings[]>([]);
-  const [subjects, setSubjects] = React.useState<Subject[]>([]);
   const [enrollments, setEnrollments] = React.useState<EnrollmentWithCourse[]>([]);
-  const [coursesLoading, setCoursesLoading] = React.useState(false);
-  const [subjectsLoading, setSubjectsLoading] = React.useState(false);
   const [enrollmentsLoading, setEnrollmentsLoading] = React.useState(false);
-  const [coursesError, setCoursesError] = React.useState<string | null>(null);
-  const [subjectsError, setSubjectsError] = React.useState<string | null>(null);
   const [enrollmentsError, setEnrollmentsError] = React.useState<string | null>(null);
   const [enrollmentActionError, setEnrollmentActionError] = React.useState<string | null>(null);
-  const [selectedCourseId, setSelectedCourseId] = React.useState<string>("");
-  const [isAddingEnrollment, setIsAddingEnrollment] = React.useState(false);
   const [removingCourseId, setRemovingCourseId] = React.useState<string | null>(null);
   const [createTitle, setCreateTitle] = React.useState("");
   const [createTeacher, setCreateTeacher] = React.useState("");
@@ -117,34 +101,6 @@ export function StudentDashboard() {
     }
 
     setNotes(data ?? []);
-  }, []);
-
-  const loadCourses = React.useCallback(async () => {
-    setCoursesLoading(true);
-    setCoursesError(null);
-    try {
-      const data = await fetchCourses();
-      setCourses(data);
-    } catch (error) {
-      console.error("Failed to load courses", error);
-      setCoursesError("Unable to load available classes right now.");
-    } finally {
-      setCoursesLoading(false);
-    }
-  }, []);
-
-  const loadSubjects = React.useCallback(async () => {
-    setSubjectsLoading(true);
-    setSubjectsError(null);
-    try {
-      const data = await fetchSubjects();
-      setSubjects(data);
-    } catch (error) {
-      console.error("Failed to load subjects", error);
-      setSubjectsError("Subjects are unavailable right now.");
-    } finally {
-      setSubjectsLoading(false);
-    }
   }, []);
 
   const endOfDay = (d: Date) => {
@@ -257,10 +213,8 @@ export function StudentDashboard() {
   React.useEffect(() => {
     if (!studentId) return;
     refreshEnrollments(studentId);
-    loadCourses();
-    loadSubjects();
     loadNotes(studentId);
-  }, [studentId, refreshEnrollments, loadCourses, loadSubjects, loadNotes]);
+  }, [studentId, refreshEnrollments, loadNotes]);
 
   const resolveStudentId = React.useCallback(async () => {
     if (studentId) return studentId;
@@ -285,12 +239,6 @@ export function StudentDashboard() {
     setStudentId(student.id);
     return student.id;
   }, [studentId]);
-
-  const enrolledCourseIds = React.useMemo(() => new Set(enrollments.map((item) => item.course_id)), [enrollments]);
-  const availableCourses = React.useMemo(
-    () => courses.filter((course) => !enrolledCourseIds.has(course.id)),
-    [courses, enrolledCourseIds],
-  );
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -344,25 +292,6 @@ export function StudentDashboard() {
     };
   };
 
-  const handleAddEnrollment = async () => {
-    if (!studentId || !selectedCourseId) return;
-    setEnrollmentActionError(null);
-    setIsAddingEnrollment(true);
-    const error = await addEnrollment(studentId, selectedCourseId);
-    if (error) {
-      if (error.code === "23505") {
-        setEnrollmentActionError("You're already enrolled in that class.");
-      } else {
-        setEnrollmentActionError("Unable to add that class right now.");
-      }
-      setIsAddingEnrollment(false);
-      return;
-    }
-    await refreshEnrollments(studentId);
-    setSelectedCourseId("");
-    setIsAddingEnrollment(false);
-  };
-
   const handleRemoveEnrollment = async (courseId: string) => {
     if (!studentId) return;
     setEnrollmentActionError(null);
@@ -391,7 +320,7 @@ export function StudentDashboard() {
       title: trimmedTitle,
       teacher_name: createTeacher.trim() || null,
       location: createLocation.trim() || null,
-      subject_id: subjects[0]?.id ?? null,
+      subject_id: null,
       created_by_student_id: studentId,
     });
     if (error || !id) {
@@ -403,10 +332,9 @@ export function StudentDashboard() {
     if (enrollError) {
       setCreateCourseError("Class created, but enrollment failed.");
       setIsCreatingCourse(false);
-      await loadCourses();
       return;
     }
-    await Promise.all([loadCourses(), refreshEnrollments(studentId)]);
+    await refreshEnrollments(studentId);
     setCreateTitle("");
     setCreateTeacher("");
     setCreateLocation("");
@@ -580,98 +508,59 @@ export function StudentDashboard() {
       </Card>
 
       {/* My Classes */}
-      <Card className="bg-gradient-card border-0 shadow-lg rounded-2xl card-hover">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center space-grid-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md">
-              <Book className="w-4 h-4 text-white" />
-            </div>
-            My Classes
-          </CardTitle>
-          <div className="flex items-center space-grid-2">
-            <Select
-              value={selectedCourseId}
-              onValueChange={setSelectedCourseId}
-              disabled={coursesLoading || availableCourses.length === 0}
-            >
-              <SelectTrigger className="w-[220px] rounded-xl border-gray-200 bg-white/80">
-                <SelectValue placeholder={coursesLoading ? "Loading courses..." : "Select a class"} />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                {availableCourses.map((course) => (
-                  <SelectItem key={course.id} value={course.id} className="rounded-lg">
-                    {course.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              size="sm"
-              className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
-              disabled={!selectedCourseId || isAddingEnrollment}
-              onClick={handleAddEnrollment}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Class
-            </Button>
-          </div>
+        <Card className="bg-gradient-card border-0 shadow-lg rounded-2xl card-hover">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center space-grid-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                <Book className="w-4 h-4 text-white" />
+              </div>
+              My Classes
+            </CardTitle>
         </CardHeader>
         <CardContent className="space-grid-3">
-          {coursesError && <div className="text-sm text-red-600">{coursesError}</div>}
-          {subjectsError && <div className="text-sm text-red-600">{subjectsError}</div>}
           {enrollmentsError && <div className="text-sm text-red-600">{enrollmentsError}</div>}
           {enrollmentActionError && <div className="text-sm text-red-600">{enrollmentActionError}</div>}
-          {!coursesLoading && courses.length === 0 && (
-            <form
-              onSubmit={handleCreateCourse}
-              className="space-grid-3 rounded-2xl border border-gray-100 bg-white/60 p-4"
-            >
-              <div className="text-sm font-medium text-gray-900">Create a class</div>
-              <div className="grid gap-3 md:grid-cols-3">
-                <Input
-                  placeholder="Class title"
-                  value={createTitle}
-                  onChange={(event) => setCreateTitle(event.target.value)}
-                  disabled={isCreatingCourse || subjectsLoading}
-                  required
-                  className="rounded-xl border-gray-200 bg-white/80"
-                />
-                <Input
-                  placeholder="Teacher (optional)"
-                  value={createTeacher}
-                  onChange={(event) => setCreateTeacher(event.target.value)}
-                  disabled={isCreatingCourse || subjectsLoading}
-                  className="rounded-xl border-gray-200 bg-white/80"
-                />
-                <Input
-                  placeholder="Location (optional)"
-                  value={createLocation}
-                  onChange={(event) => setCreateLocation(event.target.value)}
-                  disabled={isCreatingCourse || subjectsLoading}
-                  className="rounded-xl border-gray-200 bg-white/80"
-                />
-              </div>
-              {subjects.length === 0 && !subjectsLoading && (
-                <div className="text-xs text-muted-foreground">
-                  No subjects available yet. You can still create a class.
-                </div>
-              )}
-              {createCourseError && <div className="text-sm text-red-600">{createCourseError}</div>}
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  type="submit"
-                  className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
-                  disabled={isCreatingCourse || subjectsLoading}
-                >
-                  Create Class
-                </Button>
-              </div>
-            </form>
-          )}
-          {courses.length > 0 && availableCourses.length === 0 && !coursesLoading && (
-            <div className="text-sm text-muted-foreground">No additional classes available.</div>
-          )}
+          <form
+            onSubmit={handleCreateCourse}
+            className="space-grid-3 rounded-2xl border border-gray-100 bg-white/60 p-4"
+          >
+            <div className="text-sm font-medium text-gray-900">Create a class</div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <Input
+                placeholder="Class title"
+                value={createTitle}
+                onChange={(event) => setCreateTitle(event.target.value)}
+                disabled={isCreatingCourse}
+                required
+                className="rounded-xl border-gray-200 bg-white/80"
+              />
+              <Input
+                placeholder="Teacher (optional)"
+                value={createTeacher}
+                onChange={(event) => setCreateTeacher(event.target.value)}
+                disabled={isCreatingCourse}
+                className="rounded-xl border-gray-200 bg-white/80"
+              />
+              <Input
+                placeholder="Location (optional)"
+                value={createLocation}
+                onChange={(event) => setCreateLocation(event.target.value)}
+                disabled={isCreatingCourse}
+                className="rounded-xl border-gray-200 bg-white/80"
+              />
+            </div>
+            {createCourseError && <div className="text-sm text-red-600">{createCourseError}</div>}
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                type="submit"
+                className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
+                disabled={isCreatingCourse}
+              >
+                Create Class
+              </Button>
+            </div>
+          </form>
           {enrollmentsLoading && (
             <div className="text-sm text-muted-foreground">Loading your classes...</div>
           )}

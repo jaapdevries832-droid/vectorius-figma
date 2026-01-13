@@ -55,7 +55,7 @@ export function mapScheduleEventsToCourses(events: StudentScheduleEvent[]): Sche
   const grouped = new Map<string, ScheduledCourse>();
 
   events.forEach((event) => {
-    const key = `${event.course_id}:${event.start_time}:${event.end_time}`;
+    const key = event.course_id;
     const existing = grouped.get(key);
     const dayName = scheduleDayName(event.day_of_week);
 
@@ -67,7 +67,7 @@ export function mapScheduleEventsToCourses(events: StudentScheduleEvent[]): Sche
     }
 
     grouped.set(key, {
-      id: key,
+      id: event.course_id,
       name: event.title,
       teacherName: event.teacher_name ?? "Staff",
       room: event.location ?? undefined,
