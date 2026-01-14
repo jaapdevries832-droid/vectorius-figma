@@ -44,8 +44,6 @@ export function AdvisorDashboard() {
 
   useEffect(() => {
     let isMounted = true;
-    const subjectOptions = ["Mathematics", "Science", "English", "History", "Biology"];
-    const performanceOptions = [92, 88, 76, 94, 86];
 
     const loadStudents = async () => {
       const { user } = await getCurrentProfile();
@@ -60,10 +58,10 @@ export function AdvisorDashboard() {
       }
 
       const { data, error } = await supabase
-        .from("students")
-        .select("id, first_name, last_name, grade, created_at")
+        .from("advisor_student_summary")
+        .select("*")
         .eq("advisor_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("last_activity_at", { ascending: false });
 
       if (error) {
         setLoadError(error.message);
@@ -73,65 +71,32 @@ export function AdvisorDashboard() {
       }
 
       setLoadError(null);
-      const studentIds = (data ?? []).map((student) => student.id);
-      let gradeMetricsByStudentId: Record<string, number | null> = {};
 
-      if (studentIds.length > 0) {
-        const { data: assignmentData, error: assignmentError } = await supabase
-          .from("assignments")
-          .select("student_id, score, max_score")
-          .in("student_id", studentIds);
-
-        if (!assignmentError) {
-          const totals: Record<string, { score: number; max: number }> = {};
-          studentIds.forEach((id) => {
-            totals[id] = { score: 0, max: 0 };
-          });
-
-          (assignmentData ?? []).forEach((row) => {
-            if (row.max_score === null) return;
-            const entry = totals[row.student_id] ?? { score: 0, max: 0 };
-            entry.score += row.score ?? 0;
-            entry.max += row.max_score ?? 0;
-            totals[row.student_id] = entry;
-          });
-
-          gradeMetricsByStudentId = Object.fromEntries(
-            Object.entries(totals).map(([id, entry]) => [
-              id,
-              entry.max > 0 ? entry.score / entry.max : null,
-            ])
-          );
-        }
-      }
-
-      const nextStudents = (data ?? []).map((student, index) => {
-        const name = `${student.first_name} ${student.last_name ?? ""}`.trim() || "Student";
-        const subject = subjectOptions[index % subjectOptions.length];
-        const performance = performanceOptions[index % performanceOptions.length];
-        const gradeMetric = gradeMetricsByStudentId[student.id] ?? null;
+      const nextStudents = (data ?? []).map((row) => {
+        const name = row.student_name || "Student";
+        const performance = row.performance ?? 0;
         const status: StudentStatus =
           performance >= 90 ? "excellent" : performance >= 80 ? "good" : "needs-attention";
         const initials = name
           .split(" ")
           .filter(Boolean)
           .slice(0, 2)
-          .map((part) => part[0])
+          .map((part: string) => part[0])
           .join("")
           .toUpperCase();
 
         return {
-          id: student.id,
+          id: row.student_id,
           name,
-          grade: student.grade ?? null,
-          subject,
+          grade: row.grade ?? null,
+          subject: row.subject_focus ?? "General Studies",
           performance,
           status,
-          lastActivity: student.created_at ?? new Date().toISOString(),
-          assignments: 2 + (index % 3),
-          pendingTasks: index % 2,
+          lastActivity: row.last_activity_at ?? new Date().toISOString(),
+          assignments: row.assignments_open ?? 0,
+          pendingTasks: row.pending_tasks ?? 0,
           avatar: initials || "ST",
-          gradeMetric,
+          gradeMetric: row.grade_metric,
         };
       });
 
