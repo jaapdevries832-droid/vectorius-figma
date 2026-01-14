@@ -8,23 +8,6 @@ import { Play, ExternalLink, CheckCircle, BookOpen, Trophy } from 'lucide-react'
 import type { SkillModule, AssignedSkill } from 'app/lib/types'
 import { supabase } from '@/lib/supabase/client'
 
-const NOTIFICATION_STORAGE_KEY = 'mentorNotifications'
-
-type MentorNotification = {
-  studentId: string
-  studentName: string
-  moduleId: string
-  moduleTitle?: string
-  completedAt: string
-}
-
-function pushNotification(n: MentorNotification) {
-  if (typeof window === 'undefined') return
-  const raw = localStorage.getItem(NOTIFICATION_STORAGE_KEY)
-  const arr = raw ? (()=>{ try { return JSON.parse(raw) as MentorNotification[] } catch { return [] } })() : []
-  arr.unshift(n)
-  localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(arr))
-}
 
 export function StudentSkills() {
   const [mods, setMods] = useState<SkillModule[]>([])
@@ -32,6 +15,7 @@ export function StudentSkills() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [studentId, setStudentId] = useState<string | null>(null)
   const [studentName, setStudentName] = useState('Student')
+  const [advisorId, setAdvisorId] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -80,7 +64,7 @@ export function StudentSkills() {
 
       const { data, error } = await supabase
         .from('students')
-        .select('id, first_name, last_name')
+        .select('id, first_name, last_name, advisor_id')
         .eq('student_user_id', userData.user.id)
         .maybeSingle()
 
@@ -96,6 +80,7 @@ export function StudentSkills() {
 
       setStudentId(data.id)
       setStudentName([data.first_name, data.last_name].filter(Boolean).join(' ') || 'Student')
+      setAdvisorId(data.advisor_id)
     }
 
     loadStudentId()
@@ -185,9 +170,26 @@ export function StudentSkills() {
       )
       return next
     })
-    // Notify mentor
-    const mod = mods.find(m => m.id === a.moduleId)
-    pushNotification({ studentId, studentName, moduleId: a.moduleId, moduleTitle: mod?.title, completedAt })
+
+    // Notify mentor via database
+    if (advisorId) {
+      const mod = mods.find(m => m.id === a.moduleId)
+      const message = `${studentName} completed ${mod?.title || 'a skill module'}`
+
+      const { error: notifError } = await supabase
+        .from('mentor_notifications')
+        .insert({
+          student_id: studentId,
+          mentor_id: advisorId,
+          skill_assignment_id: a.id,
+          message
+        })
+
+      if (notifError) {
+        console.error('Failed to create mentor notification', notifError)
+      }
+    }
+
     alert('Great job! You earned +20 points for completing a skill module.')
   }
 

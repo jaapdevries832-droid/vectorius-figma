@@ -6,12 +6,12 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  MessageSquare, 
-  FileText, 
+import {
+  Users,
+  Plus,
+  Search,
+  MessageSquare,
+  FileText,
   Calendar,
   TrendingUp,
   AlertCircle,
@@ -19,6 +19,9 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile } from "@/lib/profile";
+import { AssignmentModal, type AssignmentInput } from "./AssignmentModal";
+import type { ScheduledCourse } from "app/lib/domain";
+import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
 
 type StudentStatus = "excellent" | "good" | "needs-attention";
 type AdvisorStudent = {
@@ -41,6 +44,8 @@ export function AdvisorDashboard() {
   const [students, setStudents] = useState<AdvisorStudent[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [studentClasses, setStudentClasses] = useState<ScheduledCourse[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -155,6 +160,40 @@ export function AdvisorDashboard() {
     }
   };
 
+  const handleOpenModal = async () => {
+    if (!selectedStudentId) {
+      alert("Please select a student first");
+      return;
+    }
+
+    // Load the selected student's schedule/classes
+    const { data: events } = await fetchStudentScheduleEvents();
+    const courses = mapScheduleEventsToCourses(events);
+    setStudentClasses(courses);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveAssignment = async (assignment: AssignmentInput) => {
+    if (!selectedStudentId) return;
+
+    const { error } = await supabase.from("assignments").insert({
+      student_id: selectedStudentId,
+      course_id: assignment.classId,
+      type: assignment.type,
+      title: assignment.title,
+      due_at: assignment.dueDate ? new Date(assignment.dueDate).toISOString() : null,
+      notes: assignment.notes || null,
+      status: "not_started",
+    });
+
+    if (error) {
+      alert(`Error creating assignment: ${error.message}`);
+    } else {
+      setIsModalOpen(false);
+      // Optionally reload assignments or show success message
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header Section */}
@@ -165,12 +204,24 @@ export function AdvisorDashboard() {
         </div>
         
         <div className="flex items-center gap-4">
-          <Button className="bg-green-600 hover:bg-green-700">
+          <Button
+            className="bg-green-600 hover:bg-green-700"
+            onClick={handleOpenModal}
+            disabled={!selectedStudentId}
+          >
             <Plus className="w-4 h-4 mr-2" />
             Create Assignment
           </Button>
         </div>
       </div>
+
+      {/* Assignment Modal */}
+      <AssignmentModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveAssignment}
+        classes={studentClasses}
+      />
 
       {/* Quick Stats */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">

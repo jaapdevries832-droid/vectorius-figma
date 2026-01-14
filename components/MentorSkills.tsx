@@ -15,26 +15,14 @@ import { DEFAULT_SKILL_MODULES } from 'app/lib/skills-data'
 import { supabase } from '@/lib/supabase/client'
 
 type MentorNotification = {
+  id: string
   studentId: string
   studentName: string
   moduleId: string
   moduleTitle?: string
   completedAt: string
   feedback?: string
-}
-
-const STORAGE_KEYS = {
-  notifications: 'mentorNotifications'
-}
-function loadNotifications(): MentorNotification[] {
-  if (typeof window === 'undefined') return []
-  const raw = localStorage.getItem(STORAGE_KEYS.notifications)
-  if (!raw) return []
-  try { return JSON.parse(raw) as MentorNotification[] } catch { return [] }
-}
-function saveNotifications(items: MentorNotification[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(items))
+  readAt?: string
 }
 
 export function MentorSkills() {
@@ -50,7 +38,61 @@ export function MentorSkills() {
   const [students, setStudents] = useState<Student[]>([])
 
   useEffect(() => {
-    setNotifications(loadNotifications())
+    let isMounted = true
+    const loadNotifications = async () => {
+      const { data: userData, error: userError } = await supabase.auth.getUser()
+      if (userError || !userData.user) {
+        console.error('Failed to load user for notifications', userError)
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('mentor_notifications')
+        .select(`
+          id,
+          student_id,
+          skill_assignment_id,
+          message,
+          created_at,
+          read_at,
+          students!inner(first_name, last_name),
+          skill_assignments!inner(skill_module_id)
+        `)
+        .eq('mentor_id', userData.user.id)
+        .order('created_at', { ascending: false })
+
+      if (!isMounted) return
+      if (error) {
+        console.error('Failed to load notifications', error)
+        return
+      }
+
+      const normalized = (data ?? []).map((row) => {
+        const studentsData = row.students
+        const skillAssignmentsData = row.skill_assignments
+        const firstName = studentsData && typeof studentsData === 'object' && 'first_name' in studentsData ? studentsData.first_name : ''
+        const lastName = studentsData && typeof studentsData === 'object' && 'last_name' in studentsData ? studentsData.last_name : ''
+        const skillModuleId = skillAssignmentsData && typeof skillAssignmentsData === 'object' && 'skill_module_id' in skillAssignmentsData ? skillAssignmentsData.skill_module_id : ''
+
+        return {
+          id: row.id,
+          studentId: row.student_id,
+          studentName: [firstName, lastName].filter(Boolean).join(' ') || 'Unknown',
+          moduleId: String(skillModuleId),
+          moduleTitle: row.message.split(' completed ')[1] || 'Skill Module',
+          completedAt: row.created_at,
+          readAt: row.read_at
+        }
+      }) as MentorNotification[]
+
+      setNotifications(normalized)
+    }
+
+    loadNotifications()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   useEffect(() => {
@@ -130,7 +172,6 @@ export function MentorSkills() {
       isMounted = false
     }
   }, [])
-  useEffect(() => { saveNotifications(notifications) }, [notifications])
 
   const filtered = useMemo(() => {
     return modules.filter(m =>
@@ -251,11 +292,31 @@ export function MentorSkills() {
                 </div>
               </div>
               <div className="mt-3">
-                <Textarea placeholder="Add feedback to discuss in next session..." onBlur={(e)=>{
-                  const msg = e.currentTarget.value
-                  if (!msg) return
-                  setNotifications(prev => prev.map((x,i)=> i===idx ? { ...x, feedback: msg } : x))
-                }} />
+                <Textarea
+                  placeholder="Add feedback to discuss in next session..."
+                  defaultValue={n.feedback || ''}
+                  onBlur={async (e)=>{
+                    const msg = e.currentTarget.value
+                    if (!msg) return
+
+                    // Mark notification as read when feedback is added
+                    if (!n.readAt) {
+                      const { error } = await supabase
+                        .from('mentor_notifications')
+                        .update({ read_at: new Date().toISOString() })
+                        .eq('id', n.id)
+
+                      if (error) {
+                        console.error('Failed to mark notification as read', error)
+                      } else {
+                        setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, readAt: new Date().toISOString() } : x))
+                      }
+                    }
+
+                    // Update local state with feedback
+                    setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, feedback: msg } : x))
+                  }}
+                />
               </div>
             </div>
           ))}
