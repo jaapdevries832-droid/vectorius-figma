@@ -113,7 +113,7 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 | 5 | Advisor data | ✅ | 0cd2bcf | 2026-01-13 | advisor_student_summary view created; AdvisorDashboard reads from view (read-only); manual: Advisor dashboard -> Student Roster shows real performance/assignments/pending tasks from Supabase |
 | 6 | Parent data | ✅ | 95013f2, c4488cc | 2026-01-11 | advisor_notes table + parent_student_overview view; ParentDashboard reads from Supabase (read-only); manual: Parent dashboard shows real assignment counts, advisor notes for selected student; fix-forward ✅ c4488cc ensures Supabase objects exist |
 | 7 | Assignments | ✅ | 9029ec5 | 2026-01-10 | assignments.type column + student insert policy; AssignmentsPage + StudentDashboard wired to Supabase; manual: Student dashboard -> Assignments add assignment, mark complete, upcoming list matches |
-| 8 | Achievements | ⬜ |  |  |  |
+| 8 | Achievements | ✅ | 00d14d9 | 2026-01-14 | points_ledger, badges, student_badges, rewards, reward_redemptions tables + RLS; AchievementsPage wired to Supabase (read points, badges, rewards; redeem rewards); manual: Student dashboard -> Achievements -> badges/rewards load from DB, redeem deducts points |
 
 ## Execution order (recommended)
 Default order is 1→8. If dependencies make a slice risky, it is allowed to implement a later slice first
