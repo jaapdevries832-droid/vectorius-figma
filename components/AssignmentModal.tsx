@@ -77,9 +77,9 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto glass border-0 shadow-2xl rounded-3xl">
-        <DialogHeader className="pb-6">
-          <DialogTitle className="flex items-center space-grid-3 text-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto glass border-0 shadow-2xl rounded-3xl p-8">
+        <DialogHeader className="pb-8">
+          <DialogTitle className="flex items-center gap-4 text-2xl">
             <div className="w-10 h-10 bg-gradient-primary rounded-2xl flex items-center justify-center shadow-lg">
               <BookOpen className="w-5 h-5 text-white" />
             </div>
@@ -87,11 +87,11 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid md:grid-cols-2 gap-10">
           {/* Form */}
-          <div className="space-grid-5">
+          <div className="space-y-6">
             {/* Class */}
-            <div className="space-grid-2">
+            <div className="space-y-2">
               <Label>Class</Label>
               <Select value={form.classId} onValueChange={(val) => setForm(prev => ({ ...prev, classId: val }))}>
                 <SelectTrigger className="rounded-xl border-gray-200 bg-white/80">
@@ -100,7 +100,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
                 <SelectContent className="rounded-xl">
                   {classes.map(cls => (
                     <SelectItem key={cls.id} value={cls.id} className="rounded-lg">
-                      <div className="flex items-center space-grid-2">
+                      <div className="flex items-center gap-2">
                         <span className={`w-2.5 h-2.5 rounded-full ${cls.color}`}></span>
                         {cls.name}
                       </div>
@@ -111,7 +111,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
             </div>
 
             {/* Title */}
-            <div className="space-grid-2">
+            <div className="space-y-2">
               <Label>Title</Label>
               <Input
                 placeholder="e.g., Chapter 7 Homework"
@@ -122,7 +122,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
             </div>
 
             {/* Type */}
-            <div className="space-grid-2">
+            <div className="space-y-2">
               <Label>Type</Label>
               <div className="grid grid-cols-2 gap-3">
                 {typeOptions.map(opt => {
@@ -145,7 +145,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
             </div>
 
             {/* Due date */}
-            <div className="space-grid-2">
+            <div className="space-y-2">
               <Label>Due date</Label>
               <Input
                 type="date"
@@ -157,7 +157,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
             </div>
 
             {/* Notes */}
-            <div className="space-grid-2">
+            <div className="space-y-2">
               <Label>Notes (optional)</Label>
               <Textarea
                 placeholder="Any extra details…"
@@ -169,11 +169,11 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
           </div>
 
           {/* Preview */}
-          <div className="space-grid-3">
-            <h3 className="font-semibold text-gray-900">Preview</h3>
+          <div className="space-y-4">
+            <h3 className="font-semibold text-gray-900 text-lg">Preview</h3>
             <div className="p-5 rounded-2xl border border-gray-100 bg-white/60">
               <div className="flex items-start justify-between">
-                <div className="flex items-start space-grid-3">
+                <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-md">
                     {(() => {
                       const Icon = typeOptions.find(t => t.key === form.type)?.icon ?? BookOpen
@@ -186,7 +186,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
                       <span className={`inline-block w-2 h-2 rounded-full mr-2 ${selectedClass?.color ?? 'bg-gray-300'}`}></span>
                       {selectedClass?.name || 'Select a class'}
                     </div>
-                    <div className="text-xs text-gray-600 mt-2 flex items-center space-grid">
+                    <div className="text-xs text-gray-600 mt-2 flex items-center gap">
                       <CalendarDays className="w-3 h-3" />
                       <span>Due {form.dueDate || todayIso()}</span>
                     </div>
@@ -202,7 +202,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end space-grid-3 pt-6 border-t border-gray-200/50 mt-6">
+        <div className="flex justify-end gap-4 pt-8 border-t border-gray-200/50 mt-8">
           <Button variant="outline" onClick={onClose} className="rounded-xl border-gray-200 hover:bg-gray-50">
             <X className="w-4 h-4 mr-2" />
             Cancel

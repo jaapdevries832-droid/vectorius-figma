@@ -5,38 +5,169 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Award, Star, Gift, Lock, Flame, Trophy } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase/client";
+import type { LucideIcon } from "lucide-react";
 
 type Reward = { id: string; name: string; cost: number; description: string };
+type BadgeData = { id: string; name: string; icon: LucideIcon; achieved: boolean; criteria: string };
+
+const iconMap: Record<string, LucideIcon> = {
+  star: Star,
+  award: Award,
+  gift: Gift,
+  flame: Flame,
+};
 
 export function AchievementsPage() {
-  const [points, setPoints] = useState(350);
-  const [streakDays] = useState(12);
-  const level = Math.floor(points / 200) + 1; // simple level calc
+  const [points, setPoints] = useState(0);
+  const [streakDays] = useState(0); // TODO: implement streak calculation
+  const [badges, setBadges] = useState<BadgeData[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const level = Math.floor(points / 200) + 1;
 
-  const badges = [
-    { id: 'b1', name: 'Starter', icon: Star, achieved: true, criteria: 'Complete your first task' },
-    { id: 'b2', name: 'On-Time Hero', icon: Award, achieved: true, criteria: '5 on-time submissions' },
-    { id: 'b3', name: 'Curiosity', icon: Gift, achieved: false, criteria: 'Ask 10 AI Tutor questions' },
-    { id: 'b4', name: 'Streak Master', icon: Flame, achieved: false, criteria: '7-day daily streak' },
-  ];
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const rewards: Reward[] = [
-    { id: 'r1', name: 'Study Resource Pack', cost: 200, description: 'Downloadable guides and cheatsheets' },
-    { id: 'r2', name: 'Vectorius Trophy', cost: 500, description: 'Digital trophy for your profile' },
-    { id: 'r3', name: 'Charity Donation', cost: 600, description: 'Donate points to support education' },
-  ];
+  const loadData = async () => {
+    setIsLoading(true);
 
-  const handleRedeem = (r: Reward) => {
+    // Get current student ID
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+
+    const { data: studentData } = await supabase
+      .from("students")
+      .select("id")
+      .eq("student_user_id", user.id)
+      .single();
+
+    if (!studentData) {
+      setIsLoading(false);
+      return;
+    }
+
+    const studentId = studentData.id;
+
+    // Fetch total points
+    const { data: pointsData } = await supabase
+      .from("points_ledger")
+      .select("points")
+      .eq("student_id", studentId);
+
+    const totalPoints = pointsData?.reduce((sum, entry) => sum + entry.points, 0) ?? 0;
+    setPoints(totalPoints);
+
+    // Fetch all badges and student's earned badges
+    const { data: allBadges } = await supabase
+      .from("badges")
+      .select("*")
+      .order("created_at");
+
+    const { data: earnedBadges } = await supabase
+      .from("student_badges")
+      .select("badge_id")
+      .eq("student_id", studentId);
+
+    const earnedBadgeIds = new Set(earnedBadges?.map(b => b.badge_id) ?? []);
+
+    const badgesList: BadgeData[] = (allBadges ?? []).map(badge => ({
+      id: badge.id,
+      name: badge.name,
+      icon: iconMap[badge.icon] ?? Star,
+      achieved: earnedBadgeIds.has(badge.id),
+      criteria: badge.criteria,
+    }));
+
+    setBadges(badgesList);
+
+    // Fetch rewards
+    const { data: rewardsData } = await supabase
+      .from("rewards")
+      .select("*")
+      .is("archived_at", null)
+      .order("cost_points");
+
+    setRewards(rewardsData?.map(r => ({
+      id: r.id,
+      name: r.name,
+      cost: r.cost_points,
+      description: r.description,
+    })) ?? []);
+
+    setIsLoading(false);
+  };
+
+  const handleRedeem = async (r: Reward) => {
     if (points < r.cost) return;
     const ok = confirm(`Redeem ${r.name} for ${r.cost} points?`);
     if (!ok) return;
+
+    // Get current student ID
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: studentData } = await supabase
+      .from("students")
+      .select("id")
+      .eq("student_user_id", user.id)
+      .single();
+
+    if (!studentData) return;
+
+    // Insert redemption record
+    const { error: redemptionError } = await supabase
+      .from("reward_redemptions")
+      .insert({
+        student_id: studentData.id,
+        reward_id: r.id,
+        status: "pending",
+      });
+
+    if (redemptionError) {
+      alert(`Error redeeming reward: ${redemptionError.message}`);
+      return;
+    }
+
+    // Deduct points
+    const { error: pointsError } = await supabase
+      .from("points_ledger")
+      .insert({
+        student_id: studentData.id,
+        source_type: "reward_redemption",
+        source_id: r.id,
+        points: -r.cost,
+        description: `Redeemed: ${r.name}`,
+      });
+
+    if (pointsError) {
+      alert(`Error deducting points: ${pointsError.message}`);
+      return;
+    }
+
+    // Update local state
     setPoints(p => p - r.cost);
-    // TODO: mark reward claimed in user state
+    alert(`Successfully redeemed ${r.name}!`);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Trophy className="w-12 h-12 mx-auto text-gray-400 mb-3 animate-pulse" />
+          <p className="text-gray-500">Loading achievements...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-grid-6">
+    <div className="space-y-6">
       {/* Hero */}
       <Card className="bg-gradient-card border-0 shadow-lg rounded-2xl">
         <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
@@ -112,7 +243,7 @@ export function AchievementsPage() {
                       <Badge className="ml-auto bg-amber-100 text-amber-700 border-amber-200">{r.cost} pts</Badge>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-grid-3">
+                  <CardContent className="space-y-3">
                     <p className="text-sm text-gray-600">{r.description}</p>
                     <Button
                       disabled={!affordable}

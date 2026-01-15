@@ -127,11 +127,8 @@ export function AdvisorDashboard() {
     { id: 3, title: "Lab Report: Chemical Reactions", subject: "Chemistry", dueDate: "2025-09-15", assigned: 8, completed: 1 },
   ];
 
-  const messages = [
-    { from: "Parent - Mrs. Davis", message: "Could we schedule a meeting to discuss Jordan's college prep?", time: "2 hours ago", priority: "high" },
-    { from: "Student - Alex Johnson", message: "I'm struggling with the essay assignment. Could you provide guidance?", time: "4 hours ago", priority: "medium" },
-    { from: "Parent - Mr. Wilson", message: "Thank you for the detailed progress report!", time: "1 day ago", priority: "low" },
-  ];
+  // Messages will be loaded from database in future implementation
+  const messages: Array<{ from: string; message: string; time: string; priority: string }> = [];
 
   const filteredStudents = students.filter((student) =>
     student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -167,7 +164,7 @@ export function AdvisorDashboard() {
     }
 
     // Load the selected student's schedule/classes
-    const { data: events } = await fetchStudentScheduleEvents();
+    const { data: events } = await fetchStudentScheduleEvents(selectedStudentId);
     const courses = mapScheduleEventsToCourses(events);
     setStudentClasses(courses);
     setIsModalOpen(true);
@@ -462,25 +459,32 @@ export function AdvisorDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {messages.map((message, index) => (
-                  <div key={index} className="p-3 rounded-lg border hover:bg-gray-50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-medium text-sm text-gray-900">{message.from}</span>
-                      <Badge 
-                        variant="secondary" 
-                        className={`text-xs ${
-                          message.priority === 'high' ? 'bg-red-100 text-red-700' :
-                          message.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {message.priority}
-                      </Badge>
+                {messages.length > 0 ? (
+                  messages.map((message, index) => (
+                    <div key={index} className="p-3 rounded-lg border hover:bg-gray-50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-medium text-sm text-gray-900">{message.from}</span>
+                        <Badge
+                          variant="secondary"
+                          className={`text-xs ${
+                            message.priority === 'high' ? 'bg-red-100 text-red-700' :
+                            message.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {message.priority}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-2">{message.message}</p>
+                      <p className="text-xs text-gray-500">{message.time}</p>
                     </div>
-                    <p className="text-sm text-gray-700 mb-2">{message.message}</p>
-                    <p className="text-xs text-gray-500">{message.time}</p>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <MessageSquare className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                    <p className="text-sm text-gray-500">No messages yet</p>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>

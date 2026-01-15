@@ -36,10 +36,79 @@ const scheduleColorFor = (courseId: string, color: string | null) => {
 
 const scheduleDayName = (dayIndex: number) => DAY_NAMES[dayIndex] ?? "Day";
 
-export async function fetchStudentScheduleEvents(): Promise<{
+export async function fetchStudentScheduleEvents(studentId?: string): Promise<{
   data: StudentScheduleEvent[];
   error: PostgrestError | null;
 }> {
+  // If studentId provided, fetch directly from tables (for advisors viewing student schedules)
+  if (studentId) {
+    const { data, error } = await supabase
+      .from("student_course_enrollments")
+      .select(`
+        student_id,
+        course:courses!inner(
+          id,
+          title,
+          teacher_name,
+          location,
+          course_meetings!inner(
+            day_of_week,
+            start_time,
+            end_time
+          )
+        )
+      `)
+      .eq("student_id", studentId);
+
+    if (error) {
+      return { data: [], error };
+    }
+
+    // Flatten the nested structure
+    type CourseMeeting = {
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+    };
+    type CourseData = {
+      id: string;
+      title: string;
+      teacher_name: string | null;
+      location: string | null;
+      course_meetings: CourseMeeting[];
+    };
+    type EnrollmentRow = {
+      student_id: string;
+      course: CourseData;
+    };
+    const events: StudentScheduleEvent[] = [];
+    (data as unknown as EnrollmentRow[] | null)?.forEach((enrollment) => {
+      const course = enrollment.course;
+      course?.course_meetings?.forEach((meeting) => {
+        events.push({
+          student_id: enrollment.student_id,
+          course_id: course.id,
+          title: course.title,
+          teacher_name: course.teacher_name,
+          location: course.location,
+          day_of_week: meeting.day_of_week,
+          start_time: meeting.start_time,
+          end_time: meeting.end_time,
+          color: null,
+        });
+      });
+    });
+
+    // Sort by day and time
+    events.sort((a, b) => {
+      if (a.day_of_week !== b.day_of_week) return a.day_of_week - b.day_of_week;
+      return a.start_time.localeCompare(b.start_time);
+    });
+
+    return { data: events, error: null };
+  }
+
+  // Default: use view for current user (students viewing their own schedule)
   const { data, error } = await supabase
     .from("student_schedule_events")
     .select(
