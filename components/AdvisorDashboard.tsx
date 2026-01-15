@@ -179,7 +179,7 @@ export function AdvisorDashboard() {
       type: assignment.type,
       title: assignment.title,
       due_at: assignment.dueDate ? new Date(assignment.dueDate).toISOString() : null,
-      notes: assignment.notes || null,
+      description: assignment.notes || null,
       status: "not_started",
     });
 
