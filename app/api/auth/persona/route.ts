@@ -9,8 +9,8 @@ import { createServiceClient } from "@/lib/supabase/server";
  *
  * Flow:
  *   1. Validates the token from persona_tokens table
- *   2. Signs in as the linked test user using admin API
- *   3. Redirects to Supabase's auth callback with session tokens
+ *   2. Creates a session directly using admin API
+ *   3. Returns HTML that stores the session in localStorage and redirects
  *   4. User ends up logged in on the appropriate dashboard
  *
  * Security:
@@ -81,37 +81,107 @@ export async function GET(request: NextRequest) {
     const { data: userData, error: userError } =
       await supabase.auth.admin.getUserById(tokenRecord.user_id);
 
-    if (userError || !userData?.user?.email) {
+    if (userError || !userData?.user) {
       return NextResponse.json(
         { error: "Test user not found" },
         { status: 500 }
       );
     }
 
-    // 8. Generate a magic link that Supabase will process
-    const baseUrl = getBaseUrl(request);
-    const dashboardUrl = `${baseUrl}/${tokenRecord.role}`;
-
-    const { data: linkData, error: linkError } =
+    // 8. Generate a session directly for this user
+    const { data: sessionData, error: sessionError } =
       await supabase.auth.admin.generateLink({
         type: "magiclink",
-        email: userData.user.email,
-        options: {
-          redirectTo: dashboardUrl,
-        },
+        email: userData.user.email!,
       });
 
-    if (linkError || !linkData?.properties?.action_link) {
-      console.error("Failed to generate magic link:", linkError);
+    if (sessionError || !sessionData) {
+      console.error("Failed to generate session:", sessionError);
       return NextResponse.json(
         { error: "Failed to create session" },
         { status: 500 }
       );
     }
 
-    // 9. Redirect to Supabase's magic link URL
-    // This URL will set the session and redirect to the dashboard
-    return NextResponse.redirect(linkData.properties.action_link);
+    // 9. Extract the token from the magic link and verify it to get a session
+    const actionLink = sessionData.properties?.action_link;
+    if (!actionLink) {
+      return NextResponse.json(
+        { error: "Failed to create magic link" },
+        { status: 500 }
+      );
+    }
+
+    // Parse the token_hash from the action link
+    const actionUrl = new URL(actionLink);
+    const tokenHash = actionUrl.searchParams.get("token");
+    const type = actionUrl.searchParams.get("type");
+
+    if (!tokenHash) {
+      return NextResponse.json(
+        { error: "Failed to extract token" },
+        { status: 500 }
+      );
+    }
+
+    // 10. Verify the OTP to get actual session tokens
+    const { data: verifyData, error: verifyError } =
+      await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: type as "magiclink",
+      });
+
+    if (verifyError || !verifyData.session) {
+      console.error("Failed to verify OTP:", verifyError);
+      return NextResponse.json(
+        { error: "Failed to create session" },
+        { status: 500 }
+      );
+    }
+
+    // 11. Return HTML that sets the session in localStorage and redirects
+    const baseUrl = getBaseUrl(request);
+    const dashboardUrl = `${baseUrl}/${tokenRecord.role}`;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
+    // Extract project ref from Supabase URL for storage key
+    const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
+    const storageKey = `sb-${projectRef}-auth-token`;
+
+    const session = verifyData.session;
+    const sessionJson = JSON.stringify({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_in: session.expires_in,
+      expires_at: session.expires_at,
+      token_type: session.token_type,
+      user: session.user,
+    });
+
+    // Return HTML page that sets localStorage and redirects
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Signing in...</title>
+</head>
+<body>
+  <p>Signing in as ${userData.user.email}...</p>
+  <script>
+    try {
+      localStorage.setItem('${storageKey}', '${sessionJson.replace(/'/g, "\\'")}');
+      window.location.href = '${dashboardUrl}';
+    } catch (e) {
+      document.body.innerHTML = '<p>Error: ' + e.message + '</p>';
+    }
+  </script>
+</body>
+</html>
+`;
+
+    return new NextResponse(html, {
+      headers: { "Content-Type": "text/html" },
+    });
   } catch (error) {
     console.error("Persona auth error:", error);
     return NextResponse.json(
