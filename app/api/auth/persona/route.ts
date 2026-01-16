@@ -139,17 +139,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 11. Return HTML that sets the session in localStorage and redirects
+    // 11. Set session cookies and redirect to dashboard
     const baseUrl = getBaseUrl(request);
     const dashboardUrl = `${baseUrl}/${tokenRecord.role}`;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
-    // Extract project ref from Supabase URL for storage key
+    // Extract project ref from Supabase URL for cookie names
     const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
-    const storageKey = `sb-${projectRef}-auth-token`;
 
     const session = verifyData.session;
-    const sessionJson = JSON.stringify({
+
+    // Create redirect response
+    const response = NextResponse.redirect(dashboardUrl);
+
+    // Cookie options - match @supabase/ssr defaults
+    const cookieOptions = {
+      path: "/",
+      sameSite: "lax" as const,
+      httpOnly: false, // Supabase client needs to read these
+      secure: !baseUrl.includes("localhost"),
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    };
+
+    // Set the auth cookies in the format @supabase/ssr expects
+    // Cookie name format: sb-<project-ref>-auth-token
+    const baseCookieName = `sb-${projectRef}-auth-token`;
+
+    // Supabase SSR stores session as base64-encoded JSON
+    const sessionPayload = JSON.stringify({
       access_token: session.access_token,
       refresh_token: session.refresh_token,
       expires_in: session.expires_in,
@@ -158,30 +175,30 @@ export async function GET(request: NextRequest) {
       user: session.user,
     });
 
-    // Return HTML page that sets localStorage and redirects
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Signing in...</title>
-</head>
-<body>
-  <p>Signing in as ${userData.user.email}...</p>
-  <script>
-    try {
-      localStorage.setItem('${storageKey}', '${sessionJson.replace(/'/g, "\\'")}');
-      window.location.href = '${dashboardUrl}';
-    } catch (e) {
-      document.body.innerHTML = '<p>Error: ' + e.message + '</p>';
-    }
-  </script>
-</body>
-</html>
-`;
+    // Base64 encode the session
+    const base64Session = Buffer.from(sessionPayload).toString("base64");
 
-    return new NextResponse(html, {
-      headers: { "Content-Type": "text/html" },
-    });
+    // Supabase SSR chunks cookies at ~3180 chars to stay under 4KB limit
+    const CHUNK_SIZE = 3180;
+    const chunks: string[] = [];
+    for (let i = 0; i < base64Session.length; i += CHUNK_SIZE) {
+      chunks.push(base64Session.slice(i, i + CHUNK_SIZE));
+    }
+
+    // Set chunked cookies in the format @supabase/ssr expects
+    if (chunks.length === 1) {
+      response.cookies.set(baseCookieName, `base64-${chunks[0]}`, cookieOptions);
+    } else {
+      chunks.forEach((chunk, index) => {
+        response.cookies.set(
+          `${baseCookieName}.${index}`,
+          `base64-${chunk}`,
+          cookieOptions
+        );
+      });
+    }
+
+    return response;
   } catch (error) {
     console.error("Persona auth error:", error);
     return NextResponse.json(
