@@ -17,6 +17,32 @@ Only stop on true blockers (commands failing, missing env vars, broken migration
 
 ---
 
+## 0.1) Allowed Operations Without Pause
+The following operations should ALWAYS proceed without asking for permission:
+
+**File Operations:**
+- Reading any file (Read tool, cat, head, tail)
+- Reading CLAUDE.md, codex-rules.*.md, or any documentation
+- Globbing and grepping for code discovery
+- Reading migration files, component files, config files
+
+**Safe Bash Commands:**
+- `git status`, `git diff`, `git log`, `git branch`
+- `npm run lint`, `npm run build`, `npm run type-check`
+- `supabase migration new <name>`
+- `supabase db push`, `supabase db pull`, `supabase migration list`
+- `supabase status`
+- `ls`, `pwd`, directory exploration
+
+**Tool Usage:**
+- TodoWrite for task tracking
+- Edit/Write for code changes within scope
+- Grep/Glob for code search
+
+Do NOT pause to ask "may I read this file?" or "may I run git status?" - just do it.
+
+---
+
 ## 1) Mandatory Startup (No pause required)
 Immediately do:
 1. `git status` (record branch + clean/dirty)
