@@ -46,29 +46,14 @@ npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts \
 | Field | Value |
 |-------|-------|
 | Email | `sarah.test@vectorius.local` |
-| User UID | `(create in Supabase - see setup below)` |
+| User UID | `09345bb5-e880-441f-88b1-d39ca655d6c3` |
 | Role | `parent` |
 | Persona ID | `sarah-parent` |
-
-**Setup in Supabase:**
-1. Go to **Authentication** → **Users** → **Add user**
-2. Email: `sarah.test@vectorius.local`
-3. Password: `TestPassword123!`
-4. Check "Auto Confirm User"
-5. Copy the User UID
-6. Go to **Table Editor** → **profiles** → **Insert row**:
-   - `id`: (paste User UID)
-   - `role`: `parent`
-   - `first_name`: `Sarah`
-   - `last_name`: `Test`
-7. Go to **Table Editor** → **parent_student_links** → **Insert row**:
-   - `parent_id`: (Sarah's User UID)
-   - `student_id`: (Maya's student record ID from `students` table)
 
 **Generate token:**
 ```bash
 npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts \
-  --user-id "SARAH_USER_UID_HERE" \
+  --user-id "09345bb5-e880-441f-88b1-d39ca655d6c3" \
   --persona "sarah-parent" \
   --role "parent" \
   --base-url "https://YOUR-VERCEL-PREVIEW-URL.vercel.app"
@@ -81,33 +66,14 @@ npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts \
 | Field | Value |
 |-------|-------|
 | Email | `michael.test@vectorius.local` |
-| User UID | `(create in Supabase - see setup below)` |
+| User UID | `8bab11ff-be97-4a6e-b38b-e8224932bb96` |
 | Role | `advisor` |
 | Persona ID | `michael-advisor` |
-
-**Setup in Supabase:**
-1. Go to **Authentication** → **Users** → **Add user**
-2. Email: `michael.test@vectorius.local`
-3. Password: `TestPassword123!`
-4. Check "Auto Confirm User"
-5. Copy the User UID
-6. Go to **Table Editor** → **profiles** → **Insert row**:
-   - `id`: (paste User UID)
-   - `role`: `advisor`
-   - `first_name`: `Michael`
-   - `last_name`: `Test`
-7. Go to **Table Editor** → **advisors** → **Insert row**:
-   - `user_id`: (Michael's User UID)
-   - `display_name`: `Michael Test`
-8. Update Maya's student record to assign Michael as advisor:
-   - Go to **students** table
-   - Find Maya's record
-   - Set `advisor_id` to Michael's advisor record ID
 
 **Generate token:**
 ```bash
 npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts \
-  --user-id "MICHAEL_USER_UID_HERE" \
+  --user-id "8bab11ff-be97-4a6e-b38b-e8224932bb96" \
   --persona "michael-advisor" \
   --role "advisor" \
   --base-url "https://YOUR-VERCEL-PREVIEW-URL.vercel.app"
