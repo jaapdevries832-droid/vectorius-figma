@@ -210,16 +210,11 @@ export async function GET(request: NextRequest) {
 
 /**
  * Get the base URL for redirects.
- * Handles localhost, Vercel preview, and custom domains.
+ * Uses the request's host to stay on the same domain.
  */
 function getBaseUrl(request: NextRequest): string {
-  // Use VERCEL_URL if available (includes branch name for previews)
-  const vercelUrl = process.env.VERCEL_URL;
-  if (vercelUrl) {
-    return `https://${vercelUrl}`;
-  }
-
-  // Fall back to request host
+  // Always use the request's host to stay on the same URL
+  // (VERCEL_URL gives the deployment ID URL, not the branch alias)
   const host = request.headers.get("host") || "localhost:3000";
   const protocol = host.includes("localhost") ? "http" : "https";
   return `${protocol}://${host}`;
