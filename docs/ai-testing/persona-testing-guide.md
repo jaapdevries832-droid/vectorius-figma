@@ -6,12 +6,12 @@ Use this guide to generate magic links that allow AI agents (like ChatGPT) to lo
 
 ## Quick Start
 
-```bash
+```powershell
 # Generate a token for Maya (student)
-npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts \
-  --user-id "860b887a-521d-42b9-a8c9-308144fc0e64" \
-  --persona "maya-7th-grader" \
-  --role "student" \
+npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts `
+  --user-id "860b887a-521d-42b9-a8c9-308144fc0e64" `
+  --persona "maya-7th-grader" `
+  --role "student" `
   --base-url "https://vectorius-figma-git-lesson-51-jaap-de-vries-projects.vercel.app"
 ```
 
@@ -31,11 +31,11 @@ Copy the magic link and give it to ChatGPT!
 | Persona ID | `maya-7th-grader` |
 
 **Generate token:**
-```bash
-npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts \
-  --user-id "860b887a-521d-42b9-a8c9-308144fc0e64" \
-  --persona "maya-7th-grader" \
-  --role "student" \
+```powershell
+npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts `
+  --user-id "860b887a-521d-42b9-a8c9-308144fc0e64" `
+  --persona "maya-7th-grader" `
+  --role "student" `
   --base-url "https://YOUR-VERCEL-PREVIEW-URL.vercel.app"
 ```
 
@@ -51,11 +51,11 @@ npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts \
 | Persona ID | `sarah-parent` |
 
 **Generate token:**
-```bash
-npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts \
-  --user-id "09345bb5-e880-441f-88b1-d39ca655d6c3" \
-  --persona "sarah-parent" \
-  --role "parent" \
+```powershell
+npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts `
+  --user-id "09345bb5-e880-441f-88b1-d39ca655d6c3" `
+  --persona "sarah-parent" `
+  --role "parent" `
   --base-url "https://YOUR-VERCEL-PREVIEW-URL.vercel.app"
 ```
 
@@ -71,11 +71,11 @@ npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts \
 | Persona ID | `michael-advisor` |
 
 **Generate token:**
-```bash
-npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts \
-  --user-id "8bab11ff-be97-4a6e-b38b-e8224932bb96" \
-  --persona "michael-advisor" \
-  --role "advisor" \
+```powershell
+npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts `
+  --user-id "8bab11ff-be97-4a6e-b38b-e8224932bb96" `
+  --persona "michael-advisor" `
+  --role "advisor" `
   --base-url "https://YOUR-VERCEL-PREVIEW-URL.vercel.app"
 ```
 
@@ -147,12 +147,12 @@ Format your response as:
 | `--base-url` | Your Vercel preview URL | `http://localhost:3000` |
 
 **Example with all options:**
-```bash
-npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts \
-  --user-id "860b887a-521d-42b9-a8c9-308144fc0e64" \
-  --persona "maya-7th-grader" \
-  --role "student" \
-  --ttl 48 \
+```powershell
+npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts `
+  --user-id "860b887a-521d-42b9-a8c9-308144fc0e64" `
+  --persona "maya-7th-grader" `
+  --role "student" `
+  --ttl 48 `
   --base-url "https://vectorius-figma-git-lesson-51-jaap-de-vries-projects.vercel.app"
 ```
 
