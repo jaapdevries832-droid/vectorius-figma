@@ -117,7 +117,7 @@ export function StudentDashboard() {
       if (!isMounted) return;
 
       if (!user) {
-      setHeaderMessage("No student profile found.");
+      setHeaderMessage("Please log in to view your student dashboard.");
       setStudentName(null);
       setStudentInitials(null);
       setStudentId(null);
@@ -135,8 +135,20 @@ export function StudentDashboard() {
 
       if (!isMounted) return;
 
-      if (error || !student) {
-        setHeaderMessage("No student profile found.");
+      if (error) {
+        console.error("Error loading student profile:", error);
+        setHeaderMessage("Unable to load your student profile. Please try again later.");
+        setStudentName(null);
+        setStudentInitials(null);
+        setStudentId(null);
+        setAssignmentCounts(null);
+        setDashboardMetrics(null);
+        setUpcomingAssignments([]);
+        return;
+      }
+
+      if (!student) {
+        setHeaderMessage("Your account is not linked to a student profile yet. Please contact your administrator.");
         setStudentName(null);
         setStudentInitials(null);
         setStudentId(null);
