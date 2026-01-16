@@ -120,6 +120,110 @@ export async function fetchStudentScheduleEvents(studentId?: string): Promise<{
   return { data: (data ?? []) as StudentScheduleEvent[], error: error ?? null };
 }
 
+export type AdvisorScheduleEvent = {
+  course_id: string;
+  title: string;
+  teacher_name: string | null;
+  location: string | null;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  color: string | null;
+};
+
+export async function fetchAdvisorScheduleEvents(userId: string): Promise<{
+  data: AdvisorScheduleEvent[];
+  error: PostgrestError | null;
+}> {
+  const { data, error } = await supabase
+    .from("courses")
+    .select(`
+      id,
+      title,
+      teacher_name,
+      location,
+      course_meetings(
+        day_of_week,
+        start_time,
+        end_time
+      )
+    `)
+    .eq("created_by_user_id", userId);
+
+  if (error) {
+    return { data: [], error };
+  }
+
+  type CourseMeeting = {
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+  };
+  type CourseRow = {
+    id: string;
+    title: string;
+    teacher_name: string | null;
+    location: string | null;
+    course_meetings: CourseMeeting[];
+  };
+
+  const events: AdvisorScheduleEvent[] = [];
+  (data as unknown as CourseRow[] | null)?.forEach((course) => {
+    course.course_meetings?.forEach((meeting) => {
+      events.push({
+        course_id: course.id,
+        title: course.title,
+        teacher_name: course.teacher_name,
+        location: course.location,
+        day_of_week: meeting.day_of_week,
+        start_time: meeting.start_time,
+        end_time: meeting.end_time,
+        color: null,
+      });
+    });
+  });
+
+  events.sort((a, b) => {
+    if (a.day_of_week !== b.day_of_week) return a.day_of_week - b.day_of_week;
+    return a.start_time.localeCompare(b.start_time);
+  });
+
+  return { data: events, error: null };
+}
+
+export function mapAdvisorScheduleEventsToCourses(events: AdvisorScheduleEvent[]): ScheduledCourse[] {
+  const grouped = new Map<string, ScheduledCourse>();
+
+  events.forEach((event) => {
+    const key = event.course_id;
+    const existing = grouped.get(key);
+    const dayName = scheduleDayName(event.day_of_week);
+
+    if (existing) {
+      if (!existing.days.includes(dayName)) {
+        existing.days.push(dayName);
+      }
+      return;
+    }
+
+    grouped.set(key, {
+      id: event.course_id,
+      name: event.title,
+      teacherName: event.teacher_name ?? "Staff",
+      room: event.location ?? undefined,
+      startTime: event.start_time,
+      endTime: event.end_time,
+      days: [dayName],
+      color: scheduleColorFor(event.course_id, event.color),
+    });
+  });
+
+  return Array.from(grouped.values()).map((course) => ({
+    ...course,
+    days: course.days.sort((a, b) => DAY_NAMES.indexOf(a) - DAY_NAMES.indexOf(b)),
+  }));
+}
+
 export function mapScheduleEventsToCourses(events: StudentScheduleEvent[]): ScheduledCourse[] {
   const grouped = new Map<string, ScheduledCourse>();
 

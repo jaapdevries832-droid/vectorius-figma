@@ -92,7 +92,8 @@ export async function createCourse(params: {
   teacher_name?: string | null;
   location?: string | null;
   subject_id?: string | null;
-  created_by_student_id: string;
+  created_by_student_id?: string | null;
+  created_by_user_id?: string | null;
 }): Promise<{ id: string | null; error: PostgrestError | null }> {
   const { data, error } = await supabase
     .from("courses")
@@ -101,7 +102,8 @@ export async function createCourse(params: {
       teacher_name: params.teacher_name ?? null,
       location: params.location ?? null,
       subject_id: params.subject_id ?? null,
-      created_by_student_id: params.created_by_student_id,
+      created_by_student_id: params.created_by_student_id ?? null,
+      created_by_user_id: params.created_by_user_id ?? null,
     })
     .select("id")
     .single();

@@ -21,7 +21,7 @@ import { cn } from "./ui/utils";
 import { ClassSetupModal } from "./ClassSetupModal";
 import { useRoleLayout } from "app/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
-import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
+import { fetchStudentScheduleEvents, fetchAdvisorScheduleEvents, mapScheduleEventsToCourses, mapAdvisorScheduleEventsToCourses } from "@/lib/student-schedule";
 import { supabase } from "@/lib/supabase/client";
 import { addEnrollment, createCourse, deleteCourse, replaceCourseMeetings, updateCourse } from "@/lib/student-classes";
 import { 
@@ -81,21 +81,44 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
   const reloadSchedule = useCallback(async () => {
     setIsLoading(true);
 
-    const { data, error } = await fetchStudentScheduleEvents();
-
-    if (error) {
-      console.error("Failed to load schedule events", error);
+    const { user, profile } = await getCurrentProfile();
+    if (!user || !profile) {
       setClasses([]);
       setIsLoading(false);
-      window.alert("Unable to load your schedule right now.");
       return;
     }
 
-    setClasses(mapScheduleEventsToCourses(data));
+    // Load schedule based on role
+    if (profile.role === "advisor") {
+      const { data, error } = await fetchAdvisorScheduleEvents(user.id);
+      if (error) {
+        console.error("Failed to load advisor schedule events", error);
+        setClasses([]);
+        setIsLoading(false);
+        window.alert("Unable to load your schedule right now.");
+        return;
+      }
+      setClasses(mapAdvisorScheduleEventsToCourses(data));
+    } else {
+      const { data, error } = await fetchStudentScheduleEvents();
+      if (error) {
+        console.error("Failed to load schedule events", error);
+        setClasses([]);
+        setIsLoading(false);
+        window.alert("Unable to load your schedule right now.");
+        return;
+      }
+      setClasses(mapScheduleEventsToCourses(data));
+    }
+
     setIsLoading(false);
   }, []);
 
-  const resolveStudentId = useCallback(async () => {
+  const resolveOwnerIds = useCallback(async (): Promise<{
+    studentId: string | null;
+    userId: string | null;
+    role: string | null;
+  } | null> => {
     const { user, profile } = await getCurrentProfile();
 
     if (!user) {
@@ -103,24 +126,31 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
       return null;
     }
 
-    if (profile?.role && profile.role !== "student") {
-      window.alert("Schedules are available for student accounts only.");
-      return null;
+    // For advisors, use their user ID directly
+    if (profile?.role === "advisor") {
+      return { studentId: null, userId: user.id, role: "advisor" };
     }
 
-    const { data: student, error } = await supabase
-      .from("students")
-      .select("id")
-      .eq("student_user_id", user.id)
-      .maybeSingle();
+    // For students, resolve their student ID
+    if (profile?.role === "student") {
+      const { data: student, error } = await supabase
+        .from("students")
+        .select("id")
+        .eq("student_user_id", user.id)
+        .maybeSingle();
 
-    if (error || !student?.id) {
-      console.error("Failed to resolve student id", error);
-      window.alert("Unable to load your student profile.");
-      return null;
+      if (error || !student?.id) {
+        console.error("Failed to resolve student id", error);
+        window.alert("Unable to load your student profile.");
+        return null;
+      }
+
+      return { studentId: student.id, userId: null, role: "student" };
     }
 
-    return student.id;
+    // Other roles not supported for schedules yet
+    window.alert("Schedules are available for student and advisor accounts only.");
+    return null;
   }, []);
 
   useEffect(() => {
@@ -141,26 +171,38 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
           return;
         }
 
-        if (profile?.role && profile.role !== "student") {
+        // Check for supported roles
+        if (profile?.role && profile.role !== "student" && profile.role !== "advisor") {
           setClasses([]);
           setIsLoading(false);
-          window.alert("Schedules are available for student accounts only.");
+          window.alert("Schedules are available for student and advisor accounts only.");
           return;
         }
 
-        const { data, error } = await fetchStudentScheduleEvents();
-
-        if (!isMounted) return;
-
-        if (error) {
-          console.error("Failed to load schedule events", error);
-          setClasses([]);
-          setIsLoading(false);
-          window.alert("Unable to load your schedule right now.");
-          return;
+        // Load schedule based on role
+        if (profile?.role === "advisor") {
+          const { data, error } = await fetchAdvisorScheduleEvents(user.id);
+          if (!isMounted) return;
+          if (error) {
+            console.error("Failed to load advisor schedule events", error);
+            setClasses([]);
+            setIsLoading(false);
+            window.alert("Unable to load your schedule right now.");
+            return;
+          }
+          setClasses(mapAdvisorScheduleEventsToCourses(data));
+        } else {
+          const { data, error } = await fetchStudentScheduleEvents();
+          if (!isMounted) return;
+          if (error) {
+            console.error("Failed to load schedule events", error);
+            setClasses([]);
+            setIsLoading(false);
+            window.alert("Unable to load your schedule right now.");
+            return;
+          }
+          setClasses(mapScheduleEventsToCourses(data));
         }
-
-        setClasses(mapScheduleEventsToCourses(data));
       } catch (error) {
         if (!isMounted) return;
         console.error("Failed to load schedule events", error);
@@ -254,15 +296,16 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     }));
 
   const handleAddClass = async (classData: Omit<ScheduledCourse, 'id'>) => {
-    const studentId = await resolveStudentId();
-    if (!studentId) return;
+    const ownerIds = await resolveOwnerIds();
+    if (!ownerIds) return;
 
     setIsLoading(true);
     const { id, error } = await createCourse({
       title: classData.name,
       teacher_name: classData.teacherName,
       location: classData.room ?? null,
-      created_by_student_id: studentId,
+      created_by_student_id: ownerIds.studentId,
+      created_by_user_id: ownerIds.userId,
     });
 
     if (error || !id) {
@@ -280,12 +323,15 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
       return;
     }
 
-    const enrollError = await addEnrollment(studentId, id);
-    if (enrollError) {
-      console.error("Failed to enroll in class", enrollError);
-      window.alert("Class created, but enrollment failed.");
-      setIsLoading(false);
-      return;
+    // Only enroll if this is a student (advisors don't enroll in their own courses)
+    if (ownerIds.studentId) {
+      const enrollError = await addEnrollment(ownerIds.studentId, id);
+      if (enrollError) {
+        console.error("Failed to enroll in class", enrollError);
+        window.alert("Class created, but enrollment failed.");
+        setIsLoading(false);
+        return;
+      }
     }
 
     await reloadSchedule();
