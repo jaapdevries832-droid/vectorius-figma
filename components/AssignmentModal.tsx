@@ -50,7 +50,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
   const [form, setForm] = useState<AssignmentInput>({
     title: '',
     type: 'homework',
-    classId: classes[0]?.id ?? '',
+    classId: classes[0]?.id ?? 'none',
     dueDate: todayIso(),
     notes: '',
   })
@@ -60,14 +60,14 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
       setForm({
         title: '',
         type: 'homework',
-        classId: classes[0]?.id ?? '',
+        classId: classes[0]?.id ?? 'none',
         dueDate: todayIso(),
         notes: '',
       })
     }
   }, [isOpen, classes])
 
-  const selectedClass = useMemo(() => classes.find(c => c.id === form.classId), [classes, form.classId])
+  const selectedClass = useMemo(() => form.classId === 'none' ? null : classes.find(c => c.id === form.classId), [classes, form.classId])
 
   const handleSave = () => {
     if (!form.title.trim() || !form.dueDate) return
@@ -98,7 +98,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
                   <SelectValue placeholder="Select a class (optional)" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  <SelectItem value="" className="rounded-lg">
+                  <SelectItem value="none" className="rounded-lg">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
                       General (no specific class)

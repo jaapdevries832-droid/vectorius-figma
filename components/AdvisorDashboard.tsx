@@ -174,7 +174,7 @@ export function AdvisorDashboard() {
 
     const { error } = await supabase.from("assignments").insert({
       student_id: selectedStudentId,
-      course_id: assignment.classId || null,
+      course_id: assignment.classId === 'none' ? null : assignment.classId,
       type: assignment.type,
       title: assignment.title,
       due_at: assignment.dueDate ? new Date(assignment.dueDate).toISOString() : null,
