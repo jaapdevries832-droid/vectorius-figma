@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile } from "@/lib/profile";
@@ -21,6 +21,32 @@ export default function LoginPage() {
   const [signupRole, setSignupRole] = useState<SignupRole>("");
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // Check if user is already logged in and redirect to their dashboard
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkExistingSession = async () => {
+      const { user, profile } = await getCurrentProfile();
+
+      if (!isMounted) return;
+
+      if (user && profile?.role) {
+        // User is already logged in, redirect to their dashboard
+        router.push(`/${profile.role}`);
+        return;
+      }
+
+      setIsCheckingAuth(false);
+    };
+
+    checkExistingSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
 
   const handleDemoParentPrefill = () => {
     setEmail("test@email.com");
@@ -94,6 +120,15 @@ export default function LoginPage() {
     setMode(nextMode);
     setStatus(null);
   };
+
+  // Show loading while checking existing session
+  if (isCheckingAuth) {
+    return (
+      <main className="flex min-h-[80vh] items-center justify-center px-4">
+        <p className="text-sm text-muted-foreground">Checking session...</p>
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-[80vh] items-center justify-center px-4">
