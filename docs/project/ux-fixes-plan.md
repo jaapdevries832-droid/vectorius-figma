@@ -264,8 +264,8 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 | 2 | Advisor-student relationship | ✅ | 24b608a | 2026-01-17 | Populate advisor_id from student_advisor junction |
 | 3 | Class creation for students | ✅ | 93699c4 | 2026-01-17 | Add Toaster + toast notifications |
 | 4 | Assignment creation for advisors | ✅ | a23c3e3 | 2026-01-17 | Course optional + toast notifications |
-| 5 | Notes page implementation | ⬜ | | | All roles |
-| 6 | Parent grade display | ⬜ | | | Seed assignments + improve UI |
+| 5 | Notes page implementation | ✅ | 6c0f058 | 2026-01-17 | All roles: student personal notes, advisor feedback, parent read-only |
+| 6 | Parent grade display | ✅ | c26f963 | 2026-01-17 | Seed assignments with scores + improved empty state messaging |
 | 7 | Student selector UX | ⬜ | | | Visual improvements |
 | 8 | Form validation + feedback | ⬜ | | | Toasts + validation |
 | 9 | Parent navigation | ⬜ | | | Role-specific menu |
