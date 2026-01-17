@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { ParentDashboard } from "@/components/ParentDashboard";
 import { getCurrentProfile } from "@/lib/profile";
+import { toast } from "sonner";
 
 type Student = {
   id: string;
@@ -307,6 +308,7 @@ export function ParentDashboardWrapper() {
     setLastName("");
     setGrade("");
     await fetchStudents();
+    toast.success(`${trimmedFirst} has been added successfully.`);
 
     setIsSaving(false);
   };
@@ -326,6 +328,7 @@ export function ParentDashboardWrapper() {
 
     await fetchStudents();
     setDeleteStatus({ type: "success", message: "Student deleted." });
+    toast.success("Student has been deleted.");
     setDeletingStudentId(null);
   };
 
@@ -359,6 +362,7 @@ export function ParentDashboardWrapper() {
         message: advisorId ? "Advisor assigned." : "Advisor cleared.",
       },
     }));
+    toast.success(advisorId ? "Advisor has been assigned." : "Advisor has been cleared.");
     setAssigningStudentId(null);
   };
 

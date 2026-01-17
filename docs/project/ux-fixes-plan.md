@@ -266,10 +266,10 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 | 4 | Assignment creation for advisors | ✅ | a23c3e3 | 2026-01-17 | Course optional + toast notifications |
 | 5 | Notes page implementation | ✅ | 6c0f058 | 2026-01-17 | All roles: student personal notes, advisor feedback, parent read-only |
 | 6 | Parent grade display | ✅ | c26f963 | 2026-01-17 | Seed assignments with scores + improved empty state messaging |
-| 7 | Student selector UX | ⬜ | | | Visual improvements |
-| 8 | Form validation + feedback | ⬜ | | | Toasts + validation |
-| 9 | Parent navigation | ⬜ | | | Role-specific menu |
-| 10 | Remove dev overlays | ⬜ | | | Production polish |
+| 7 | Student selector UX | ✅ | 8367adc | 2026-01-17 | Add "Viewing:" label + visible border/shadow on dropdown |
+| 8 | Form validation + feedback | ✅ | 8367adc | 2026-01-17 | Grade dropdown (K-12) + toast notifications on add/delete/assign |
+| 9 | Parent navigation | ✅ | 8367adc | 2026-01-17 | Parent-specific menu in Sidebar + BottomNavigation |
+| 10 | Remove dev overlays | ✅ | 8367adc | 2026-01-17 | Configure devIndicators in next.config.mjs |
 
 ---
 

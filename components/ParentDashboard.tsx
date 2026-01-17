@@ -152,14 +152,16 @@ export function ParentDashboard({
         </div>
 
         <div className="flex items-center gap-4">
-          <Select
-            value={selectedStudentId ?? ""}
-            onValueChange={onSelectStudent}
-            disabled={studentOptions.length === 0}
-          >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select student" />
-            </SelectTrigger>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">Viewing:</span>
+            <Select
+              value={selectedStudentId ?? ""}
+              onValueChange={onSelectStudent}
+              disabled={studentOptions.length === 0}
+            >
+              <SelectTrigger className="w-48 border-2 border-blue-200 bg-white shadow-sm hover:border-blue-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                <SelectValue placeholder="Select student" />
+              </SelectTrigger>
             <SelectContent>
               {studentOptions.map((child) => (
                 <SelectItem key={child.id} value={child.id}>
@@ -176,6 +178,7 @@ export function ParentDashboard({
               ))}
             </SelectContent>
           </Select>
+          </div>
           {onSignOut && (
             <button
               type="button"
@@ -324,13 +327,29 @@ export function ParentDashboard({
                       <label htmlFor="grade" className="text-sm font-medium text-gray-700">
                         Grade
                       </label>
-                      <input
-                        id="grade"
-                        type="text"
+                      <Select
                         value={grade}
-                        onChange={(event) => onGradeChange(event.target.value)}
-                        className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
-                      />
+                        onValueChange={(value) => onGradeChange(value)}
+                      >
+                        <SelectTrigger id="grade" className="mt-2 w-full">
+                          <SelectValue placeholder="Select grade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="K">Kindergarten</SelectItem>
+                          <SelectItem value="1">1st Grade</SelectItem>
+                          <SelectItem value="2">2nd Grade</SelectItem>
+                          <SelectItem value="3">3rd Grade</SelectItem>
+                          <SelectItem value="4">4th Grade</SelectItem>
+                          <SelectItem value="5">5th Grade</SelectItem>
+                          <SelectItem value="6">6th Grade</SelectItem>
+                          <SelectItem value="7">7th Grade</SelectItem>
+                          <SelectItem value="8">8th Grade</SelectItem>
+                          <SelectItem value="9">9th Grade</SelectItem>
+                          <SelectItem value="10">10th Grade</SelectItem>
+                          <SelectItem value="11">11th Grade</SelectItem>
+                          <SelectItem value="12">12th Grade</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   {formError && <p className="text-sm text-red-600">{formError}</p>}

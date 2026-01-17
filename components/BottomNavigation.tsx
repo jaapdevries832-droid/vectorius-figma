@@ -3,12 +3,14 @@
 import { Button } from "./ui/button";
 import { cn } from "./ui/utils";
 import {
-  LayoutDashboard, 
-  FileText, 
-  MessageSquare, 
-  Bot, 
+  LayoutDashboard,
+  FileText,
+  MessageSquare,
+  Bot,
   Users,
-  Calendar
+  Calendar,
+  Settings,
+  BookOpen
 } from "lucide-react";
 import type { Role } from "app/lib/domain";
 import type { SidebarItem } from 'app/lib/types';
@@ -21,6 +23,15 @@ interface BottomNavigationProps {
 
 export function BottomNavigation({ currentRole, activeItem, onItemChange }: BottomNavigationProps) {
   const getMenuItems = (role: Role) => {
+    // Parent-specific menu: simplified navigation matching sidebar
+    if (role === 'parent') {
+      return [
+        { id: 'dashboard' as const, label: 'Home', icon: LayoutDashboard, color: '#3B82F6' },
+        { id: 'notes' as const, label: 'Notes', icon: BookOpen, color: '#F59E0B' },
+        { id: 'settings' as const, label: 'Settings', icon: Settings, color: '#64748B' },
+      ];
+    }
+
     const baseItems = [
       { id: 'dashboard' as const, label: 'Home', icon: LayoutDashboard, color: '#3B82F6' },
       { id: 'schedule' as const, label: 'Schedule', icon: Calendar, color: '#8B5CF6' },
