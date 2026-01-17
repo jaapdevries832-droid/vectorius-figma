@@ -74,13 +74,24 @@ export function NotesPage({ role }: NotesPageProps) {
       return;
     }
 
-    if (role === "student") {
+    // Use profile role if available, fall back to prop
+    const effectiveRole = profile.role || role;
+
+    if (effectiveRole === "student") {
       // Load student's own notes and advisor notes about them
-      const { data: student } = await supabase
+      const { data: student, error: studentError } = await supabase
         .from("students")
         .select("id")
         .eq("student_user_id", user.id)
         .maybeSingle();
+
+      // Log for debugging
+      if (studentError) {
+        console.error("[NotesPage] Error querying student:", studentError);
+      }
+      if (!student) {
+        console.warn("[NotesPage] No student found for user:", user.id);
+      }
 
       if (student) {
         setStudentId(student.id);
@@ -104,7 +115,7 @@ export function NotesPage({ role }: NotesPageProps) {
 
         setAdvisorNotes(advNotes ?? []);
       }
-    } else if (role === "advisor") {
+    } else if (effectiveRole === "advisor") {
       // Load advisor's students
       const { data: studentData } = await supabase
         .from("students")
@@ -131,7 +142,7 @@ export function NotesPage({ role }: NotesPageProps) {
         .order("created_at", { ascending: false });
 
       setAdvisorNotes(advNotes ?? []);
-    } else if (role === "parent") {
+    } else if (effectiveRole === "parent") {
       // Load children and their advisor notes
       const { data: children } = await supabase
         .from("student_parent")

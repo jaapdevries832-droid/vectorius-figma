@@ -44,6 +44,28 @@ export default function RoleLayout({ children, params }: { children: React.React
         return
       }
 
+      // Build user info from profile if available
+      if (profile) {
+        const profileName = profile.first_name
+          ? `${profile.first_name} ${profile.last_name ?? ''}`.trim()
+          : user.email?.split('@')[0] ?? 'User'
+        const initials = profileName
+          .split(' ')
+          .filter(Boolean)
+          .slice(0, 2)
+          .map(part => part[0])
+          .join('')
+          .toUpperCase() || 'U'
+
+        setCurrentUser({
+          id: user.id,
+          name: profileName,
+          email: user.email ?? '',
+          avatar: initials,
+          role: profile.role as Role
+        })
+      }
+
       if (profile?.role && profile.role !== role) {
         router.push(`/${profile.role}`)
       }
