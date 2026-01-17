@@ -8,6 +8,7 @@ import { ChatInterface } from '@/components/ChatInterface'
 import { AchievementsPage } from '@/components/AchievementsPage'
 import { MentorSkills } from '@/components/MentorSkills'
 import { StudentSkills } from '@/components/StudentSkills'
+import { NotesPage } from '@/components/NotesPage'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { RoleLayoutProvider } from 'app/lib/role-layout-context'
@@ -76,12 +77,7 @@ export default function RoleLayout({ children, params }: { children: React.React
       case 'achievements':
         return <div className="p-4"><AchievementsPage /></div>
       case 'notes':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-semibold mb-4">Notes</h2>
-            <p className="text-muted-foreground">This is a placeholder view for Notes.</p>
-          </div>
-        )
+        return <NotesPage role={role} />
       case 'students':
         return (
           <div className="p-6">
