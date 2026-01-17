@@ -122,11 +122,9 @@ export function AdvisorDashboard() {
     };
   }, []);
 
-  const assignments = [
-    { id: 1, title: "Chapter 7 Practice Problems", subject: "Mathematics", dueDate: "2025-09-10", assigned: 12, completed: 8 },
-    { id: 2, title: "Essay: Environmental Impact", subject: "English", dueDate: "2025-09-12", assigned: 15, completed: 3 },
-    { id: 3, title: "Lab Report: Chemical Reactions", subject: "Chemistry", dueDate: "2025-09-15", assigned: 8, completed: 1 },
-  ];
+  // Assignments are now created via the modal and stored in the database
+  // This placeholder shows the "Recent Assignments" section as empty until real data is loaded
+  const assignments: Array<{ id: number; title: string; subject: string; dueDate: string; assigned: number; completed: number }> = [];
 
   // Messages will be loaded from database in future implementation
   const messages: Array<{ from: string; message: string; time: string; priority: string }> = [];

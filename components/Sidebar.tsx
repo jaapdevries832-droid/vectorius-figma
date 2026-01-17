@@ -80,6 +80,15 @@ export function Sidebar({ currentRole, activeItem, onItemChange, currentUser, cl
   }, [currentRole]);
 
   const getMenuItems = (role: Role) => {
+    // Parent-specific menu: simplified navigation
+    if (role === 'parent') {
+      return [
+        { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard, color: '#3B82F6' },
+        { id: 'notes' as const, label: 'Notes', icon: BookOpen, color: '#F59E0B' },
+        { id: 'settings' as const, label: 'Settings', icon: Settings, color: '#64748B' },
+      ];
+    }
+
     const baseItems: { id: SidebarItem; label: string; icon: LucideIcon; color: string }[] = [
       { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard, color: '#3B82F6' },
       { id: 'schedule' as const, label: 'Schedule', icon: Calendar, color: '#8B5CF6' },
