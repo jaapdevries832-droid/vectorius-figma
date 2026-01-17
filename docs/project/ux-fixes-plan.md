@@ -262,7 +262,7 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 |------:|------|--------|-----------|-----------|-------|
 | 1 | Student profile linking | ✅ | a29a486 | 2026-01-16 | Fix student_user_id for Maya |
 | 2 | Advisor-student relationship | ✅ | 24b608a | 2026-01-17 | Populate advisor_id from student_advisor junction |
-| 3 | Class creation for students | ⬜ | | | Depends on Slice 1 |
+| 3 | Class creation for students | ✅ | 93699c4 | 2026-01-17 | Add Toaster + toast notifications |
 | 4 | Assignment creation for advisors | ⬜ | | | Depends on Slice 2 |
 | 5 | Notes page implementation | ⬜ | | | All roles |
 | 6 | Parent grade display | ⬜ | | | Seed assignments + improve UI |

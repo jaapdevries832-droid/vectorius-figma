@@ -20,6 +20,7 @@ import { supabase } from "@/lib/supabase/client";
   } from "@/lib/student-classes";
 import type { AssignedSkill } from "app/lib/types";
 import { Input } from "./ui/input";
+import { toast } from "sonner";
 import {
 } from "./ui/select";
 
@@ -337,12 +338,14 @@ export function StudentDashboard() {
     });
     if (error || !id) {
       setCreateCourseError("Unable to create the class right now.");
+      toast.error("Unable to create the class right now.");
       setIsCreatingCourse(false);
       return;
     }
     const enrollError = await addEnrollment(studentId, id);
     if (enrollError) {
       setCreateCourseError("Class created, but enrollment failed.");
+      toast.error("Class created, but enrollment failed.");
       setIsCreatingCourse(false);
       return;
     }
@@ -351,6 +354,7 @@ export function StudentDashboard() {
     setCreateTeacher("");
     setCreateLocation("");
     setIsCreatingCourse(false);
+    toast.success(`"${trimmedTitle}" added to your classes!`);
   };
 
   const handleAddNote = async () => {

@@ -24,6 +24,7 @@ import { getCurrentProfile } from "@/lib/profile";
 import { fetchStudentScheduleEvents, fetchAdvisorScheduleEvents, mapScheduleEventsToCourses, mapAdvisorScheduleEventsToCourses } from "@/lib/student-schedule";
 import { supabase } from "@/lib/supabase/client";
 import { addEnrollment, createCourse, deleteCourse, replaceCourseMeetings, updateCourse } from "@/lib/student-classes";
+import { toast } from "sonner";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -95,7 +96,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
         console.error("Failed to load advisor schedule events", error);
         setClasses([]);
         setIsLoading(false);
-        window.alert("Unable to load your schedule right now.");
+        toast.error("Unable to load your schedule right now.");
         return;
       }
       setClasses(mapAdvisorScheduleEventsToCourses(data));
@@ -105,7 +106,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
         console.error("Failed to load schedule events", error);
         setClasses([]);
         setIsLoading(false);
-        window.alert("Unable to load your schedule right now.");
+        toast.error("Unable to load your schedule right now.");
         return;
       }
       setClasses(mapScheduleEventsToCourses(data));
@@ -122,7 +123,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     const { user, profile } = await getCurrentProfile();
 
     if (!user) {
-      window.alert("Please sign in to manage your schedule.");
+      toast.error("Please sign in to manage your schedule.");
       return null;
     }
 
@@ -141,7 +142,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
 
       if (error || !student?.id) {
         console.error("Failed to resolve student id", error);
-        window.alert("Unable to load your student profile.");
+        toast.error("Unable to load your student profile.");
         return null;
       }
 
@@ -149,7 +150,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     }
 
     // Other roles not supported for schedules yet
-    window.alert("Schedules are available for student and advisor accounts only.");
+    toast.error("Schedules are available for student and advisor accounts only.");
     return null;
   }, []);
 
@@ -167,7 +168,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
         if (!user) {
           setClasses([]);
           setIsLoading(false);
-          window.alert("Please sign in to view your schedule.");
+          toast.error("Please sign in to view your schedule.");
           return;
         }
 
@@ -175,7 +176,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
         if (profile?.role && profile.role !== "student" && profile.role !== "advisor") {
           setClasses([]);
           setIsLoading(false);
-          window.alert("Schedules are available for student and advisor accounts only.");
+          toast.error("Schedules are available for student and advisor accounts only.");
           return;
         }
 
@@ -187,7 +188,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
             console.error("Failed to load advisor schedule events", error);
             setClasses([]);
             setIsLoading(false);
-            window.alert("Unable to load your schedule right now.");
+            toast.error("Unable to load your schedule right now.");
             return;
           }
           setClasses(mapAdvisorScheduleEventsToCourses(data));
@@ -198,7 +199,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
             console.error("Failed to load schedule events", error);
             setClasses([]);
             setIsLoading(false);
-            window.alert("Unable to load your schedule right now.");
+            toast.error("Unable to load your schedule right now.");
             return;
           }
           setClasses(mapScheduleEventsToCourses(data));
@@ -207,7 +208,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
         if (!isMounted) return;
         console.error("Failed to load schedule events", error);
         setClasses([]);
-        window.alert("Unable to load your schedule right now.");
+        toast.error("Unable to load your schedule right now.");
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -310,7 +311,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
 
     if (error || !id) {
       console.error("Failed to create course", error);
-      window.alert("Unable to add that class right now.");
+      toast.error("Unable to add that class right now.");
       setIsLoading(false);
       return;
     }
@@ -318,7 +319,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     const meetingError = await replaceCourseMeetings(id, buildMeetingsPayload(classData));
     if (meetingError) {
       console.error("Failed to create class meetings", meetingError);
-      window.alert("Unable to save the class schedule right now.");
+      toast.error("Unable to save the class schedule right now.");
       setIsLoading(false);
       return;
     }
@@ -328,7 +329,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
       const enrollError = await addEnrollment(ownerIds.studentId, id);
       if (enrollError) {
         console.error("Failed to enroll in class", enrollError);
-        window.alert("Class created, but enrollment failed.");
+        toast.error("Class created, but enrollment failed.");
         setIsLoading(false);
         return;
       }
@@ -336,6 +337,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
 
     await reloadSchedule();
     setIsClassSetupOpen(false);
+    toast.success(`"${classData.name}" added to your schedule!`);
   };
 
   const handleEditClass = async (classData: Omit<ScheduledCourse, 'id'>) => {
@@ -351,7 +353,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
 
     if (updateError) {
       console.error("Failed to update class", updateError);
-      window.alert("Unable to update that class right now.");
+      toast.error("Unable to update that class right now.");
       setIsLoading(false);
       return;
     }
@@ -359,7 +361,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     const meetingError = await replaceCourseMeetings(courseId, buildMeetingsPayload(classData));
     if (meetingError) {
       console.error("Failed to update class meetings", meetingError);
-      window.alert("Unable to save the class schedule right now.");
+      toast.error("Unable to save the class schedule right now.");
       setIsLoading(false);
       return;
     }
@@ -367,6 +369,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     await reloadSchedule();
     setSelectedClass(null);
     setIsClassSetupOpen(false);
+    toast.success(`"${classData.name}" updated successfully!`);
   };
 
   const handleDeleteClass = async (classId: string) => {
@@ -374,12 +377,13 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     const deleteError = await deleteCourse(classId);
     if (deleteError) {
       console.error("Failed to delete class", deleteError);
-      window.alert("Unable to delete that class right now.");
+      toast.error("Unable to delete that class right now.");
       setIsLoading(false);
       return;
     }
 
     await reloadSchedule();
+    toast.success("Class removed from your schedule.");
   };
 
   const openEditModal = (cls: ScheduledCourse) => {
