@@ -198,9 +198,12 @@ export function ParentDashboard({
                 <p className="text-2xl font-semibold text-blue-700">
                   {selectedGradePercent !== null
                     ? `${selectedGradePercent}%`
-                    : "--"}
+                    : "No grades yet"}
                 </p>
-                {!currentOverview && (
+                {!currentOverview && selectedStudentId && (
+                  <p className="mt-1 text-xs text-blue-600">Grades appear when assignments are graded.</p>
+                )}
+                {!selectedStudentId && (
                   <p className="mt-1 text-xs text-blue-600">Select a student to see metrics.</p>
                 )}
               </div>
