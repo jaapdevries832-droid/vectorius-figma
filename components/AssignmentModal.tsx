@@ -70,7 +70,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
   const selectedClass = useMemo(() => classes.find(c => c.id === form.classId), [classes, form.classId])
 
   const handleSave = () => {
-    if (!form.title.trim() || !form.classId || !form.dueDate) return
+    if (!form.title.trim() || !form.dueDate) return
     onSave({ ...form })
     onClose()
   }
@@ -92,12 +92,18 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
           <div className="space-y-6">
             {/* Class */}
             <div className="space-y-2">
-              <Label>Class</Label>
+              <Label>Class {classes.length === 0 && <span className="text-gray-400 text-sm">(optional)</span>}</Label>
               <Select value={form.classId} onValueChange={(val) => setForm(prev => ({ ...prev, classId: val }))}>
                 <SelectTrigger className="rounded-xl border-gray-200 bg-white/80">
-                  <SelectValue />
+                  <SelectValue placeholder="Select a class (optional)" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
+                  <SelectItem value="" className="rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
+                      General (no specific class)
+                    </div>
+                  </SelectItem>
                   {classes.map(cls => (
                     <SelectItem key={cls.id} value={cls.id} className="rounded-lg">
                       <div className="flex items-center gap-2">
@@ -184,7 +190,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
                     <div className="font-semibold text-gray-900 leading-tight">{form.title || 'Untitled Assignment'}</div>
                     <div className="text-sm text-gray-600 mt-1">
                       <span className={`inline-block w-2 h-2 rounded-full mr-2 ${selectedClass?.color ?? 'bg-gray-300'}`}></span>
-                      {selectedClass?.name || 'Select a class'}
+                      {selectedClass?.name || 'General'}
                     </div>
                     <div className="text-xs text-gray-600 mt-2 flex items-center gap">
                       <CalendarDays className="w-3 h-3" />

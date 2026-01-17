@@ -22,6 +22,7 @@ import { getCurrentProfile } from "@/lib/profile";
 import { AssignmentModal, type AssignmentInput } from "./AssignmentModal";
 import type { ScheduledCourse } from "app/lib/domain";
 import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
+import { toast } from "sonner";
 
 type StudentStatus = "excellent" | "good" | "needs-attention";
 type AdvisorStudent = {
@@ -159,7 +160,7 @@ export function AdvisorDashboard() {
 
   const handleOpenModal = async () => {
     if (!selectedStudentId) {
-      alert("Please select a student first");
+      toast.error("Please select a student first");
       return;
     }
 
@@ -175,7 +176,7 @@ export function AdvisorDashboard() {
 
     const { error } = await supabase.from("assignments").insert({
       student_id: selectedStudentId,
-      course_id: assignment.classId,
+      course_id: assignment.classId || null,
       type: assignment.type,
       title: assignment.title,
       due_at: assignment.dueDate ? new Date(assignment.dueDate).toISOString() : null,
@@ -184,10 +185,10 @@ export function AdvisorDashboard() {
     });
 
     if (error) {
-      alert(`Error creating assignment: ${error.message}`);
+      toast.error(`Error creating assignment: ${error.message}`);
     } else {
       setIsModalOpen(false);
-      // Optionally reload assignments or show success message
+      toast.success(`Assignment "${assignment.title}" created successfully!`);
     }
   };
 
