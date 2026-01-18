@@ -25,6 +25,16 @@ import {
 } from "./ui/select";
 
 type TaskSource = 'student' | 'parent' | 'advisor' | 'ai' | 'google_classroom' | 'manual_import'
+type SuggestedAssignment = {
+  id: string;
+  title: string;
+  subject: string;
+  dueDate: string | null;
+  priority: string;
+  source?: TaskSource | null;
+  createdByRole?: string | null;
+  notes?: string | null;
+};
 
 export function StudentDashboard() {
   const { setActiveItem } = useRoleLayout();
@@ -44,6 +54,8 @@ export function StudentDashboard() {
   const [upcomingAssignments, setUpcomingAssignments] = React.useState<
     { id: string; title: string; subject: string; dueDate: string; completed: boolean; priority: string; source?: TaskSource | null; createdByRole?: string | null }[]
   >([]);
+  const [suggestedAssignments, setSuggestedAssignments] = React.useState<SuggestedAssignment[]>([]);
+  const [suggestionActionId, setSuggestionActionId] = React.useState<string | null>(null);
 
   const [notes, setNotes] = React.useState<
     { id: string; body: string; color: string; created_at: string }[]
@@ -112,6 +124,21 @@ export function StudentDashboard() {
     return nd;
   };
 
+  const computeSummary = (items: typeof upcomingAssignments) => {
+    const total = items.length;
+    const completed = items.filter((row) => row.completed).length;
+    const endOfToday = endOfDay(new Date());
+    let due = 0;
+    items.forEach((row) => {
+      if (!row.completed && row.dueDate) {
+        const dueAt = new Date(row.dueDate);
+        if (dueAt < endOfToday) due += 1;
+      }
+    });
+    const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { total, completed, due, progressPercent };
+  };
+
   React.useEffect(() => {
     let isMounted = true;
 
@@ -170,8 +197,9 @@ export function StudentDashboard() {
 
       const { data: assignmentRows, error: assignmentError } = await supabase
         .from("assignments")
-        .select("id, title, due_at, status, completed_at, priority, score, max_score, source, created_by_role, course:courses (title)")
+        .select("id, title, due_at, status, completed_at, priority, score, max_score, source, created_by_role, is_suggested, suggestion_status, course:courses (title)")
         .eq("student_id", student.id)
+        .or("is_suggested.eq.false,suggestion_status.eq.accepted")
         .order("due_at", { ascending: true })
         .limit(6);
 
@@ -218,6 +246,36 @@ export function StudentDashboard() {
       setAssignmentCounts({ total, completed });
       setDashboardMetrics({ total, completed, due, avgGradePercent, progressPercent });
       setUpcomingAssignments(mappedAssignments);
+
+      const { data: suggestedRows, error: suggestedError } = await supabase
+        .from("assignments")
+        .select("id, title, due_at, priority, description, source, created_by_role, suggestion_status, course:courses (title)")
+        .eq("student_id", student.id)
+        .eq("is_suggested", true)
+        .or("suggestion_status.is.null,suggestion_status.eq.pending")
+        .order("due_at", { ascending: true });
+
+      if (suggestedError) {
+        console.error("Failed to load suggested assignments", suggestedError);
+      }
+
+      if (!isMounted) return;
+
+      const mappedSuggestions = (suggestedRows ?? []).map((row) => {
+        const course = Array.isArray(row.course) ? row.course[0] : row.course;
+        return {
+          id: row.id,
+          title: row.title ?? "Untitled Assignment",
+          subject: course?.title ?? "Class",
+          dueDate: row.due_at ?? null,
+          priority: row.priority ?? "medium",
+          source: row.source ?? null,
+          createdByRole: row.created_by_role ?? null,
+          notes: row.description ?? null,
+        };
+      });
+
+      setSuggestedAssignments(mappedSuggestions);
     };
 
     loadStudent();
@@ -232,6 +290,64 @@ export function StudentDashboard() {
     refreshEnrollments(studentId);
     loadNotes(studentId);
   }, [studentId, refreshEnrollments, loadNotes]);
+
+  const handleSuggestionResponse = async (assignmentId: string, accept: boolean) => {
+    if (!studentId) return;
+    setSuggestionActionId(assignmentId);
+    const { error } = await supabase
+      .from("assignments")
+      .update({
+        suggestion_status: accept ? "accepted" : "declined",
+        suggestion_responded_at: new Date().toISOString(),
+      })
+      .eq("id", assignmentId);
+
+    if (error) {
+      toast.error("Unable to update that suggestion right now.");
+      setSuggestionActionId(null);
+      return;
+    }
+
+    setSuggestedAssignments((prev) => {
+      const acceptedItem = prev.find((item) => item.id === assignmentId);
+      if (accept && acceptedItem) {
+        setUpcomingAssignments((current) => {
+          if (current.some((item) => item.id === acceptedItem.id)) return current;
+          const next = [
+            {
+              id: acceptedItem.id,
+              title: acceptedItem.title,
+              subject: acceptedItem.subject,
+              dueDate: acceptedItem.dueDate ?? new Date().toISOString(),
+              completed: false,
+              priority: acceptedItem.priority,
+              source: acceptedItem.source ?? null,
+              createdByRole: acceptedItem.createdByRole ?? null,
+            },
+            ...current,
+          ].slice(0, 6);
+          const summary = computeSummary(next);
+          setAssignmentCounts({ total: summary.total, completed: summary.completed });
+          setDashboardMetrics((prevMetrics) =>
+            prevMetrics
+              ? {
+                  ...prevMetrics,
+                  total: summary.total,
+                  completed: summary.completed,
+                  due: summary.due,
+                  progressPercent: summary.progressPercent,
+                }
+              : prevMetrics
+          );
+          return next;
+        });
+      }
+      return prev.filter((item) => item.id !== assignmentId);
+    });
+
+    toast.success(accept ? "Task accepted." : "Task declined.");
+    setSuggestionActionId(null);
+  };
 
   const resolveStudentId = React.useCallback(async () => {
     if (studentId) return studentId;
@@ -672,6 +788,62 @@ export function StudentDashboard() {
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Assignments Section */}
         <div className="lg:col-span-2">
+          {suggestedAssignments.length > 0 && (
+            <Card className="mb-6 border-amber-200 bg-amber-50/60">
+              <CardHeader>
+                <CardTitle className="flex items-center space-grid-2 text-amber-900">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <Target className="w-4 h-4 text-amber-700" />
+                  </div>
+                  Suggested Tasks
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-grid-3">
+                {suggestedAssignments.map((assignment) => (
+                  <div
+                    key={assignment.id}
+                    className="rounded-2xl border border-amber-200 bg-white/70 p-4"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="font-semibold text-gray-900">{assignment.title}</div>
+                        <div className="text-sm text-gray-600">
+                          {assignment.subject}
+                          {assignment.dueDate && (
+                            <span> · Due {new Date(assignment.dueDate).toLocaleDateString()}</span>
+                          )}
+                        </div>
+                        {assignment.notes && (
+                          <div className="mt-2 text-xs text-gray-600 bg-white/70 rounded-lg px-3 py-2">
+                            {assignment.notes}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+                          disabled={suggestionActionId === assignment.id}
+                          onClick={() => handleSuggestionResponse(assignment.id, true)}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl border-amber-300 text-amber-800 hover:bg-amber-100"
+                          disabled={suggestionActionId === assignment.id}
+                          onClick={() => handleSuggestionResponse(assignment.id, false)}
+                        >
+                          Decline
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
           <Card className="bg-gradient-card border-0 shadow-lg rounded-2xl card-hover">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center space-grid-2">

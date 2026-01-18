@@ -196,6 +196,8 @@ export function AdvisorDashboard() {
       created_by: user.id,
       created_by_role: profile?.role ?? null,
       source: resolveSource(profile?.role ?? null),
+      is_suggested: true,
+      suggestion_status: "pending",
     });
 
     if (error) {

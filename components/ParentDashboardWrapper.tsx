@@ -8,6 +8,9 @@ import { getCurrentProfile } from "@/lib/profile";
 import { toast } from "sonner";
 import { InviteCodeModal } from "@/components/InviteCodeModal";
 import { clearSupabaseLocalSession } from "@/lib/supabase/logout";
+import { AssignmentModal, type AssignmentInput } from "@/components/AssignmentModal";
+import type { ScheduledCourse } from "app/lib/domain";
+import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
 
 type Student = {
   id: string;
@@ -53,6 +56,11 @@ type AdvisorNote = {
   } | null;
 };
 
+type SuggestionCounts = {
+  pending: number;
+  declined: number;
+};
+
 export function ParentDashboardWrapper() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
@@ -83,6 +91,7 @@ export function ParentDashboardWrapper() {
   const [isLoading, setIsLoading] = useState(true);
   const [studentOverviews, setStudentOverviews] = useState<StudentOverview[]>([]);
   const [advisorNotes, setAdvisorNotes] = useState<AdvisorNote[]>([]);
+  const [suggestionCountsByStudentId, setSuggestionCountsByStudentId] = useState<Record<string, SuggestionCounts>>({});
   const [inviteStudent, setInviteStudent] = useState<Student | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [inviteExpiresAt, setInviteExpiresAt] = useState<string | null>(null);
@@ -90,6 +99,9 @@ export function ParentDashboardWrapper() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isInviteLoading, setIsInviteLoading] = useState(false);
+  const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
+  const [suggestClasses, setSuggestClasses] = useState<ScheduledCourse[]>([]);
+  const [isSuggestLoading, setIsSuggestLoading] = useState(false);
 
   const generateInviteCode = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -137,6 +149,39 @@ export function ParentDashboardWrapper() {
     setGradeMetricsByStudentId(metrics);
   }, []);
 
+  const fetchSuggestionCounts = useCallback(async (studentIds: string[]) => {
+    if (studentIds.length === 0) {
+      setSuggestionCountsByStudentId({});
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("assignments")
+      .select("student_id, suggestion_status, is_suggested")
+      .in("student_id", studentIds)
+      .eq("is_suggested", true);
+
+    if (error) {
+      setSuggestionCountsByStudentId({});
+      return;
+    }
+
+    const totals: Record<string, SuggestionCounts> = {};
+    studentIds.forEach((id) => {
+      totals[id] = { pending: 0, declined: 0 };
+    });
+
+    (data ?? []).forEach((row) => {
+      const entry = totals[row.student_id] ?? { pending: 0, declined: 0 };
+      const status = row.suggestion_status ?? "pending";
+      if (status === "pending") entry.pending += 1;
+      if (status === "declined") entry.declined += 1;
+      totals[row.student_id] = entry;
+    });
+
+    setSuggestionCountsByStudentId(totals);
+  }, []);
+
   const fetchStudents = useCallback(async () => {
     const { data, error } = await supabase
       .from("students")
@@ -157,7 +202,8 @@ export function ParentDashboardWrapper() {
       return nextStudents.some((student) => student.id === current) ? current : nextStudents[0].id;
     });
     await fetchGradeMetrics(nextStudents.map((student) => student.id));
-  }, [fetchGradeMetrics]);
+    await fetchSuggestionCounts(nextStudents.map((student) => student.id));
+  }, [fetchGradeMetrics, fetchSuggestionCounts]);
 
   const fetchAdvisors = useCallback(async () => {
     setIsAdvisorsLoading(true);
@@ -404,6 +450,54 @@ export function ParentDashboardWrapper() {
     setIsInviteOpen(true);
   };
 
+  const handleOpenSuggestModal = async () => {
+    if (!selectedStudentId) return;
+    setIsSuggestLoading(true);
+    const { data, error } = await fetchStudentScheduleEvents(selectedStudentId);
+    if (error) {
+      toast.error("Unable to load classes for that student.");
+      setIsSuggestLoading(false);
+      return;
+    }
+    setSuggestClasses(mapScheduleEventsToCourses(data));
+    setIsSuggestLoading(false);
+    setIsSuggestModalOpen(true);
+  };
+
+  const handleSaveSuggestion = async (assignment: AssignmentInput) => {
+    if (!selectedStudentId) return;
+    const { user, profile } = await getCurrentProfile();
+    if (!user) {
+      toast.error("Please sign in to suggest assignments.");
+      return;
+    }
+
+    const { error } = await supabase.from("assignments").insert({
+      student_id: selectedStudentId,
+      course_id: assignment.classId === "none" ? null : assignment.classId,
+      type: assignment.type,
+      title: assignment.title,
+      due_at: assignment.dueDate ? new Date(assignment.dueDate).toISOString() : null,
+      description: assignment.notes || null,
+      status: "not_started",
+      created_by: profile?.id ?? user.id,
+      created_by_role: profile?.role ?? "parent",
+      source: "parent",
+      is_suggested: true,
+      suggestion_status: "pending",
+    });
+
+    if (error) {
+      toast.error(`Error creating suggestion: ${error.message}`);
+      return;
+    }
+
+    setIsSuggestModalOpen(false);
+    toast.success(`Suggested "${assignment.title}" to the student.`);
+    await fetchStudentOverviews();
+    await fetchSuggestionCounts(students.map((student) => student.id));
+  };
+
   const handleGenerateInvite = async () => {
     if (!inviteStudent || !userId) return;
     setIsInviteLoading(true);
@@ -500,6 +594,8 @@ export function ParentDashboardWrapper() {
         studentOverviews={studentOverviews}
         advisorNotes={advisorNotes}
         onInviteStudent={handleOpenInvite}
+        onSuggestAssignment={handleOpenSuggestModal}
+        suggestionCountsByStudentId={suggestionCountsByStudentId}
       />
       {inviteStudent && (
         <InviteCodeModal
@@ -515,6 +611,17 @@ export function ParentDashboardWrapper() {
           onCopy={handleCopyInvite}
           onClose={() => setIsInviteOpen(false)}
         />
+      )}
+      <AssignmentModal
+        isOpen={isSuggestModalOpen}
+        onClose={() => setIsSuggestModalOpen(false)}
+        onSave={handleSaveSuggestion}
+        classes={suggestClasses}
+      />
+      {isSuggestLoading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/30">
+          <div className="rounded-lg bg-white px-4 py-2 text-sm shadow">Loading classes...</div>
+        </div>
       )}
     </>
   );

@@ -29,9 +29,12 @@ type Assignment = {
   pointsEarned?: number
   source?: TaskSource | null
   createdByRole?: string | null
+  isSuggested?: boolean
+  suggestionStatus?: SuggestionStatus | null
 }
 
 type TaskSource = 'student' | 'parent' | 'advisor' | 'ai' | 'google_classroom' | 'manual_import'
+type SuggestionStatus = 'pending' | 'accepted' | 'declined'
 
 const typeMeta: Record<AssignmentType, { icon: LucideIcon; color: string; badge: string }> = {
   homework: { icon: BookOpen, color: 'text-blue-600', badge: 'bg-blue-100 text-blue-700 border-blue-200' },
@@ -103,6 +106,7 @@ export function AssignmentsPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [currentRole, setCurrentRole] = useState<string | null>(null)
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null)
+  const [assignmentFilter, setAssignmentFilter] = useState<'active' | 'pending'>('active')
 
   useEffect(() => {
     let isMounted = true
@@ -159,7 +163,7 @@ export function AssignmentsPage() {
 
       const { data, error } = await supabase
         .from('assignments')
-        .select('id, title, type, description, due_at, status, completed_at, priority, course_id, source, created_by_role, course:courses (title, teacher_name)')
+        .select('id, title, type, description, due_at, status, completed_at, priority, course_id, source, created_by_role, is_suggested, suggestion_status, course:courses (title, teacher_name)')
         .eq('student_id', student.id)
         .order('due_at', { ascending: true })
 
@@ -188,6 +192,8 @@ export function AssignmentsPage() {
         priority: row.priority ?? null,
         source: row.source ?? null,
         createdByRole: row.created_by_role ?? null,
+        isSuggested: row.is_suggested ?? false,
+        suggestionStatus: row.suggestion_status ?? null,
         }
       })
 
@@ -241,25 +247,41 @@ export function AssignmentsPage() {
     }
   }, [])
 
+  const isPendingSuggestion = (assignment: Assignment) => {
+    return assignment.isSuggested && (!assignment.suggestionStatus || assignment.suggestionStatus === 'pending')
+  }
+
+  const pendingSuggestions = useMemo(
+    () => assignments.filter((assignment) => isPendingSuggestion(assignment)),
+    [assignments]
+  )
+
+  const activeAssignments = useMemo(
+    () => assignments.filter((assignment) => !isPendingSuggestion(assignment) && assignment.suggestionStatus !== 'declined'),
+    [assignments]
+  )
+
+  const visibleAssignments = assignmentFilter === 'pending' ? pendingSuggestions : activeAssignments
+
   const grouped = useMemo(() => {
     const groups: Record<string, Assignment[]> = { Overdue: [], Today: [], Upcoming: [] }
-    assignments.forEach(a => { groups[categorize(a.dueAt)].push(a) })
+    visibleAssignments.forEach(a => { groups[categorize(a.dueAt)].push(a) })
     return groups
-  }, [assignments])
+  }, [visibleAssignments])
 
   const stats = useMemo(() => {
-    const total = assignments.length
+    const total = visibleAssignments.length
     let overdue = 0
     let dueToday = 0
     let upcoming = 0
-    assignments.forEach(a => {
+    visibleAssignments.forEach(a => {
       const bucket = categorize(a.dueAt)
       if (bucket === 'Overdue') overdue++
       if (bucket === 'Today') dueToday++
       if (bucket === 'Upcoming') upcoming++
     })
     return { total, overdue, dueToday, upcoming }
-  }, [assignments])
+  }, [visibleAssignments])
 
   const classById = useMemo(() => Object.fromEntries(classes.map(c => [c.id, c])), [classes])
 
@@ -302,7 +324,7 @@ export function AssignmentsPage() {
         created_by_role: role ?? null,
         source: resolveSource(role),
       })
-      .select('id, title, type, description, due_at, status, completed_at, priority, course_id, source, created_by_role, course:courses (title, teacher_name)')
+      .select('id, title, type, description, due_at, status, completed_at, priority, course_id, source, created_by_role, is_suggested, suggestion_status, course:courses (title, teacher_name)')
       .single()
 
     if (error) {
@@ -327,6 +349,8 @@ export function AssignmentsPage() {
       priority: data.priority ?? null,
       source: data.source ?? null,
       createdByRole: data.created_by_role ?? null,
+      isSuggested: data.is_suggested ?? false,
+      suggestionStatus: data.suggestion_status ?? null,
       pointsAvailable: basePts,
     }
 
@@ -394,6 +418,7 @@ export function AssignmentsPage() {
     const cls = classById[a.classId]
     const cat = categorize(a.dueAt)
     const isCompleted = a.status === 'done' || a.status === 'completed' || Boolean(a.completedAt)
+    const isPending = isPendingSuggestion(a)
     const statusBadge = (() => {
       if (cat === 'Overdue') return <Badge className="bg-red-100 text-red-700 border-red-200">Overdue</Badge>
       if (cat === 'Today') return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Today</Badge>
@@ -408,6 +433,7 @@ export function AssignmentsPage() {
         key={a.id}
         className={
           `group relative pl-4 p-5 rounded-2xl border border-gray-100 bg-white/70 shadow-sm hover:shadow-md hover:bg-white transition-all duration-200 ` +
+          `${isPending ? 'border-amber-200 bg-amber-50/70' : ''} ` +
           `before:content-[''] before:absolute before:left-0 before:top-4 before:bottom-4 before:w-1.5 before:rounded-full ${itemLeftBar(cat)}`
         }
       >
@@ -434,6 +460,11 @@ export function AssignmentsPage() {
                   {a.type.charAt(0).toUpperCase() + a.type.slice(1)}
                 </Badge>
                 {statusBadge}
+                {isPending && (
+                  <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs">
+                    Pending suggestion
+                  </Badge>
+                )}
                 <Badge className="bg-slate-100 text-slate-700 border-slate-200 text-xs">
                   {sourceLabel}
                 </Badge>
@@ -452,7 +483,11 @@ export function AssignmentsPage() {
                   </div>
                   {a.notes && <div className="text-gray-600 truncate bg-gray-100/70 px-3 py-1 rounded-lg">{a.notes}</div>}
                 </div>
-                {!isCompleted ? (
+                {isPending ? (
+                  <div className="mt-3 text-xs text-amber-700">
+                    Respond on your dashboard to accept or decline.
+                  </div>
+                ) : !isCompleted ? (
                   <div className="mt-3">
                     <Button
                       size="sm"
@@ -497,6 +532,24 @@ export function AssignmentsPage() {
       <div className="mb-2">
         <h1 className="text-2xl font-semibold text-gray-900">Assignments</h1>
         <p className="text-gray-600">Manage your assignments and track due dates</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant={assignmentFilter === 'active' ? 'default' : 'outline'}
+            className={assignmentFilter === 'active' ? 'rounded-full bg-gradient-primary text-white' : 'rounded-full'}
+            onClick={() => setAssignmentFilter('active')}
+          >
+            Active ({activeAssignments.length})
+          </Button>
+          <Button
+            size="sm"
+            variant={assignmentFilter === 'pending' ? 'default' : 'outline'}
+            className={assignmentFilter === 'pending' ? 'rounded-full bg-amber-500 text-white' : 'rounded-full'}
+            onClick={() => setAssignmentFilter('pending')}
+          >
+            Pending Suggestions ({pendingSuggestions.length})
+          </Button>
+        </div>
       </div>
       {loadError && <p className="text-sm text-red-600">{loadError}</p>}
       {isLoading && <p className="text-sm text-muted-foreground">Loading assignments...</p>}

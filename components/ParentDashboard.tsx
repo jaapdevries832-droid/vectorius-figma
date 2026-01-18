@@ -31,6 +31,11 @@ type AdvisorOption = {
   label: string;
 };
 
+type SuggestionCounts = {
+  pending: number;
+  declined: number;
+};
+
 type StudentOverview = {
   parent_id: string;
   student_id: string;
@@ -86,6 +91,8 @@ type ParentDashboardProps = {
   studentOverviews?: StudentOverview[];
   advisorNotes?: AdvisorNote[];
   onInviteStudent?: (student: StudentSummary) => void;
+  onSuggestAssignment?: () => void;
+  suggestionCountsByStudentId?: Record<string, SuggestionCounts>;
 };
 
 export function ParentDashboard({
@@ -118,6 +125,8 @@ export function ParentDashboard({
   studentOverviews = [],
   advisorNotes = [],
   onInviteStudent,
+  onSuggestAssignment,
+  suggestionCountsByStudentId = {},
 }: ParentDashboardProps) {
   const studentOptions = students.map((student) => {
     const initials = `${student.first_name[0] ?? ""}${student.last_name?.[0] ?? ""}`.toUpperCase();
@@ -136,6 +145,7 @@ export function ParentDashboard({
     : undefined;
   const selectedGradeMetric = selectedStudentId ? gradeMetricsByStudentId[selectedStudentId] ?? null : null;
   const selectedGradePercent = selectedGradeMetric !== null ? Math.round(selectedGradeMetric * 100) : null;
+  const suggestionCounts = selectedStudentId ? suggestionCountsByStudentId[selectedStudentId] : undefined;
 
   // Calculate progress percentage based on completed vs total assignments
   const totalAssignments = (currentOverview?.upcoming_assignments_count ?? 0) +
@@ -369,8 +379,17 @@ export function ParentDashboard({
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Assignment Summary</CardTitle>
+              {onSuggestAssignment && (
+                <button
+                  type="button"
+                  onClick={onSuggestAssignment}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs"
+                >
+                  Suggest Task
+                </button>
+              )}
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -429,6 +448,12 @@ export function ParentDashboard({
                         </p>
                       </div>
                     )}
+                    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-xs font-medium text-amber-900">Suggested tasks</p>
+                      <p className="text-xs text-amber-700">
+                        {suggestionCounts?.pending ?? 0} pending · {suggestionCounts?.declined ?? 0} declined
+                      </p>
+                    </div>
                   </>
                 )}
               </div>
