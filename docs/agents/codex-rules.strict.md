@@ -127,7 +127,7 @@ If port 54320 is already allocated:
 - Avoid refactoring unrelated code.
 - Avoid large formatting-only diffs.
 - Prefer explicit `select(...)` fields (avoid `select("*")` if types are strict).
-- Do not change visual layouts unless explicitly requested.
+- Avoid visual redesigns; minimal UI adjustments are allowed only when required to satisfy the request and must stay within the existing visual language.
 
 If changes spread beyond the stated scope:
 - STOP and ask for approval before continuing.

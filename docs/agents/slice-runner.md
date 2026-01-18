@@ -1,13 +1,13 @@
-# Slice Runner (Vectorius) — Standard Process
+# Slice Runner (Vectorius) -- Standard Process
 
 Purpose: run one vertical slice end-to-end with minimal supervision, keeping UI stable and migrations clean.
 
 ## Inputs
-- Slice definition lives in `docs/data-realization-plan.md` under “Chunked implementation plan (8 slices)”.
+- Slice definition lives in `docs/projects/prd-pivot-plan.md` under "10-Slice Implementation Plan".
 - The agent run must target exactly ONE slice per execution.
 
 ## Non-negotiable rules
-- No UI redesign. Keep layouts/styling intact; only swap data sources and wire to Supabase.
+- No UI redesign. Keep layouts/styling intact; minimal UI tweaks are allowed only when required to meet slice acceptance criteria.
 - No broad refactors/renames/cleanup/format-only diffs.
 - All DB changes are new SQL migrations in `/supabase/migrations`. Never edit existing migrations. Fix-forward only.
 - Forbidden unless explicitly requested: `supabase db reset`, `supabase migration repair`, destructive deletes, commands that could expose secrets.
@@ -15,7 +15,7 @@ Purpose: run one vertical slice end-to-end with minimal supervision, keeping UI 
 ## Standard execution steps (always)
 1) **Read-only discovery**
    - Confirm current branch and clean/dirty state (`git status`).
-   - Open `docs/data-realization-plan.md` and extract the exact scope for the selected slice:
+   - Open `docs/projects/prd-pivot-plan.md` and extract the exact scope for the selected slice:
      - files to touch
      - hardcoded sources to replace
      - proposed DB objects
@@ -32,12 +32,12 @@ Purpose: run one vertical slice end-to-end with minimal supervision, keeping UI 
    - Fix failures before committing.
 
 4) **Mark slice status in plan**
-   - Update `docs/data-realization-plan.md` by marking the slice as ✅ complete (or ⛔ blocked) with:
+   - Update `docs/projects/prd-pivot-plan.md` by marking the slice as complete (or blocked) with:
      - date
      - commit SHA
      - brief notes (schema objects created, key UI files updated)
      - manual test path
-     - If a slice has a commit SHA and a completed manual test path, its status MUST be set to ✅ complete.
+     - If a slice has a commit SHA and a completed manual test path, its status MUST be set to complete.
 
 5) **Commit & push (one commit per slice)**
    - Stage only relevant files (migrations, touched code, plan doc + any slice docs).
@@ -49,7 +49,7 @@ Purpose: run one vertical slice end-to-end with minimal supervision, keeping UI 
 A slice may require two commits:
 1) A code/schema commit implementing the slice.
 2) A documentation-only commit that records the slice commit SHA in
-   `docs/data-realization-plan.md`.
+   `docs/projects/prd-pivot-plan.md`.
 
 Both commits together constitute a completed slice.
 
@@ -64,12 +64,12 @@ When stopping, output exact error, commands run, files changed, and smallest nex
 
 ### Tracker status normalization (required)
 
-When updating the Slice Status Tracker in `docs/data-realization-plan.md`:
+When updating the Slice Status Tracker in `docs/projects/prd-pivot-plan.md`:
 
-- Status MUST be one of: ⬜, 🟨, ✅, ⛔ (no other symbols like "?" are allowed).
+- Status MUST match the legend in the plan.
 - If the slice has:
   - a slice implementation commit SHA, AND
   - lint/build passed (when required), AND
   - a manual test path,
-  then Status MUST be set to ✅ complete.
-- If blocked, set Status to ⛔ and briefly explain the blocker in Notes.
+  then Status MUST be set to complete.
+- If blocked, set Status to blocked and briefly explain the blocker in Notes.

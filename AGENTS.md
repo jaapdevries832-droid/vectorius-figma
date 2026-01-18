@@ -1,11 +1,9 @@
-
-
 # Agent Router (Vectorius)
 
 This repo supports two guardrail modes:
 
-- STRICT: `docs/codex-rules.strict.md`
-- AUTONOMY: `docs/codex-rules.autonomy.md`
+- STRICT: `docs/agents/codex-rules.strict.md`
+- AUTONOMY: `docs/agents/codex-rules.autonomy.md`
 
 ## How to choose
 The user prompt MUST include one of:
@@ -19,10 +17,10 @@ If neither is present, default to `MODE=STRICT`.
 2) Then execute the user request.
 
 ## Slice execution
-When the user asks to “implement Slice X”, follow `docs/slice-runner.md`.
+When the user asks to "implement Slice X", follow `docs/agents/slice-runner.md`.
 
-The slice definitions and status live in `docs/data-realization-plan.md`.
-After each successful slice, update the status in the plan doc with ✅ + commit SHA.
+The slice definitions and status live in `docs/projects/prd-pivot-plan.md`.
+After each successful slice, update the status in the plan doc with "complete" + commit SHA.
 
 If implementing a slice, default behavior is to EXECUTE and commit.
 
