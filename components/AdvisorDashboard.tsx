@@ -156,6 +156,13 @@ export function AdvisorDashboard() {
     }
   };
 
+  const resolveSource = (role: string | null | undefined) => {
+    if (role === 'parent') return 'parent';
+    if (role === 'advisor') return 'advisor';
+    if (role === 'student') return 'student';
+    return 'advisor';
+  };
+
   const handleOpenModal = async () => {
     if (!selectedStudentId) {
       toast.error("Please select a student first");
@@ -172,6 +179,12 @@ export function AdvisorDashboard() {
   const handleSaveAssignment = async (assignment: AssignmentInput) => {
     if (!selectedStudentId) return;
 
+    const { user, profile } = await getCurrentProfile();
+    if (!user) {
+      toast.error("Please sign in to create assignments.");
+      return;
+    }
+
     const { error } = await supabase.from("assignments").insert({
       student_id: selectedStudentId,
       course_id: assignment.classId === 'none' ? null : assignment.classId,
@@ -180,6 +193,9 @@ export function AdvisorDashboard() {
       due_at: assignment.dueDate ? new Date(assignment.dueDate).toISOString() : null,
       description: assignment.notes || null,
       status: "not_started",
+      created_by: user.id,
+      created_by_role: profile?.role ?? null,
+      source: resolveSource(profile?.role ?? null),
     });
 
     if (error) {

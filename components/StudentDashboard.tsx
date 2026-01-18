@@ -24,6 +24,8 @@ import { toast } from "sonner";
 import {
 } from "./ui/select";
 
+type TaskSource = 'student' | 'parent' | 'advisor' | 'ai' | 'google_classroom' | 'manual_import'
+
 export function StudentDashboard() {
   const { setActiveItem } = useRoleLayout();
   const noteColors = ["sticky-note", "sticky-note-blue", "sticky-note-green"];
@@ -40,7 +42,7 @@ export function StudentDashboard() {
     progressPercent: number;
   } | null>(null);
   const [upcomingAssignments, setUpcomingAssignments] = React.useState<
-    { id: string; title: string; subject: string; dueDate: string; completed: boolean; priority: string }[]
+    { id: string; title: string; subject: string; dueDate: string; completed: boolean; priority: string; source?: TaskSource | null; createdByRole?: string | null }[]
   >([]);
 
   const [notes, setNotes] = React.useState<
@@ -168,7 +170,7 @@ export function StudentDashboard() {
 
       const { data: assignmentRows, error: assignmentError } = await supabase
         .from("assignments")
-        .select("id, title, due_at, status, completed_at, priority, score, max_score, course:courses (title)")
+        .select("id, title, due_at, status, completed_at, priority, score, max_score, source, created_by_role, course:courses (title)")
         .eq("student_id", student.id)
         .order("due_at", { ascending: true })
         .limit(6);
@@ -208,6 +210,8 @@ export function StudentDashboard() {
           dueDate: row.due_at ?? new Date().toISOString(),
           completed: Boolean(row.completed_at) || row.status === "done" || row.status === "completed",
           priority: row.priority ?? "medium",
+          source: row.source ?? null,
+          createdByRole: row.created_by_role ?? null,
         };
       });
 
@@ -287,6 +291,20 @@ export function StudentDashboard() {
       return <Badge className="bg-green-100 text-green-700 border-green-200">Completed</Badge>;
     }
     return <Badge className="bg-blue-100 text-blue-700 border-blue-200">In Progress</Badge>;
+  };
+
+  const sourceLabels: Record<TaskSource, string> = {
+    student: 'Added by Student',
+    parent: 'Added by Parent',
+    advisor: 'Added by Advisor',
+    ai: 'Suggested by AI',
+    google_classroom: 'Imported from Classroom',
+    manual_import: 'Imported Manually',
+  };
+
+  const resolveSourceLabel = (source: TaskSource | null | undefined, createdByRole: string | null | undefined) => {
+    const fallback = (createdByRole as TaskSource | undefined) ?? 'student';
+    return sourceLabels[source ?? fallback] ?? 'Added';
   };
 
   const dayNameFromIndex = (dayIndex: number) => {
@@ -691,11 +709,14 @@ export function StudentDashboard() {
                           </h4>
                           <p className="text-gray-600 text-sm mt-1">{assignment.subject}</p>
                         </div>
-                        <div className="flex items-center space-grid-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <Badge className={`${getPriorityColor(assignment.priority)} text-xs font-medium`}>
                             {assignment.priority}
                           </Badge>
                           {getStatusBadge(assignment.completed)}
+                          <Badge className="bg-slate-100 text-slate-700 border-slate-200 text-xs">
+                            {resolveSourceLabel(assignment.source, assignment.createdByRole)}
+                          </Badge>
                         </div>
                       </div>
                       

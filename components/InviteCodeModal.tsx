@@ -61,6 +61,9 @@ export function InviteCodeModal({
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
+          <p className="text-xs text-muted-foreground">
+            If the student sees the code already used message, regenerate a new code and share the latest one.
+          </p>
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <button

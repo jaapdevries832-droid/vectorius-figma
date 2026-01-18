@@ -27,7 +27,11 @@ type Assignment = {
   priority?: string | null
   pointsAvailable?: number
   pointsEarned?: number
+  source?: TaskSource | null
+  createdByRole?: string | null
 }
+
+type TaskSource = 'student' | 'parent' | 'advisor' | 'ai' | 'google_classroom' | 'manual_import'
 
 const typeMeta: Record<AssignmentType, { icon: LucideIcon; color: string; badge: string }> = {
   homework: { icon: BookOpen, color: 'text-blue-600', badge: 'bg-blue-100 text-blue-700 border-blue-200' },
@@ -60,6 +64,27 @@ function normalizeAssignmentType(value: string | null | undefined): AssignmentTy
   return 'homework'
 }
 
+const sourceLabels: Record<TaskSource, string> = {
+  student: 'Added by Student',
+  parent: 'Added by Parent',
+  advisor: 'Added by Advisor',
+  ai: 'Suggested by AI',
+  google_classroom: 'Imported from Classroom',
+  manual_import: 'Imported Manually',
+}
+
+function resolveSourceLabel(source: TaskSource | null | undefined, createdByRole: string | null | undefined) {
+  const fallback = (createdByRole as TaskSource | undefined) ?? 'student'
+  return sourceLabels[source ?? fallback] ?? 'Added'
+}
+
+function resolveSource(role: string | null | undefined): TaskSource {
+  if (role === 'parent') return 'parent'
+  if (role === 'advisor') return 'advisor'
+  if (role === 'student') return 'student'
+  return 'student'
+}
+
 export function AssignmentsPage() {
   const [open, setOpen] = useState<Record<string, boolean>>({
     Overdue: true,
@@ -75,6 +100,8 @@ export function AssignmentsPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [congratsOpen, setCongratsOpen] = useState(false)
   const [congratsPoints, setCongratsPoints] = useState(0)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [currentRole, setCurrentRole] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -93,6 +120,9 @@ export function AssignmentsPage() {
         setIsLoading(false)
         return
       }
+
+      setCurrentUserId(user.id)
+      setCurrentRole(profile?.role ?? null)
 
       if (profile?.role && profile.role !== "student") {
         setLoadError("Assignments are available for student accounts only.")
@@ -127,7 +157,7 @@ export function AssignmentsPage() {
 
       const { data, error } = await supabase
         .from('assignments')
-        .select('id, title, type, description, due_at, status, completed_at, priority, course_id, course:courses (title, teacher_name)')
+        .select('id, title, type, description, due_at, status, completed_at, priority, course_id, source, created_by_role, course:courses (title, teacher_name)')
         .eq('student_id', student.id)
         .order('due_at', { ascending: true })
 
@@ -154,6 +184,8 @@ export function AssignmentsPage() {
         courseTitle: course?.title ?? null,
         courseTeacher: course?.teacher_name ?? null,
         priority: row.priority ?? null,
+        source: row.source ?? null,
+        createdByRole: row.created_by_role ?? null,
         }
       })
 
@@ -237,6 +269,21 @@ export function AssignmentsPage() {
     }
 
     const dueAt = input.dueDate ? new Date(`${input.dueDate}T00:00:00`).toISOString() : null
+    let creatorId = currentUserId
+    let role = currentRole
+
+    if (!creatorId) {
+      const { user, profile } = await getCurrentProfile()
+      creatorId = user?.id ?? null
+      role = profile?.role ?? null
+      setCurrentUserId(creatorId)
+      setCurrentRole(role)
+    }
+
+    if (!creatorId) {
+      setLoadError("Unable to identify the current user.")
+      return
+    }
 
     const { data, error } = await supabase
       .from('assignments')
@@ -248,8 +295,11 @@ export function AssignmentsPage() {
         type: input.type,
         due_at: dueAt,
         status: 'todo',
+        created_by: creatorId,
+        created_by_role: role ?? null,
+        source: resolveSource(role),
       })
-      .select('id, title, type, description, due_at, status, completed_at, priority, course_id, course:courses (title, teacher_name)')
+      .select('id, title, type, description, due_at, status, completed_at, priority, course_id, source, created_by_role, course:courses (title, teacher_name)')
       .single()
 
     if (error) {
@@ -272,6 +322,8 @@ export function AssignmentsPage() {
       courseTitle: course?.title ?? null,
       courseTeacher: course?.teacher_name ?? null,
       priority: data.priority ?? null,
+      source: data.source ?? null,
+      createdByRole: data.created_by_role ?? null,
       pointsAvailable: basePts,
     }
 
@@ -347,6 +399,7 @@ export function AssignmentsPage() {
       return <Badge className="bg-blue-50 text-blue-700 border-blue-200">{chip}</Badge>
     })()
     const potential = a.pointsAvailable ?? computePotentialPoints(a.dueAt)
+    const sourceLabel = resolveSourceLabel(a.source, a.createdByRole)
     return (
       <div
         key={a.id}
@@ -378,6 +431,9 @@ export function AssignmentsPage() {
                   {a.type.charAt(0).toUpperCase() + a.type.slice(1)}
                 </Badge>
                 {statusBadge}
+                <Badge className="bg-slate-100 text-slate-700 border-slate-200 text-xs">
+                  {sourceLabel}
+                </Badge>
               </div>
               <div className="font-semibold text-gray-900 leading-tight mt-1">{a.title}</div>
                 <div className="text-sm text-gray-600 mt-1">
