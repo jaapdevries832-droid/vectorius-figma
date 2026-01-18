@@ -796,7 +796,7 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 
 | Slice | Name | Status | PR/Commit | Completed (date) | Notes |
 |---:|---|---|---|---|---|
-| 1 | Student Invite System | ⬜ | | | |
+| 1 | Student Invite System | ✅ | b6bcc54 | 2026-01-18 | Added student_invites table + invite modal + /join flow. Manual test: parent dashboard invite -> /join accept -> /student. |
 | 2 | Task Provenance & Source Labels | ⬜ | | | |
 | 3 | Parent Suggested Tasks | ⬜ | | | Depends on Slice 2 |
 | 4 | Calendar Events (Non-Course) | ⬜ | | | |
