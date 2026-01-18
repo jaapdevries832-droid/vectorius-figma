@@ -4,7 +4,7 @@
 Maximize agent autonomy while keeping:
 - migrations clean (fix-forward only)
 - RLS safe (least privilege)
-- UI intact (no redesign)
+- Avoid visual redesigns; minimal UI adjustments are allowed only when required to satisfy the request and must stay within the existing visual language.
 - changes testable and revertible (small vertical slices)
 
 This mode is designed for "I'm stepping away; build a meaningful chunk overnight."
@@ -64,7 +64,7 @@ If something is ambiguous, choose the most conservative option that keeps scope 
 - Schema design: start minimal. Add only columns required to replace hardcoded UI data.
 - Relationships: use `user_id` / `parent_id` / `advisor_id` patterns already present. If unsure, store `owner_id` plus `student_id`.
 - RLS: deny-by-default. Allow only authenticated users to read/write their own rows.
-- UI: do not change layout/styling. Only replace data source and keep component props stable.
+- UI: avoid visual redesigns; minimal UI adjustments are allowed only when required to satisfy the request and must stay within the existing visual language.
 - Types: prefer explicit selects and typed helpers. Avoid `select("*")` unless types are permissive.
 
 Only ask the user if:
