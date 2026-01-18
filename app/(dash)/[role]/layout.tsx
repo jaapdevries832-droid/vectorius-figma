@@ -16,6 +16,8 @@ import type { Role, User } from 'app/lib/domain'
 import type { SidebarItem } from 'app/lib/types'
 import { clearCurrentUser, getCurrentUser } from 'app/lib/current-user'
 import { getCurrentProfile } from '@/lib/profile'
+import { supabase } from '@/lib/supabase/client'
+import { clearSupabaseLocalSession } from '@/lib/supabase/logout'
 
 export default function RoleLayout({ children, params }: { children: React.ReactNode, params: { role: Role }}) {
   const router = useRouter()
@@ -78,10 +80,23 @@ export default function RoleLayout({ children, params }: { children: React.React
     }
   }, [role, router])
 
-  function handleLogout() {
+  async function handleLogout() {
+    // Clear all auth state in the correct order
+    // 1. Sign out from Supabase first (this invalidates the session server-side)
+    await supabase.auth.signOut({ scope: 'local' })
+
+    // 2. Clear server-side cookies via API
+    await fetch('/api/auth/logout', { method: 'POST' })
+
+    // 3. Clear all local storage auth data
+    clearSupabaseLocalSession()
     clearCurrentUser()
+
+    // 4. Clear component state
     setCurrentUser(null)
-    router.push('/login')
+
+    // 5. Use window.location for a hard redirect to ensure all state is cleared
+    window.location.href = '/login'
   }
 
   function renderContent() {

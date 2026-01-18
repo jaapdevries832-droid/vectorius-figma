@@ -7,6 +7,7 @@ import { ParentDashboard } from "@/components/ParentDashboard";
 import { getCurrentProfile } from "@/lib/profile";
 import { toast } from "sonner";
 import { InviteCodeModal } from "@/components/InviteCodeModal";
+import { clearSupabaseLocalSession } from "@/lib/supabase/logout";
 
 type Student = {
   id: string;
@@ -282,8 +283,18 @@ export function ParentDashboardWrapper() {
 
   const handleSignOut = async () => {
     setIsLoading(true);
-    await supabase.auth.signOut();
-    router.replace("/login");
+    // Clear all auth state in the correct order
+    // 1. Sign out from Supabase first (this invalidates the session)
+    await supabase.auth.signOut({ scope: "local" });
+
+    // 2. Clear server-side cookies via API
+    await fetch("/api/auth/logout", { method: "POST" });
+
+    // 3. Clear all local storage auth data
+    clearSupabaseLocalSession();
+
+    // 4. Use window.location for a hard redirect to ensure all state is cleared
+    window.location.href = "/login";
   };
 
   const handleAddStudent = async (event: FormEvent<HTMLFormElement>) => {

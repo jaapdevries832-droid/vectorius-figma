@@ -29,6 +29,18 @@ export default function LoginPage() {
     let isMounted = true;
 
     const checkExistingSession = async () => {
+      // Force a fresh session check by getting the session directly
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!isMounted) return;
+
+      // If no session, user is not logged in
+      if (!session) {
+        setIsCheckingAuth(false);
+        return;
+      }
+
+      // Session exists, get profile to determine role
       const { user, profile } = await getCurrentProfile();
 
       if (!isMounted) return;
