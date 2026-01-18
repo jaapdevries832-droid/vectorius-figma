@@ -102,6 +102,7 @@ export function AssignmentsPage() {
   const [congratsPoints, setCongratsPoints] = useState(0)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [currentRole, setCurrentRole] = useState<string | null>(null)
+  const [currentProfileId, setCurrentProfileId] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -123,6 +124,7 @@ export function AssignmentsPage() {
 
       setCurrentUserId(user.id)
       setCurrentRole(profile?.role ?? null)
+      setCurrentProfileId(profile?.id ?? null)
 
       if (profile?.role && profile.role !== "student") {
         setLoadError("Assignments are available for student accounts only.")
@@ -269,18 +271,19 @@ export function AssignmentsPage() {
     }
 
     const dueAt = input.dueDate ? new Date(`${input.dueDate}T00:00:00`).toISOString() : null
-    let creatorId = currentUserId
+    let creatorId = currentProfileId
     let role = currentRole
 
-    if (!creatorId) {
+    if (!creatorId || !role) {
       const { user, profile } = await getCurrentProfile()
-      creatorId = user?.id ?? null
+      creatorId = profile?.id ?? null
       role = profile?.role ?? null
-      setCurrentUserId(creatorId)
+      setCurrentUserId(user?.id ?? null)
+      setCurrentProfileId(creatorId)
       setCurrentRole(role)
     }
 
-    if (!creatorId) {
+    if (!currentUserId && !creatorId) {
       setLoadError("Unable to identify the current user.")
       return
     }
@@ -289,13 +292,13 @@ export function AssignmentsPage() {
       .from('assignments')
       .insert({
         student_id: studentId,
-        course_id: input.classId || null,
+        course_id: input.classId && input.classId !== 'none' ? input.classId : null,
         title: input.title,
         description: input.notes ?? null,
         type: input.type,
         due_at: dueAt,
         status: 'todo',
-        created_by: creatorId,
+        created_by: creatorId ?? null,
         created_by_role: role ?? null,
         source: resolveSource(role),
       })
