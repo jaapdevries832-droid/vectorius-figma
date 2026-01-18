@@ -802,7 +802,7 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 |---:|---|---|---|---|---|
 | 1 | Student Invite System | ✅ | b6bcc54 | 2026-01-18 | Added student_invites table + invite modal + /join flow. Manual test: parent dashboard invite -> /join accept -> /student. |
 | 2 | Task Provenance & Source Labels | ✅ | 761b7bd | 2026-01-18 | Added task_source + created_by_role on assignments; added provenance badges in Assignments + Student Dashboard; invite modal reuse note. Manual: student creates assignment -> badge shows Added by Student; advisor creates assignment -> badge shows Added by Advisor. |
-| 3 | Parent Suggested Tasks | ⬜ | | | Depends on Slice 2 |
+| 3 | Parent Suggested Tasks | ✅ | 2069cad | 2026-01-18 | Added suggestion workflow columns on assignments; suggested tasks UX for students, filters for assignments, and parent/advisor suggestion creation. Manual: parent suggests -> student accepts/declines -> assignments list reflects status. |
 | 4 | Calendar Events (Non-Course) | ⬜ | | | |
 | 5 | Private Notes Enhancement | ⬜ | | | |
 | 6 | Parent Dashboard Signals | ⬜ | | | Depends on Slice 3 |
