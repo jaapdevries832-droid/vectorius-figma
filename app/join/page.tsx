@@ -133,49 +133,13 @@ export default function StudentJoinPage() {
       setRole(activeRole ?? null);
     }
 
-    const { data: invite, error: inviteError } = await supabase
-      .from("student_invites")
-      .select("id, student_id, expires_at, accepted_at")
-      .ilike("invite_code", normalized)
-      .single();
+    const { error: acceptError } = await supabase.rpc("accept_student_invite", {
+      invite_code_input: normalized,
+    });
 
-    if (inviteError || !invite) {
-      setStatus({ type: "error", message: inviteError?.message ?? "Invite code not found." });
-      setIsLoading(false);
-      return;
-    }
-
-    if (invite.accepted_at) {
-      setStatus({ type: "error", message: "This invite code has already been used." });
-      setIsLoading(false);
-      return;
-    }
-
-    if (new Date(invite.expires_at).getTime() < Date.now()) {
-      setStatus({ type: "error", message: "This invite code has expired." });
-      setIsLoading(false);
-      return;
-    }
-
-    const { error: inviteUpdateError } = await supabase
-      .from("student_invites")
-      .update({ accepted_at: new Date().toISOString() })
-      .eq("id", invite.id);
-
-    if (inviteUpdateError) {
-      setStatus({ type: "error", message: inviteUpdateError.message });
-      setIsLoading(false);
-      return;
-    }
-
-    const { error: studentUpdateError } = await supabase
-      .from("students")
-      .update({ student_user_id: activeUserId })
-      .eq("id", invite.student_id)
-      .is("student_user_id", null);
-
-    if (studentUpdateError) {
-      setStatus({ type: "error", message: studentUpdateError.message });
+    if (acceptError) {
+      const message = acceptError.message || "Unable to accept invite code.";
+      setStatus({ type: "error", message });
       setIsLoading(false);
       return;
     }
