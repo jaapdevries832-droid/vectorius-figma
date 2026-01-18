@@ -188,11 +188,15 @@ WHERE created_by IS NOT NULL;
 #### Frontend Changes
 - **AssignmentsPage.tsx**: Display source badge on each assignment (small label like "Added by Parent")
 - **StudentDashboard.tsx**: Show source in assignment cards
+- **Landing page**: Remove direct role shortcut buttons (Student/Parent/Advisor) and route through login
+- **Invite UX**: Add note in invite modal about "code already used" and re-generate flow
 
 #### Acceptance Criteria
 - [ ] New assignments get correct `source` and `created_by_role`
 - [ ] UI shows provenance badge on all assignments
 - [ ] Existing assignments show "student" as default source
+- [ ] Landing page no longer exposes direct role shortcuts
+- [ ] Invite modal explains how to proceed when a code is already used
 
 #### Manual Test Script
 1. Login as student → create assignment → verify source="student"
@@ -778,7 +782,7 @@ Each slice must pass before merge:
 | Slice | New Files | Modified Files |
 |-------|-----------|----------------|
 | 1 | `InviteCodeModal.tsx`, `app/join/page.tsx` | `ParentDashboardWrapper.tsx`, `app/login/page.tsx` |
-| 2 | - | `assignments` table, `AssignmentsPage.tsx`, `StudentDashboard.tsx` |
+| 2 | - | `assignments` table, `AssignmentsPage.tsx`, `StudentDashboard.tsx`, `app/page.tsx`, `InviteCodeModal.tsx` |
 | 3 | - | `assignments` table, `StudentDashboard.tsx`, `AssignmentsPage.tsx` |
 | 4 | `AddEventModal.tsx` | `WeeklyPlanner.tsx`, new `calendar_events` queries |
 | 5 | - | `student_notes` RLS, `NotesPage.tsx` |
