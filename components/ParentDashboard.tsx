@@ -12,7 +12,8 @@ type StudentSummary = {
   first_name: string;
   last_name: string | null;
   grade: string | null;
-  advisor_id?: string | null;
+  advisor_id: string | null;
+  student_user_id: string | null;
 };
 
 type DeleteStatus = {
@@ -84,6 +85,7 @@ type ParentDashboardProps = {
   gradeMetricsByStudentId?: Record<string, number | null>;
   studentOverviews?: StudentOverview[];
   advisorNotes?: AdvisorNote[];
+  onInviteStudent?: (student: StudentSummary) => void;
 };
 
 export function ParentDashboard({
@@ -115,6 +117,7 @@ export function ParentDashboard({
   gradeMetricsByStudentId = {},
   studentOverviews = [],
   advisorNotes = [],
+  onInviteStudent,
 }: ParentDashboardProps) {
   const studentOptions = students.map((student) => {
     const initials = `${student.first_name[0] ?? ""}${student.last_name?.[0] ?? ""}`.toUpperCase();
@@ -448,6 +451,7 @@ export function ParentDashboard({
                   {students.map((student) => {
                     const gradeMetric = gradeMetricsByStudentId[student.id] ?? null;
                     const gradeLabel = gradeMetric !== null ? `${Math.round(gradeMetric * 100)}%` : "No grades yet";
+                    const isLinked = Boolean(student.student_user_id);
                     return (
                       <div
                         key={student.id}
@@ -465,15 +469,30 @@ export function ParentDashboard({
                               <div className="text-xs text-gray-600">Grade: {student.grade}</div>
                             )}
                             <div className="text-xs text-gray-600">Grade metric: {gradeLabel}</div>
+                            {isLinked && (
+                              <div className="text-xs text-emerald-700">Linked to student account</div>
+                            )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => onDeleteStudent(student.id)}
-                            disabled={deletingStudentId === student.id}
-                            className="text-xs text-red-600 hover:underline disabled:opacity-60"
-                          >
-                            {deletingStudentId === student.id ? "Deleting..." : "Delete"}
-                          </button>
+                          <div className="flex flex-col items-end gap-2">
+                            {onInviteStudent && (
+                              <button
+                                type="button"
+                                onClick={() => onInviteStudent(student)}
+                                disabled={isLinked}
+                                className="text-xs text-blue-600 hover:underline disabled:opacity-60"
+                              >
+                                {isLinked ? "Linked" : "Invite"}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => onDeleteStudent(student.id)}
+                              disabled={deletingStudentId === student.id}
+                              className="text-xs text-red-600 hover:underline disabled:opacity-60"
+                            >
+                              {deletingStudentId === student.id ? "Deleting..." : "Delete"}
+                            </button>
+                          </div>
                         </div>
                         {showAdvisorAssignments && (
                           <div className="mt-3 space-y-1">

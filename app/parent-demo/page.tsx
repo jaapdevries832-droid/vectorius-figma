@@ -9,12 +9,14 @@ type Student = {
   first_name: string;
   last_name: string | null;
   grade: string | null;
+  advisor_id: string | null;
+  student_user_id: string | null;
 };
 
 const seededStudents: Student[] = [
-  { id: "1", first_name: "Jordan", last_name: "Davis", grade: "10" },
-  { id: "2", first_name: "Avery", last_name: "Davis", grade: "7" },
-  { id: "5", first_name: "Annie", last_name: "de Vries", grade: "9" },
+  { id: "1", first_name: "Jordan", last_name: "Davis", grade: "10", advisor_id: null, student_user_id: null },
+  { id: "2", first_name: "Avery", last_name: "Davis", grade: "7", advisor_id: null, student_user_id: null },
+  { id: "5", first_name: "Annie", last_name: "de Vries", grade: "9", advisor_id: null, student_user_id: null },
 ];
 
 const createStudentId = () => {
@@ -62,6 +64,8 @@ export default function ParentDemoPage() {
       first_name: trimmedFirst,
       last_name: trimmedLast || null,
       grade: trimmedGrade || null,
+      advisor_id: null,
+      student_user_id: null,
     };
 
     setStudents((current) => [nextStudent, ...current]);

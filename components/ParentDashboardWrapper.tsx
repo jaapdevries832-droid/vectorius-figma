@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import { ParentDashboard } from "@/components/ParentDashboard";
 import { getCurrentProfile } from "@/lib/profile";
 import { toast } from "sonner";
+import { InviteCodeModal } from "@/components/InviteCodeModal";
 
 type Student = {
   id: string;
@@ -13,6 +14,7 @@ type Student = {
   last_name: string | null;
   grade: string | null;
   advisor_id: string | null;
+  student_user_id: string | null;
 };
 
 type AdvisorOption = {
@@ -80,6 +82,22 @@ export function ParentDashboardWrapper() {
   const [isLoading, setIsLoading] = useState(true);
   const [studentOverviews, setStudentOverviews] = useState<StudentOverview[]>([]);
   const [advisorNotes, setAdvisorNotes] = useState<AdvisorNote[]>([]);
+  const [inviteStudent, setInviteStudent] = useState<Student | null>(null);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviteExpiresAt, setInviteExpiresAt] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isInviteLoading, setIsInviteLoading] = useState(false);
+
+  const generateInviteCode = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 8; i += 1) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+  };
 
   const fetchGradeMetrics = useCallback(async (studentIds: string[]) => {
     if (studentIds.length === 0) {
@@ -121,7 +139,7 @@ export function ParentDashboardWrapper() {
   const fetchStudents = useCallback(async () => {
     const { data, error } = await supabase
       .from("students")
-      .select("id, first_name, last_name, grade, advisor_id, created_at")
+      .select("id, first_name, last_name, grade, advisor_id, student_user_id, created_at")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -366,6 +384,63 @@ export function ParentDashboardWrapper() {
     setAssigningStudentId(null);
   };
 
+  const handleOpenInvite = (student: Student) => {
+    setInviteStudent(student);
+    setInviteCode(null);
+    setInviteExpiresAt(null);
+    setInviteError(null);
+    setInviteEmail("");
+    setIsInviteOpen(true);
+  };
+
+  const handleGenerateInvite = async () => {
+    if (!inviteStudent || !userId) return;
+    setIsInviteLoading(true);
+    setInviteError(null);
+
+    let created = false;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const code = generateInviteCode();
+      const { data, error } = await supabase
+        .from("student_invites")
+        .insert({
+          parent_id: userId,
+          student_id: inviteStudent.id,
+          invite_code: code,
+        })
+        .select("invite_code, expires_at")
+        .single();
+
+      if (!error && data) {
+        setInviteCode(data.invite_code);
+        setInviteExpiresAt(data.expires_at);
+        toast.success("Invite code created.");
+        created = true;
+        break;
+      }
+
+      if (!error?.code || error.code !== "23505") {
+        setInviteError(error?.message ?? "Unable to generate invite code.");
+        break;
+      }
+    }
+
+    if (!created && !inviteError) {
+      setInviteError("Unable to generate a unique invite code. Please try again.");
+    }
+    setIsInviteLoading(false);
+  };
+
+  const handleCopyInvite = async () => {
+    if (!inviteCode) return;
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(inviteCode);
+      toast.success("Invite code copied.");
+      return;
+    }
+    toast.error("Clipboard not available.");
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
@@ -383,35 +458,53 @@ export function ParentDashboardWrapper() {
   }
 
   return (
-    <ParentDashboard
-      email={email}
-      students={students}
-      selectedStudentId={selectedStudentId}
-      onSelectStudent={setSelectedStudentId}
-      firstName={firstName}
-      lastName={lastName}
-      grade={grade}
-      onFirstNameChange={setFirstName}
-      onLastNameChange={setLastName}
-      onGradeChange={setGrade}
-      onAddStudent={handleAddStudent}
-      isSaving={isSaving}
-      deletingStudentId={deletingStudentId}
-      formError={formError}
-      loadError={loadError}
-      deleteStatus={deleteStatus}
-      onDeleteStudent={handleDeleteStudent}
-      advisors={advisors}
-      showAdvisorAssignments={profileRole === "parent"}
-      advisorLoadError={advisorLoadError}
-      isAdvisorsLoading={isAdvisorsLoading}
-      assigningStudentId={assigningStudentId}
-      assignmentStatusByStudentId={assignmentStatusByStudentId}
-      onAssignAdvisor={handleAssignAdvisor}
-      onSignOut={handleSignOut}
-      gradeMetricsByStudentId={gradeMetricsByStudentId}
-      studentOverviews={studentOverviews}
-      advisorNotes={advisorNotes}
-    />
+    <>
+      <ParentDashboard
+        email={email}
+        students={students}
+        selectedStudentId={selectedStudentId}
+        onSelectStudent={setSelectedStudentId}
+        firstName={firstName}
+        lastName={lastName}
+        grade={grade}
+        onFirstNameChange={setFirstName}
+        onLastNameChange={setLastName}
+        onGradeChange={setGrade}
+        onAddStudent={handleAddStudent}
+        isSaving={isSaving}
+        deletingStudentId={deletingStudentId}
+        formError={formError}
+        loadError={loadError}
+        deleteStatus={deleteStatus}
+        onDeleteStudent={handleDeleteStudent}
+        advisors={advisors}
+        showAdvisorAssignments={profileRole === "parent"}
+        advisorLoadError={advisorLoadError}
+        isAdvisorsLoading={isAdvisorsLoading}
+        assigningStudentId={assigningStudentId}
+        assignmentStatusByStudentId={assignmentStatusByStudentId}
+        onAssignAdvisor={handleAssignAdvisor}
+        onSignOut={handleSignOut}
+        gradeMetricsByStudentId={gradeMetricsByStudentId}
+        studentOverviews={studentOverviews}
+        advisorNotes={advisorNotes}
+        onInviteStudent={handleOpenInvite}
+      />
+      {inviteStudent && (
+        <InviteCodeModal
+          open={isInviteOpen}
+          studentName={`${inviteStudent.first_name} ${inviteStudent.last_name ?? ""}`.trim()}
+          inviteCode={inviteCode}
+          expiresAt={inviteExpiresAt}
+          isLoading={isInviteLoading}
+          error={inviteError}
+          email={inviteEmail}
+          onEmailChange={setInviteEmail}
+          onGenerate={handleGenerateInvite}
+          onCopy={handleCopyInvite}
+          onClose={() => setIsInviteOpen(false)}
+        />
+      )}
+    </>
   );
 }

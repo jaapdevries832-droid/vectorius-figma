@@ -2,6 +2,7 @@
 
 import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile } from "@/lib/profile";
 
@@ -173,6 +174,12 @@ export default function LoginPage() {
         >
           Open Parent Demo Dashboard (No Sign-In)
         </button>
+        <Link
+          href="/join"
+          className="block w-full rounded-lg border border-border px-3 py-2 text-center text-sm"
+        >
+          I have an invite code
+        </Link>
         {mode === "sign-up" && (
           <fieldset className="space-y-2 text-sm">
             <legend className="text-sm font-medium">Choose your role</legend>
