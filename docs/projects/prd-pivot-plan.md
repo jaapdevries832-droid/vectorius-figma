@@ -804,7 +804,7 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 | 2 | Task Provenance & Source Labels | ✅ | 761b7bd | 2026-01-18 | Added task_source + created_by_role on assignments; added provenance badges in Assignments + Student Dashboard; invite modal reuse note. Manual: student creates assignment -> badge shows Added by Student; advisor creates assignment -> badge shows Added by Advisor. |
 | 3 | Parent Suggested Tasks | ✅ | 2069cad | 2026-01-18 | Added suggestion workflow columns on assignments; suggested tasks UX for students, filters for assignments, and parent/advisor suggestion creation. Manual: parent suggests -> student accepts/declines -> assignments list reflects status. |
 | 4 | Calendar Events (Non-Course) | ✅ | 9580cbb | 2026-01-18 | Added calendar_events table + WeeklyPlanner merge + AddEventModal; parent schedule selector added. Manual: student schedule -> add event (private) -> see; parent schedule -> select student -> add event -> see; parent does not see private event. |
-| 5 | Private Notes Enhancement | ⬜ | | | |
+| 5 | Private Notes Enhancement | ✅ | 5109700 | 2026-01-18 | Added is_private default + student-only RLS. Notes UI now shows privacy messaging for students and parents. Manual: student notes -> see lock + message; parent notes -> privacy notice only. |
 | 6 | Parent Dashboard Signals | ⬜ | | | Depends on Slice 3 |
 | 7 | School Email Manual Ingestion | ⬜ | | | Depends on Slice 4 |
 | 8 | AI Study Pathway | ⬜ | | | Depends on Slice 4 |
