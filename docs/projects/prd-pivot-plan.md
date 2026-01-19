@@ -806,7 +806,7 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 | 4 | Calendar Events (Non-Course) | ✅ | 9580cbb | 2026-01-18 | Added calendar_events table + WeeklyPlanner merge + AddEventModal; parent schedule selector added. Manual: student schedule -> add event (private) -> see; parent schedule -> select student -> add event -> see; parent does not see private event. |
 | 5 | Private Notes Enhancement | ✅ | 5109700 | 2026-01-18 | Added is_private default + student-only RLS. Notes UI now shows privacy messaging for students and parents. Manual: student notes -> see lock + message; parent notes -> privacy notice only. |
 | 6 | Parent Dashboard Signals | ✅ | f2aa02e | 2026-01-18 | Added parent_student_signals view and signals-only dashboard cards. Manual: parent dashboard -> select student -> see overdue, next big item, plan status, pending suggestions. |
-| 7 | School Email Manual Ingestion | ⬜ | | | Depends on Slice 4 |
+| 7 | School Email Manual Ingestion | ✅ | 3844850 | 2026-01-18 | Added email_ingests table + /parent/import-email flow + parse-email API; parent can parse and import into calendar. Manual: parent -> Import School Email -> parse -> select -> import -> events appear on schedule. |
 | 8 | AI Study Pathway | ⬜ | | | Depends on Slice 4 |
 | 9 | Parent Alerts System | ⬜ | | | Depends on Slices 3, 6 |
 | 10 | V2 Hooks & Polish | ⬜ | | | Last slice |
