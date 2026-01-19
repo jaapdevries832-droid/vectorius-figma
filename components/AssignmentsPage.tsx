@@ -6,9 +6,10 @@ import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import type { ScheduledCourse } from "app/lib/domain"
 import { AssignmentModal, type AssignmentInput, type AssignmentType } from "./AssignmentModal"
-import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Edit, Trash2, Plus, ExternalLink, Copy, ChevronDown, Check, Trophy } from "lucide-react"
+import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Edit, Trash2, Plus, ExternalLink, Copy, ChevronDown, Check, Trophy, Sparkles } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { GamificationCongratsModal } from "./GamificationCongratsModal"
+import { StudyPlanPreview, type StudyMilestone } from "./StudyPlanPreview"
 import { supabase } from "@/lib/supabase/client"
 import { getCurrentProfile } from "@/lib/profile"
 import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule"
@@ -107,6 +108,11 @@ export function AssignmentsPage() {
   const [currentRole, setCurrentRole] = useState<string | null>(null)
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null)
   const [assignmentFilter, setAssignmentFilter] = useState<'active' | 'pending'>('active')
+  const [studyPlanOpen, setStudyPlanOpen] = useState(false)
+  const [studyPlanLoading, setStudyPlanLoading] = useState(false)
+  const [studyPlanAssignment, setStudyPlanAssignment] = useState<Assignment | null>(null)
+  const [studyPlanMilestones, setStudyPlanMilestones] = useState<StudyMilestone[]>([])
+  const [studyPlanId, setStudyPlanId] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -412,6 +418,120 @@ export function AssignmentsPage() {
     }
   }
 
+  const fetchScheduleHints = async () => {
+    if (!studentId) return []
+    const { data, error } = await supabase
+      .from('calendar_events')
+      .select('title, start_at, end_at')
+      .eq('student_id', studentId)
+    if (error) {
+      return []
+    }
+    return (data ?? []).map((event) => ({
+      title: event.title,
+      date: event.start_at?.split('T')?.[0],
+      start_time: event.start_at?.split('T')?.[1]?.slice(0, 5),
+      end_time: event.end_at?.split('T')?.[1]?.slice(0, 5),
+    }))
+  }
+
+  const handleGenerateStudyPlan = async (assignment: Assignment) => {
+    if (!assignment.dueAt || !studentId) {
+      setLoadError('Select a dated assignment to generate a plan.')
+      return
+    }
+
+    setStudyPlanLoading(true)
+    setStudyPlanAssignment(assignment)
+    setStudyPlanMilestones([])
+    setStudyPlanId(null)
+
+    const schedule = await fetchScheduleHints()
+    const response = await fetch('/api/generate-study-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: assignment.title,
+        dueDate: assignment.dueAt,
+        schedule,
+      }),
+    })
+
+    const payload = await response.json()
+    if (!response.ok) {
+      setStudyPlanLoading(false)
+      setLoadError(payload?.error ?? 'Unable to generate a study plan.')
+      return
+    }
+
+    const milestones = Array.isArray(payload?.milestones) ? payload.milestones : []
+    setStudyPlanMilestones(milestones)
+
+    const { data, error } = await supabase
+      .from('ai_study_plans')
+      .insert({
+        student_id: studentId,
+        target_assignment_id: assignment.id,
+        target_title: assignment.title,
+        target_due_at: assignment.dueAt,
+        proposed_milestones: milestones,
+        status: 'proposed',
+      })
+      .select('id')
+      .single()
+
+    if (!error && data?.id) {
+      setStudyPlanId(data.id)
+    }
+
+    setStudyPlanOpen(true)
+    setStudyPlanLoading(false)
+  }
+
+  const handleAcceptStudyPlan = async () => {
+    if (!studentId || !studyPlanAssignment) return
+    if (studyPlanMilestones.length === 0) return
+
+    setStudyPlanLoading(true)
+    const baseDate = (date: string, time: string) => new Date(`${date}T${time}`).toISOString()
+    const rows = studyPlanMilestones.map((milestone) => {
+      const startTime = milestone.start_time || '18:00'
+      const duration = milestone.duration_minutes || 60
+      const endDate = new Date(`${milestone.date}T${startTime}`)
+      endDate.setMinutes(endDate.getMinutes() + duration)
+      const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`
+      return {
+        student_id: studentId,
+        title: milestone.title,
+        description: `Study plan for ${studyPlanAssignment.title}`,
+        event_type: 'study_block',
+        start_at: baseDate(milestone.date, startTime),
+        end_at: baseDate(milestone.date, endTime),
+        all_day: false,
+        is_private: false,
+        source: 'ai',
+        created_by: currentProfileId,
+      }
+    })
+
+    const { error } = await supabase.from('calendar_events').insert(rows)
+    if (error) {
+      setLoadError(error.message)
+      setStudyPlanLoading(false)
+      return
+    }
+
+    if (studyPlanId) {
+      await supabase
+        .from('ai_study_plans')
+        .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+        .eq('id', studyPlanId)
+    }
+
+    setStudyPlanOpen(false)
+    setStudyPlanLoading(false)
+  }
+
   const renderAssignment = (a: Assignment) => {
     const meta = typeMeta[a.type]
     const Icon = meta.icon
@@ -419,6 +539,7 @@ export function AssignmentsPage() {
     const cat = categorize(a.dueAt)
     const isCompleted = a.status === 'done' || a.status === 'completed' || Boolean(a.completedAt)
     const isPending = isPendingSuggestion(a)
+    const isStudyEligible = a.type === 'test' || a.type === 'project'
     const statusBadge = (() => {
       if (cat === 'Overdue') return <Badge className="bg-red-100 text-red-700 border-red-200">Overdue</Badge>
       if (cat === 'Today') return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Today</Badge>
@@ -488,7 +609,7 @@ export function AssignmentsPage() {
                     Respond on your dashboard to accept or decline.
                   </div>
                 ) : !isCompleted ? (
-                  <div className="mt-3">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <Button
                       size="sm"
                       className="rounded-xl bg-gradient-primary text-white btn-glow"
@@ -497,6 +618,17 @@ export function AssignmentsPage() {
                     >
                       <Trophy className="w-4 h-4 mr-2" /> Mark Complete
                     </Button>
+                    {isStudyEligible && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl"
+                        onClick={() => handleGenerateStudyPlan(a)}
+                        disabled={studyPlanLoading}
+                      >
+                        <Sparkles className="w-4 h-4 mr-2" /> Create Study Plan
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="mt-3">
@@ -646,6 +778,15 @@ export function AssignmentsPage() {
           setCongratsOpen(false)
           // Navigation is handled via sidebar; leaving as placeholder CTA
         }}
+      />
+      <StudyPlanPreview
+        open={studyPlanOpen}
+        onClose={() => setStudyPlanOpen(false)}
+        onAccept={handleAcceptStudyPlan}
+        isLoading={studyPlanLoading}
+        assignmentTitle={studyPlanAssignment?.title ?? 'Study Plan'}
+        dueDate={studyPlanAssignment?.dueAt ?? null}
+        milestones={studyPlanMilestones}
       />
     </div>
   )
