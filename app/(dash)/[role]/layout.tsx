@@ -126,7 +126,7 @@ export default function RoleLayout({ children, params }: { children: React.React
         return (
           <div className="p-6 space-grid-6">
             <h2 className="text-2xl font-semibold">Settings</h2>
-            <div className="grid gap-4 max-w-2xl">
+              <div className="grid gap-4 max-w-2xl">
               <div className="p-4 rounded-2xl bg-white border">
                 <h3 className="font-medium mb-2">Notifications</h3>
                 <div className="flex items-center justify-between py-2">
@@ -138,16 +138,34 @@ export default function RoleLayout({ children, params }: { children: React.React
                   <input type="checkbox" className="h-5 w-5" defaultChecked />
                 </div>
               </div>
-              <div className="p-4 rounded-2xl bg-white border">
-                <h3 className="font-medium mb-2">Privacy</h3>
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-gray-700">Share my streaks and badges with peers</span>
-                  <input type="checkbox" className="h-5 w-5" />
+                <div className="p-4 rounded-2xl bg-white border">
+                  <h3 className="font-medium mb-2">Privacy</h3>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-gray-700">Share my streaks and badges with peers</span>
+                    <input type="checkbox" className="h-5 w-5" />
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium">Google Classroom</h3>
+                    <span className="text-xs rounded-full bg-blue-50 text-blue-700 px-2 py-0.5">Coming soon</span>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-600">
+                    Connect your classroom to import assignments automatically.
+                  </p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium">Email Inbox Link</h3>
+                    <span className="text-xs rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5">Coming soon</span>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-600">
+                    Link Gmail or Outlook to auto-ingest school notifications.
+                  </p>
                 </div>
               </div>
             </div>
-          </div>
-        )
+          )
       default:
         return children
     }
