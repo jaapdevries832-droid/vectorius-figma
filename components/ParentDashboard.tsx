@@ -1,6 +1,7 @@
 "use client"
 
 import { FormEvent } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Avatar, AvatarFallback } from "./ui/avatar";
@@ -280,15 +281,23 @@ export function ParentDashboard({
                     <p className="text-sm text-gray-600">Signed in as</p>
                     <p className="font-medium text-gray-900">{email ?? "Unknown"}</p>
                   </div>
-                  {onSignOut && (
-                    <button
-                      type="button"
-                      onClick={onSignOut}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href="/parent/import-email"
                       className="rounded-lg border border-border px-4 py-2 text-sm"
                     >
-                      Sign out
-                    </button>
-                  )}
+                      Import School Email
+                    </Link>
+                    {onSignOut && (
+                      <button
+                        type="button"
+                        onClick={onSignOut}
+                        className="rounded-lg border border-border px-4 py-2 text-sm"
+                      >
+                        Sign out
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {loadError && <p className="mt-3 text-sm text-red-600">{loadError}</p>}
               </div>
