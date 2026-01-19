@@ -807,6 +807,6 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 | 5 | Private Notes Enhancement | ✅ | 5109700 | 2026-01-18 | Added is_private default + student-only RLS. Notes UI now shows privacy messaging for students and parents. Manual: student notes -> see lock + message; parent notes -> privacy notice only. |
 | 6 | Parent Dashboard Signals | ✅ | f2aa02e | 2026-01-18 | Added parent_student_signals view and signals-only dashboard cards. Manual: parent dashboard -> select student -> see overdue, next big item, plan status, pending suggestions. |
 | 7 | School Email Manual Ingestion | ✅ | 3844850 | 2026-01-18 | Added email_ingests table + /parent/import-email flow + parse-email API; parent can parse and import into calendar. Manual: parent -> Import School Email -> parse -> select -> import -> events appear on schedule. |
-| 8 | AI Study Pathway | ⬜ | | | Depends on Slice 4 |
+| 8 | AI Study Pathway | ✅ | ee03ea9 | 2026-01-18 | Added ai_study_plans table + generate-study-plan API + StudyPlanPreview. Manual: student assignments -> Create Study Plan -> accept -> study blocks appear on schedule. |
 | 9 | Parent Alerts System | ⬜ | | | Depends on Slices 3, 6 |
 | 10 | V2 Hooks & Polish | ⬜ | | | Last slice |
