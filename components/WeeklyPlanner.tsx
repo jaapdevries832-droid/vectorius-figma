@@ -15,13 +15,16 @@ import {
   Users,
   MapPin,
   Edit,
-  Trash2
+  Trash2,
+  Lock
 } from "lucide-react";
 import { cn } from "./ui/utils";
 import { ClassSetupModal } from "./ClassSetupModal";
+import { AddEventModal, type CalendarEventForm } from "./AddEventModal";
 import { useRoleLayout } from "app/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
 import { fetchStudentScheduleEvents, fetchAdvisorScheduleEvents, mapScheduleEventsToCourses, mapAdvisorScheduleEventsToCourses } from "@/lib/student-schedule";
+import { createCalendarEvent, deleteCalendarEvent, fetchCalendarEvents, updateCalendarEvent, type CalendarEvent } from "@/lib/calendar-events";
 import { supabase } from "@/lib/supabase/client";
 import { addEnrollment, createCourse, deleteCourse, replaceCourseMeetings, updateCourse } from "@/lib/student-classes";
 import { toast } from "sonner";
@@ -42,8 +45,12 @@ interface ScheduleEvent {
   endTime: string;
   day: string;
   color: string;
-  type: 'class' | 'study' | 'assignment' | 'personal';
+  type: 'class' | 'event';
   classId?: string;
+  eventId?: string;
+  eventType?: CalendarEvent["event_type"];
+  isPrivate?: boolean;
+  canEdit?: boolean;
 }
 
 interface WeeklyPlannerProps {
@@ -65,6 +72,27 @@ const TIME_SLOTS = [
   '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
 ];
 
+const DAY_NAME_BY_INDEX = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+const EVENT_TYPE_COLORS: Record<string, string> = {
+  appointment: "bg-rose-500",
+  school_event: "bg-indigo-500",
+  travel: "bg-amber-500",
+  extracurricular: "bg-emerald-500",
+  study_block: "bg-blue-500",
+  other: "bg-slate-500",
+};
+
+const padTime = (value: number) => value.toString().padStart(2, "0");
+
+const formatDateInput = (date: Date) =>
+  `${date.getFullYear()}-${padTime(date.getMonth() + 1)}-${padTime(date.getDate())}`;
+
+const formatTimeInput = (date: Date) => `${padTime(date.getHours())}:${padTime(date.getMinutes())}`;
+const timeToMinutes = (time: string) => {
+  const [hours, minutes] = time.split(":");
+  return Number.parseInt(hours, 10) * 60 + Number.parseInt(minutes, 10);
+};
 
 export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
   const { openClassSetupTs, activeItem } = useRoleLayout()
@@ -74,10 +102,53 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     return monday;
   });
   const [classes, setClasses] = useState<ScheduledCourse[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [scheduleEvents, setScheduleEvents] = useState<ScheduleEvent[]>([]);
   const [isClassSetupOpen, setIsClassSetupOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<ScheduledCourse | null>(null);
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [parentStudents, setParentStudents] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [profileRole, setProfileRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const resolveStudentId = useCallback(async (userId: string) => {
+    const { data: student, error } = await supabase
+      .from("students")
+      .select("id")
+      .eq("student_user_id", userId)
+      .maybeSingle();
+
+    if (error || !student?.id) {
+      return null;
+    }
+
+    return student.id;
+  }, []);
+
+  const loadParentStudents = useCallback(async (parentId: string) => {
+    const { data, error } = await supabase
+      .from("students")
+      .select("id, first_name, last_name")
+      .eq("parent_id", parentId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setParentStudents([]);
+      return null;
+    }
+
+    const options = (data ?? []).map((student) => ({
+      id: student.id,
+      name: `${student.first_name} ${student.last_name ?? ""}`.trim(),
+    }));
+    setParentStudents(options);
+
+    return options;
+  }, []);
 
   const reloadSchedule = useCallback(async () => {
     setIsLoading(true);
@@ -85,6 +156,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     const { user, profile } = await getCurrentProfile();
     if (!user || !profile) {
       setClasses([]);
+      setCalendarEvents([]);
       setIsLoading(false);
       return;
     }
@@ -95,25 +167,42 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
       if (error) {
         console.error("Failed to load advisor schedule events", error);
         setClasses([]);
+        setCalendarEvents([]);
         setIsLoading(false);
         toast.error("Unable to load your schedule right now.");
         return;
       }
       setClasses(mapAdvisorScheduleEventsToCourses(data));
+      setCalendarEvents([]);
     } else {
-      const { data, error } = await fetchStudentScheduleEvents();
+      const studentId = profile.role === "student" ? await resolveStudentId(user.id) : selectedStudentId;
+      if (!studentId) {
+        setClasses([]);
+        setCalendarEvents([]);
+        setIsLoading(false);
+        return;
+      }
+      const { data, error } = await fetchStudentScheduleEvents(studentId);
       if (error) {
         console.error("Failed to load schedule events", error);
         setClasses([]);
+        setCalendarEvents([]);
         setIsLoading(false);
         toast.error("Unable to load your schedule right now.");
         return;
       }
       setClasses(mapScheduleEventsToCourses(data));
+      const { data: events, error: eventsError } = await fetchCalendarEvents(studentId);
+      if (eventsError) {
+        console.error("Failed to load calendar events", eventsError);
+        setCalendarEvents([]);
+      } else {
+        setCalendarEvents(events);
+      }
     }
 
     setIsLoading(false);
-  }, []);
+  }, [resolveStudentId, selectedStudentId]);
 
   const resolveOwnerIds = useCallback(async (): Promise<{
     studentId: string | null;
@@ -173,12 +262,16 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
         }
 
         // Check for supported roles
-        if (profile?.role && profile.role !== "student" && profile.role !== "advisor") {
+        if (profile?.role && profile.role !== "student" && profile.role !== "advisor" && profile.role !== "parent") {
           setClasses([]);
+          setCalendarEvents([]);
           setIsLoading(false);
           toast.error("Schedules are available for student and advisor accounts only.");
           return;
         }
+
+        setProfileId(profile?.id ?? null);
+        setProfileRole(profile?.role ?? null);
 
         // Load schedule based on role
         if (profile?.role === "advisor") {
@@ -187,27 +280,82 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
           if (error) {
             console.error("Failed to load advisor schedule events", error);
             setClasses([]);
+            setCalendarEvents([]);
             setIsLoading(false);
             toast.error("Unable to load your schedule right now.");
             return;
           }
           setClasses(mapAdvisorScheduleEventsToCourses(data));
-        } else {
-          const { data, error } = await fetchStudentScheduleEvents();
+          setCalendarEvents([]);
+          setActiveStudentId(null);
+        } else if (profile?.role === "parent") {
+          const students = await loadParentStudents(user.id);
+          if (!isMounted) return;
+          const targetStudentId = selectedStudentId ?? students?.[0]?.id ?? null;
+          if (!targetStudentId) {
+            setClasses([]);
+            setCalendarEvents([]);
+            setActiveStudentId(null);
+            setIsLoading(false);
+            return;
+          }
+          if (!selectedStudentId) {
+            setSelectedStudentId(targetStudentId);
+          }
+          const { data, error } = await fetchStudentScheduleEvents(targetStudentId);
           if (!isMounted) return;
           if (error) {
             console.error("Failed to load schedule events", error);
             setClasses([]);
+            setCalendarEvents([]);
+            setIsLoading(false);
+            toast.error("Unable to load schedule for that student.");
+            return;
+          }
+          setClasses(mapScheduleEventsToCourses(data));
+          const { data: events, error: eventsError } = await fetchCalendarEvents(targetStudentId);
+          if (eventsError) {
+            console.error("Failed to load calendar events", eventsError);
+            setCalendarEvents([]);
+          } else {
+            setCalendarEvents(events);
+          }
+          setActiveStudentId(targetStudentId);
+        } else {
+          const studentId = await resolveStudentId(user.id);
+          if (!isMounted) return;
+          if (!studentId) {
+            setClasses([]);
+            setCalendarEvents([]);
+            setIsLoading(false);
+            toast.error("Unable to load your student profile.");
+            return;
+          }
+          const { data, error } = await fetchStudentScheduleEvents(studentId);
+          if (!isMounted) return;
+          if (error) {
+            console.error("Failed to load schedule events", error);
+            setClasses([]);
+            setCalendarEvents([]);
             setIsLoading(false);
             toast.error("Unable to load your schedule right now.");
             return;
           }
           setClasses(mapScheduleEventsToCourses(data));
+          const { data: events, error: eventsError } = await fetchCalendarEvents(studentId);
+          if (eventsError) {
+            console.error("Failed to load calendar events", eventsError);
+            setCalendarEvents([]);
+          } else {
+            setCalendarEvents(events);
+          }
+          setActiveStudentId(studentId);
         }
       } catch (error) {
         if (!isMounted) return;
         console.error("Failed to load schedule events", error);
         setClasses([]);
+        setCalendarEvents([]);
         toast.error("Unable to load your schedule right now.");
       } finally {
         if (isMounted) {
@@ -221,11 +369,16 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     return () => {
       isMounted = false;
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, loadParentStudents, resolveStudentId, selectedStudentId]);
 
   // Generate schedule events from classes
   useEffect(() => {
     const events: ScheduleEvent[] = [];
+    const weekStart = new Date(currentWeek);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(currentWeek);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
     
     classes.forEach(cls => {
       cls.days.forEach(day => {
@@ -242,9 +395,35 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
         });
       });
     });
+
+    calendarEvents.forEach((event) => {
+      const start = new Date(event.start_at);
+      const end = new Date(event.end_at);
+      if (start < weekStart || start > weekEnd) {
+        return;
+      }
+      const dayName = DAY_NAME_BY_INDEX[start.getDay()] ?? "Day";
+      const startTime = event.all_day ? "08:00" : formatTimeInput(start);
+      const endTime = event.all_day ? "20:00" : formatTimeInput(end);
+      const canEdit = Boolean(profileId && event.created_by && profileId === event.created_by);
+      events.push({
+        id: `event-${event.id}`,
+        eventId: event.id,
+        title: event.title,
+        description: event.description ?? undefined,
+        startTime,
+        endTime,
+        day: dayName,
+        color: EVENT_TYPE_COLORS[event.event_type] ?? "bg-slate-500",
+        type: "event",
+        eventType: event.event_type,
+        isPrivate: event.is_private,
+        canEdit,
+      });
+    });
     
     setScheduleEvents(events);
-  }, [classes]);
+  }, [calendarEvents, classes, currentWeek, profileId]);
 
   const getWeekDates = (startDate: Date) => {
     const dates = [];
@@ -273,9 +452,9 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
 
   const getEventsForTimeSlot = (day: string, timeSlot: string) => {
     return scheduleEvents.filter(event => {
-      const eventStart = parseInt(event.startTime.split(':')[0]);
-      const eventEnd = parseInt(event.endTime.split(':')[0]);
-      const slotTime = parseInt(timeSlot.split(':')[0]);
+      const eventStart = timeToMinutes(event.startTime);
+      const eventEnd = timeToMinutes(event.endTime);
+      const slotTime = timeToMinutes(timeSlot);
       
       return event.day === day && slotTime >= eventStart && slotTime < eventEnd;
     });
@@ -391,6 +570,106 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     setIsClassSetupOpen(true);
   };
 
+  const openAddEventModal = () => {
+    setSelectedEvent(null);
+    setIsEventModalOpen(true);
+  };
+
+  const openEditEventModal = (eventId: string) => {
+    const event = calendarEvents.find((entry) => entry.id === eventId) ?? null;
+    setSelectedEvent(event);
+    setIsEventModalOpen(true);
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    setIsLoading(true);
+    const deleteError = await deleteCalendarEvent(eventId);
+    if (deleteError) {
+      console.error("Failed to delete event", deleteError);
+      toast.error("Unable to delete that event right now.");
+      setIsLoading(false);
+      return;
+    }
+
+    await reloadSchedule();
+    toast.success("Event removed from your schedule.");
+  };
+
+  const handleSaveEvent = async (eventInput: CalendarEventForm) => {
+    const { user, profile } = await getCurrentProfile();
+    if (!user || !profile) {
+      toast.error("Please sign in to add events.");
+      return;
+    }
+
+    const targetStudentId = profile.role === "parent" ? selectedStudentId : activeStudentId;
+    if (!targetStudentId) {
+      toast.error("Select a student to add events.");
+      return;
+    }
+
+    const startTime = eventInput.allDay ? "08:00" : eventInput.startTime;
+    const endTime = eventInput.allDay ? "20:00" : eventInput.endTime;
+    const startAt = new Date(`${eventInput.date}T${startTime}`);
+    const endAt = new Date(`${eventInput.date}T${endTime}`);
+
+    if (!eventInput.allDay && endAt <= startAt) {
+      toast.error("End time must be after the start time.");
+      return;
+    }
+
+    setIsLoading(true);
+    if (selectedEvent) {
+      const updateError = await updateCalendarEvent(selectedEvent.id, {
+        title: eventInput.title,
+        description: eventInput.description ?? null,
+        event_type: eventInput.eventType,
+        start_at: startAt.toISOString(),
+        end_at: endAt.toISOString(),
+        all_day: eventInput.allDay,
+        is_private: profile.role === "parent" ? false : eventInput.isPrivate,
+      });
+
+      if (updateError) {
+        console.error("Failed to update event", updateError);
+        toast.error("Unable to update that event right now.");
+        setIsLoading(false);
+        return;
+      }
+
+      await reloadSchedule();
+      setSelectedEvent(null);
+      setIsLoading(false);
+      toast.success("Event updated successfully.");
+      return;
+    }
+
+    const source = profile.role === "parent" ? "parent" : "student";
+    const { error } = await createCalendarEvent({
+      student_id: targetStudentId,
+      title: eventInput.title,
+      description: eventInput.description ?? null,
+      event_type: eventInput.eventType,
+      start_at: startAt.toISOString(),
+      end_at: endAt.toISOString(),
+      all_day: eventInput.allDay,
+      is_private: profile.role === "parent" ? false : eventInput.isPrivate,
+      source,
+      created_by: profile.id,
+    });
+
+    if (error) {
+      console.error("Failed to create event", error);
+      toast.error("Unable to add that event right now.");
+      setIsLoading(false);
+      return;
+    }
+
+    await reloadSchedule();
+    setIsLoading(false);
+    toast.success("Event added to your schedule.");
+  };
+
   const isCurrentDay = (date: Date) => {
     const today = new Date();
     return date.toDateString() === today.toDateString();
@@ -433,16 +712,47 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
-              
-              <Button
-                onClick={() => setIsClassSetupOpen(true)}
-                className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Class
-              </Button>
+
+              {profileRole !== "parent" && (
+                <Button
+                  onClick={() => setIsClassSetupOpen(true)}
+                  className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Class
+                </Button>
+              )}
+              {profileRole !== "advisor" && (
+                <Button
+                  variant="outline"
+                  onClick={openAddEventModal}
+                  className="rounded-xl border-gray-200 hover:bg-gray-50"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Event
+                </Button>
+              )}
             </div>
           </div>
+          {profileRole === "parent" && (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className="text-sm text-gray-600">Viewing schedule for</span>
+              <select
+                value={selectedStudentId ?? ""}
+                onChange={(event) => setSelectedStudentId(event.target.value)}
+                className="rounded-xl border border-gray-200 bg-white/80 px-3 py-2 text-sm text-gray-700"
+              >
+                {parentStudents.length === 0 && (
+                  <option value="">No students yet</option>
+                )}
+                {parentStudents.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.name || "Student"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </CardHeader>
       </Card>
 
@@ -607,7 +917,42 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               )}
+                              {event.eventId && event.canEdit && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity text-white hover:bg-white/20"
+                                    >
+                                      <MoreVertical className="w-3 h-3" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="rounded-xl">
+                                    <DropdownMenuItem
+                                      onClick={() => openEditEventModal(event.eventId ?? "")}
+                                      className="rounded-lg cursor-pointer"
+                                    >
+                                      <Edit className="w-4 h-4 mr-2" />
+                                      Edit Event
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => event.eventId && handleDeleteEvent(event.eventId)}
+                                      className="rounded-lg cursor-pointer text-red-600"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" />
+                                      Delete Event
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
                             </div>
+                            {event.isPrivate && (
+                              <div className="mt-2 flex items-center text-xs opacity-80">
+                                <Lock className="mr-1 h-3 w-3" />
+                                Private
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -630,6 +975,31 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
         onSave={selectedClass ? handleEditClass : handleAddClass}
         initialData={selectedClass}
         isEditing={!!selectedClass}
+      />
+
+      <AddEventModal
+        isOpen={isEventModalOpen}
+        onClose={() => {
+          setIsEventModalOpen(false);
+          setSelectedEvent(null);
+        }}
+        onSave={handleSaveEvent}
+        allowPrivate={profileRole !== "parent"}
+        initialData={
+          selectedEvent
+            ? {
+                id: selectedEvent.id,
+                title: selectedEvent.title,
+                description: selectedEvent.description ?? "",
+                eventType: selectedEvent.event_type,
+                date: formatDateInput(new Date(selectedEvent.start_at)),
+                startTime: formatTimeInput(new Date(selectedEvent.start_at)),
+                endTime: formatTimeInput(new Date(selectedEvent.end_at)),
+                allDay: selectedEvent.all_day,
+                isPrivate: selectedEvent.is_private,
+              }
+            : null
+        }
       />
     </div>
   );
