@@ -13,6 +13,7 @@ import {
   User,
   MessageSquare,
   Send,
+  Lock,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile } from "@/lib/profile";
@@ -305,6 +306,15 @@ export function NotesPage({ role }: NotesPageProps) {
             </div>
           </div>
         </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="flex items-center gap-2 font-medium">
+            <Lock className="h-4 w-4" />
+            Only you can see your personal notes.
+          </div>
+          <p className="mt-1 text-amber-800">
+            These notes are private by default and are not shared with parents.
+          </p>
+        </div>
 
         {/* Add Note */}
         <Card>
@@ -331,6 +341,10 @@ export function NotesPage({ role }: NotesPageProps) {
               <StickyNote className="w-5 h-5" />
               My Personal Notes
             </CardTitle>
+            <div className="mt-1 inline-flex items-center gap-2 text-xs text-amber-700">
+              <Lock className="h-3 w-3" />
+              Private
+            </div>
           </CardHeader>
           <CardContent>
             {studentNotes.length === 0 ? (
@@ -559,6 +573,20 @@ export function NotesPage({ role }: NotesPageProps) {
             </p>
           </div>
         </div>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3 text-sm text-gray-700">
+              <Lock className="mt-0.5 h-4 w-4 text-gray-500" />
+              <div>
+                <p className="font-medium text-gray-900">Student notes are private.</p>
+                <p className="mt-1 text-gray-600">
+                  Personal notes are visible only to the student to support wellbeing and reflection.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardContent className="p-4">
