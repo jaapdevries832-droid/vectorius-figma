@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import type { Role, User } from "app/lib/domain";
+import { ParentAlertsList } from "./ParentAlertsList";
 
 interface TopNavigationProps {
   currentRole: Role;
@@ -42,12 +43,21 @@ export function TopNavigation({ currentRole, currentUser, onLogout }: TopNavigat
       </div>
 
       <div className="flex items-center space-grid-3">
-        <Button variant="ghost" size="sm" className="relative p-3 rounded-2xl transition-colors" style={hoverBgStyle} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-          <Bell className="w-5 h-5 text-blue-600" />
-          <Badge className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center p-0 animate-pulse">
-            3
-          </Badge>
-        </Button>
+        {currentRole === "parent" ? (
+          <ParentAlertsList parentId={currentUser?.id ?? null} />
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="relative p-3 rounded-2xl transition-colors"
+            style={hoverBgStyle}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <Bell className="w-5 h-5 text-blue-600" />
+          </Button>
+        )}
+
         
         <Button variant="ghost" size="sm" className="p-3 rounded-2xl transition-colors" onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
           <Settings className="w-5 h-5 text-blue-600" />
