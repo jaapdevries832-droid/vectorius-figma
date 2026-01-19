@@ -809,4 +809,4 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 | 7 | School Email Manual Ingestion | ✅ | 3844850 | 2026-01-18 | Added email_ingests table + /parent/import-email flow + parse-email API; parent can parse and import into calendar. Manual: parent -> Import School Email -> parse -> select -> import -> events appear on schedule. |
 | 8 | AI Study Pathway | ✅ | ee03ea9 | 2026-01-18 | Added ai_study_plans table + generate-study-plan API + StudyPlanPreview. Manual: student assignments -> Create Study Plan -> accept -> study blocks appear on schedule. |
 | 9 | Parent Alerts System | ✅ | 5e4c821 | 2026-01-18 | Added parent_alerts table + parent alerts dropdown + edge function scaffold. Manual: parent sees alert bell with unread count after alerts inserted. |
-| 10 | V2 Hooks & Polish | ⬜ | | | Last slice |
+| 10 | V2 Hooks & Polish | ✅ | d1dc3fd | 2026-01-18 | Added v2 hook tables + external_id columns; Settings shows Coming Soon integrations. Manual: settings -> see Classroom + Email Inbox placeholders. |
