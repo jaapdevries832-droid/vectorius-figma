@@ -4,7 +4,7 @@ import { FormEvent } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { TrendingUp, Calendar, MessageSquare, Award, Clock } from "lucide-react";
+import { TrendingUp, Calendar, MessageSquare, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "./ui/utils";
 
 type StudentSummary = {
@@ -31,20 +31,18 @@ type AdvisorOption = {
   label: string;
 };
 
-type SuggestionCounts = {
-  pending: number;
-  declined: number;
-};
-
-type StudentOverview = {
+type ParentSignal = {
   parent_id: string;
   student_id: string;
   student_name: string;
-  upcoming_assignments_count: number;
-  completed_assignments_count: number;
-  overdue_assignments_count: number;
-  next_due_at: string | null;
-  last_activity_at: string | null;
+  overdue_count: number;
+  next_big_item: {
+    title: string;
+    due_at: string;
+    type: string;
+  } | null;
+  has_active_plan: boolean;
+  pending_suggestions: number;
 };
 
 type AdvisorNote = {
@@ -88,11 +86,10 @@ type ParentDashboardProps = {
   onAssignAdvisor?: (studentId: string, advisorId: string | null) => void;
   onSignOut?: () => void;
   gradeMetricsByStudentId?: Record<string, number | null>;
-  studentOverviews?: StudentOverview[];
+  studentSignals?: ParentSignal[];
   advisorNotes?: AdvisorNote[];
   onInviteStudent?: (student: StudentSummary) => void;
   onSuggestAssignment?: () => void;
-  suggestionCountsByStudentId?: Record<string, SuggestionCounts>;
 };
 
 export function ParentDashboard({
@@ -122,11 +119,10 @@ export function ParentDashboard({
   onAssignAdvisor,
   onSignOut,
   gradeMetricsByStudentId = {},
-  studentOverviews = [],
+  studentSignals = [],
   advisorNotes = [],
   onInviteStudent,
   onSuggestAssignment,
-  suggestionCountsByStudentId = {},
 }: ParentDashboardProps) {
   const studentOptions = students.map((student) => {
     const initials = `${student.first_name[0] ?? ""}${student.last_name?.[0] ?? ""}`.toUpperCase();
@@ -139,21 +135,13 @@ export function ParentDashboard({
     };
   });
 
-  // Get current student overview from real data
-  const currentOverview = selectedStudentId
-    ? studentOverviews.find(overview => overview.student_id === selectedStudentId)
+  const currentSignals = selectedStudentId
+    ? studentSignals.find((signal) => signal.student_id === selectedStudentId)
     : undefined;
-  const selectedGradeMetric = selectedStudentId ? gradeMetricsByStudentId[selectedStudentId] ?? null : null;
-  const selectedGradePercent = selectedGradeMetric !== null ? Math.round(selectedGradeMetric * 100) : null;
-  const suggestionCounts = selectedStudentId ? suggestionCountsByStudentId[selectedStudentId] : undefined;
-
-  // Calculate progress percentage based on completed vs total assignments
-  const totalAssignments = (currentOverview?.upcoming_assignments_count ?? 0) +
-                          (currentOverview?.completed_assignments_count ?? 0) +
-                          (currentOverview?.overdue_assignments_count ?? 0);
-  const progressPercent = totalAssignments > 0
-    ? Math.round(((currentOverview?.completed_assignments_count ?? 0) / totalAssignments) * 100)
-    : 0;
+  const nextBigItem = currentSignals?.next_big_item ?? null;
+  const nextBigItemDate = nextBigItem?.due_at ? new Date(nextBigItem.due_at).toLocaleDateString() : null;
+  const hasPlanLabel = currentSignals?.has_active_plan ? "Active" : "No active plan";
+  const suggestionCount = currentSignals?.pending_suggestions ?? 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -204,43 +192,21 @@ export function ParentDashboard({
         </div>
       </div>
 
-      {/* Performance Overview */}
+      {/* Parent Signals */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <Card className="border-0 bg-gradient-to-br from-blue-50 to-blue-100">
+        <Card className="border-0 bg-gradient-to-br from-red-50 to-red-100">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-600 mb-1">Overall Grade</p>
-                <p className="text-2xl font-semibold text-blue-700">
-                  {selectedGradePercent !== null
-                    ? `${selectedGradePercent}%`
-                    : "No grades yet"}
+                <p className="text-sm text-red-600 mb-1">Overdue Items</p>
+                <p className="text-2xl font-semibold text-red-700">
+                  {currentSignals ? currentSignals.overdue_count : "--"}
                 </p>
-                {!currentOverview && selectedStudentId && (
-                  <p className="mt-1 text-xs text-blue-600">Grades appear when assignments are graded.</p>
-                )}
-                {!selectedStudentId && (
-                  <p className="mt-1 text-xs text-blue-600">Select a student to see metrics.</p>
+                {!currentSignals && (
+                  <p className="mt-1 text-xs text-red-700">Select a student to see alerts.</p>
                 )}
               </div>
-              <Award className="w-8 h-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 bg-gradient-to-br from-green-50 to-green-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-green-600 mb-1">Progress</p>
-                <p className="text-2xl font-semibold text-green-700">
-                  {currentOverview ? `${progressPercent}%` : "--"}
-                </p>
-                {!currentOverview && (
-                  <p className="mt-1 text-xs text-green-700">Progress updates show here.</p>
-                )}
-              </div>
-              <TrendingUp className="w-8 h-8 text-green-500" />
+              <AlertTriangle className="w-8 h-8 text-red-500" />
             </div>
           </CardContent>
         </Card>
@@ -249,32 +215,52 @@ export function ParentDashboard({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-purple-600 mb-1">Upcoming</p>
+                <p className="text-sm text-purple-600 mb-1">Upcoming Test/Project</p>
                 <p className="text-2xl font-semibold text-purple-700">
-                  {currentOverview ? currentOverview.upcoming_assignments_count : "--"}
+                  {nextBigItem ? nextBigItem.title : "--"}
                 </p>
-                {!currentOverview && (
-                  <p className="mt-1 text-xs text-purple-600">Upcoming assignments appear here.</p>
+                {!nextBigItem && (
+                  <p className="mt-1 text-xs text-purple-600">No big items in the next 2 weeks.</p>
+                )}
+                {nextBigItem && nextBigItemDate && (
+                  <p className="mt-1 text-xs text-purple-600">Due {nextBigItemDate}</p>
                 )}
               </div>
-              <Calendar className="w-8 h-8 text-purple-500" />
+              <TrendingUp className="w-8 h-8 text-purple-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 bg-gradient-to-br from-orange-50 to-orange-100">
+        <Card className="border-0 bg-gradient-to-br from-blue-50 to-blue-100">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-orange-600 mb-1">Completed</p>
-                <p className="text-2xl font-semibold text-orange-700">
-                  {currentOverview ? currentOverview.completed_assignments_count : "--"}
+                <p className="text-sm text-blue-600 mb-1">Study Plan</p>
+                <p className="text-2xl font-semibold text-blue-700">
+                  {currentSignals ? hasPlanLabel : "--"}
                 </p>
-                {!currentOverview && (
-                  <p className="mt-1 text-xs text-orange-700">Completed assignments appear here.</p>
+                {!currentSignals && (
+                  <p className="mt-1 text-xs text-blue-600">Select a student to see status.</p>
                 )}
               </div>
-              <Clock className="w-8 h-8 text-orange-500" />
+              <Calendar className="w-8 h-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 bg-gradient-to-br from-amber-50 to-amber-100">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-amber-600 mb-1">Your Suggestions</p>
+                <p className="text-2xl font-semibold text-amber-700">
+                  {currentSignals ? suggestionCount : "--"}
+                </p>
+                {!currentSignals && (
+                  <p className="mt-1 text-xs text-amber-700">Pending suggestions appear here.</p>
+                )}
+              </div>
+              <Clock className="w-8 h-8 text-amber-500" />
             </div>
           </CardContent>
         </Card>
@@ -380,7 +366,7 @@ export function ParentDashboard({
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Assignment Summary</CardTitle>
+              <CardTitle>Signals & Actions</CardTitle>
               {onSuggestAssignment && (
                 <button
                   type="button"
@@ -392,75 +378,41 @@ export function ParentDashboard({
               )}
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {!currentOverview && (
-                  <p className="text-sm text-muted-foreground">Select a student to see assignment data.</p>
-                )}
-                {currentOverview && (
-                  <>
-                    <div className="flex items-center justify-between p-4 rounded-lg border">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">Upcoming Assignments</h4>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {currentOverview.upcoming_assignments_count} assignment{currentOverview.upcoming_assignments_count !== 1 ? 's' : ''} due soon
-                        </p>
-                        {currentOverview.next_due_at && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Next due: {new Date(currentOverview.next_due_at).toLocaleDateString()}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-2xl font-semibold text-purple-600">
-                        {currentOverview.upcoming_assignments_count}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 rounded-lg border">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">Completed Assignments</h4>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {currentOverview.completed_assignments_count} assignment{currentOverview.completed_assignments_count !== 1 ? 's' : ''} completed
-                        </p>
-                      </div>
-                      <div className="text-2xl font-semibold text-green-600">
-                        {currentOverview.completed_assignments_count}
-                      </div>
-                    </div>
-
-                    {currentOverview.overdue_assignments_count > 0 && (
-                      <div className="flex items-center justify-between p-4 rounded-lg border border-red-200 bg-red-50">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-red-900">Overdue Assignments</h4>
-                          <p className="text-sm text-red-700 mt-1">
-                            {currentOverview.overdue_assignments_count} assignment{currentOverview.overdue_assignments_count !== 1 ? 's' : ''} need attention
-                          </p>
-                        </div>
-                        <div className="text-2xl font-semibold text-red-600">
-                          {currentOverview.overdue_assignments_count}
-                        </div>
-                      </div>
+              {!currentSignals && (
+                <p className="text-sm text-muted-foreground">Select a student to see signals.</p>
+              )}
+              {currentSignals && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                    <p className="text-xs font-medium text-red-800">Overdue items</p>
+                    <p className="mt-2 text-2xl font-semibold text-red-700">
+                      {currentSignals.overdue_count}
+                    </p>
+                    <p className="mt-1 text-xs text-red-700">Items needing attention</p>
+                  </div>
+                  <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
+                    <p className="text-xs font-medium text-purple-800">Upcoming test/project</p>
+                    <p className="mt-2 text-sm font-semibold text-purple-700">
+                      {nextBigItem ? nextBigItem.title : "None scheduled"}
+                    </p>
+                    {nextBigItemDate && (
+                      <p className="mt-1 text-xs text-purple-600">Due {nextBigItemDate}</p>
                     )}
-
-                    {currentOverview.last_activity_at && (
-                      <div className="mt-4 p-3 rounded-lg bg-gray-50 border">
-                        <p className="text-xs text-gray-600">
-                          Last activity: {new Date(currentOverview.last_activity_at).toLocaleString()}
-                        </p>
-                      </div>
-                    )}
-                    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                      <p className="text-xs font-medium text-amber-900">Suggested tasks</p>
-                      <p className="text-xs text-amber-700">
-                        {suggestionCounts?.pending ?? 0} pending · {suggestionCounts?.declined ?? 0} declined
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
+                  </div>
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <p className="text-xs font-medium text-blue-800">Study plan status</p>
+                    <p className="mt-2 text-lg font-semibold text-blue-700">{hasPlanLabel}</p>
+                  </div>
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-xs font-medium text-amber-800">Pending suggestions</p>
+                    <p className="mt-2 text-2xl font-semibold text-amber-700">{suggestionCount}</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-        </div>
+</div>
 
         {/* Sidebar */}
         <div className="space-y-6">

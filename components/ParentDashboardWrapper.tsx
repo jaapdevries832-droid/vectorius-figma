@@ -31,15 +31,18 @@ type AssignmentStatus = {
   message: string;
 };
 
-type StudentOverview = {
+type ParentSignal = {
   parent_id: string;
   student_id: string;
   student_name: string;
-  upcoming_assignments_count: number;
-  completed_assignments_count: number;
-  overdue_assignments_count: number;
-  next_due_at: string | null;
-  last_activity_at: string | null;
+  overdue_count: number;
+  next_big_item: {
+    title: string;
+    due_at: string;
+    type: string;
+  } | null;
+  has_active_plan: boolean;
+  pending_suggestions: number;
 };
 
 type AdvisorNote = {
@@ -54,11 +57,6 @@ type AdvisorNote = {
     last_name: string | null;
     email: string;
   } | null;
-};
-
-type SuggestionCounts = {
-  pending: number;
-  declined: number;
 };
 
 export function ParentDashboardWrapper() {
@@ -89,9 +87,8 @@ export function ParentDashboardWrapper() {
   >({});
   const [gradeMetricsByStudentId, setGradeMetricsByStudentId] = useState<Record<string, number | null>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [studentOverviews, setStudentOverviews] = useState<StudentOverview[]>([]);
+  const [studentSignals, setStudentSignals] = useState<ParentSignal[]>([]);
   const [advisorNotes, setAdvisorNotes] = useState<AdvisorNote[]>([]);
-  const [suggestionCountsByStudentId, setSuggestionCountsByStudentId] = useState<Record<string, SuggestionCounts>>({});
   const [inviteStudent, setInviteStudent] = useState<Student | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [inviteExpiresAt, setInviteExpiresAt] = useState<string | null>(null);
@@ -149,39 +146,6 @@ export function ParentDashboardWrapper() {
     setGradeMetricsByStudentId(metrics);
   }, []);
 
-  const fetchSuggestionCounts = useCallback(async (studentIds: string[]) => {
-    if (studentIds.length === 0) {
-      setSuggestionCountsByStudentId({});
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("assignments")
-      .select("student_id, suggestion_status, is_suggested")
-      .in("student_id", studentIds)
-      .eq("is_suggested", true);
-
-    if (error) {
-      setSuggestionCountsByStudentId({});
-      return;
-    }
-
-    const totals: Record<string, SuggestionCounts> = {};
-    studentIds.forEach((id) => {
-      totals[id] = { pending: 0, declined: 0 };
-    });
-
-    (data ?? []).forEach((row) => {
-      const entry = totals[row.student_id] ?? { pending: 0, declined: 0 };
-      const status = row.suggestion_status ?? "pending";
-      if (status === "pending") entry.pending += 1;
-      if (status === "declined") entry.declined += 1;
-      totals[row.student_id] = entry;
-    });
-
-    setSuggestionCountsByStudentId(totals);
-  }, []);
-
   const fetchStudents = useCallback(async () => {
     const { data, error } = await supabase
       .from("students")
@@ -202,8 +166,7 @@ export function ParentDashboardWrapper() {
       return nextStudents.some((student) => student.id === current) ? current : nextStudents[0].id;
     });
     await fetchGradeMetrics(nextStudents.map((student) => student.id));
-    await fetchSuggestionCounts(nextStudents.map((student) => student.id));
-  }, [fetchGradeMetrics, fetchSuggestionCounts]);
+  }, [fetchGradeMetrics]);
 
   const fetchAdvisors = useCallback(async () => {
     setIsAdvisorsLoading(true);
@@ -231,17 +194,17 @@ export function ParentDashboardWrapper() {
     setIsAdvisorsLoading(false);
   }, []);
 
-  const fetchStudentOverviews = useCallback(async () => {
+  const fetchStudentSignals = useCallback(async () => {
     const { data, error } = await supabase
-      .from("parent_student_overview")
+      .from("parent_student_signals")
       .select("*");
 
     if (error) {
-      setStudentOverviews([]);
+      setStudentSignals([]);
       return;
     }
 
-    setStudentOverviews(data ?? []);
+    setStudentSignals(data ?? []);
   }, []);
 
   const fetchAdvisorNotes = useCallback(async (studentId: string | null) => {
@@ -311,7 +274,7 @@ export function ParentDashboardWrapper() {
       await fetchStudents();
       if (profile?.role === "parent") {
         await fetchAdvisors();
-        await fetchStudentOverviews();
+        await fetchStudentSignals();
       }
       setIsLoading(false);
     };
@@ -321,7 +284,7 @@ export function ParentDashboardWrapper() {
     return () => {
       isMounted = false;
     };
-  }, [fetchAdvisors, fetchStudents, fetchStudentOverviews, router]);
+  }, [fetchAdvisors, fetchStudents, fetchStudentSignals, router]);
 
   useEffect(() => {
     fetchAdvisorNotes(selectedStudentId);
@@ -494,8 +457,7 @@ export function ParentDashboardWrapper() {
 
     setIsSuggestModalOpen(false);
     toast.success(`Suggested "${assignment.title}" to the student.`);
-    await fetchStudentOverviews();
-    await fetchSuggestionCounts(students.map((student) => student.id));
+    await fetchStudentSignals();
   };
 
   const handleGenerateInvite = async () => {
@@ -591,11 +553,10 @@ export function ParentDashboardWrapper() {
         onAssignAdvisor={handleAssignAdvisor}
         onSignOut={handleSignOut}
         gradeMetricsByStudentId={gradeMetricsByStudentId}
-        studentOverviews={studentOverviews}
+        studentSignals={studentSignals}
         advisorNotes={advisorNotes}
         onInviteStudent={handleOpenInvite}
         onSuggestAssignment={handleOpenSuggestModal}
-        suggestionCountsByStudentId={suggestionCountsByStudentId}
       />
       {inviteStudent && (
         <InviteCodeModal
