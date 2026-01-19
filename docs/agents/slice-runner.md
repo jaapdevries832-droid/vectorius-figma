@@ -4,7 +4,8 @@ Purpose: run one vertical slice end-to-end with minimal supervision, keeping UI 
 
 ## Inputs
 - Slice definition lives in `docs/projects/prd-pivot-plan.md` under "10-Slice Implementation Plan".
-- The agent run must target exactly ONE slice per execution.
+- In MODE=STRICT: the agent run must target exactly ONE slice per execution.
+- In MODE=AUTO: the agent may run multiple slices back-to-back when explicitly requested.
 
 ## Non-negotiable rules
 - No UI redesign. Keep layouts/styling intact; minimal UI tweaks are allowed only when required to meet slice acceptance criteria.
