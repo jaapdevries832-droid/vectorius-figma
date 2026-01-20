@@ -15,18 +15,18 @@ type Milestone = {
   type: "study_block";
 };
 
-const DEFAULT_MODEL = "claude-3-5-sonnet-20241022";
-const DEFAULT_API_URL = "https://api.anthropic.com/v1/messages";
-
 function isEnabled() {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+  const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+  const apiKey = process.env.AZURE_OPENAI_API_KEY;
+  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
+  return Boolean(endpoint && apiKey && deployment);
 }
 
 export async function POST(req: NextRequest) {
   try {
     if (!isEnabled()) {
       return NextResponse.json(
-        { error: "Study plan generation is not enabled. Missing Anthropic API key." },
+        { error: "Study plan generation is not enabled. Missing Azure OpenAI configuration." },
         { status: 503 }
       );
     }
@@ -40,9 +40,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing title or dueDate." }, { status: 400 });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY as string;
-    const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
-    const apiUrl = process.env.ANTHROPIC_API_URL || DEFAULT_API_URL;
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT as string;
+    const apiKey = process.env.AZURE_OPENAI_API_KEY as string;
+    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT as string;
+    const apiVersion = process.env.AZURE_OPENAI_API_VERSION || "2024-02-15-preview";
 
     const scheduleText = schedule.length
       ? schedule
@@ -68,31 +69,37 @@ export async function POST(req: NextRequest) {
       scheduleText,
     ].join("\n");
 
-    const response = await fetch(apiUrl, {
+    const url = new URL(`/openai/deployments/${deployment}/chat/completions`, endpoint);
+    url.searchParams.set("api-version", apiVersion);
+
+    const response = await fetch(url.toString(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        "api-key": apiKey,
       },
       body: JSON.stringify({
-        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.3,
         max_tokens: 800,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
+        n: 1,
+        stream: false,
       }),
     });
 
     if (!response.ok) {
       const text = await response.text();
       return NextResponse.json(
-        { error: `Anthropic error: ${response.status} ${text}` },
+        { error: `Azure OpenAI error: ${response.status} ${text}` },
         { status: 502 }
       );
     }
 
     const data = await response.json();
-    const content = data?.content?.[0]?.text ?? "";
+    const content = data?.choices?.[0]?.message?.content ?? "";
 
     let milestones: Milestone[] = [];
     try {
