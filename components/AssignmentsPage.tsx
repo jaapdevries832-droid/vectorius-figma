@@ -11,6 +11,7 @@ import type { LucideIcon } from "lucide-react"
 import { GamificationCongratsModal } from "./GamificationCongratsModal"
 import { StudyPlanPreview, type StudyMilestone } from "./StudyPlanPreview"
 import { supabase } from "@/lib/supabase/client"
+import { toast } from "sonner"
 import { getCurrentProfile } from "@/lib/profile"
 import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule"
 
@@ -437,7 +438,9 @@ export function AssignmentsPage() {
 
   const handleGenerateStudyPlan = async (assignment: Assignment) => {
     if (!assignment.dueAt || !studentId) {
-      setLoadError('Select a dated assignment to generate a plan.')
+      const message = 'Select a dated assignment to generate a plan.'
+      setLoadError(message)
+      toast.error(message)
       return
     }
 
@@ -459,8 +462,10 @@ export function AssignmentsPage() {
 
     const payload = await response.json()
     if (!response.ok) {
+      const message = payload?.error ?? 'Unable to generate a study plan.'
       setStudyPlanLoading(false)
-      setLoadError(payload?.error ?? 'Unable to generate a study plan.')
+      setLoadError(message)
+      toast.error(message)
       return
     }
 
