@@ -2,6 +2,8 @@
 
 Use this guide to generate magic links that allow AI agents (like ChatGPT) to log into your Vercel preview app as different test personas.
 
+<!-- Last verified: 2026-01-27 -->
+
 ---
 
 ## Quick Start
@@ -12,7 +14,7 @@ npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts `
   --user-id "860b887a-521d-42b9-a8c9-308144fc0e64" `
   --persona "maya-7th-grader" `
   --role "student" `
-  --base-url "https://vectorius-figma-git-lesson-51-jaap-de-vries-projects.vercel.app"
+  --base-url "https://vectorius-figma-git-lesson-53-jaap-de-vries-projects.vercel.app"
 ```
 
 Copy the magic link and give it to ChatGPT!
