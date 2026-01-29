@@ -513,10 +513,10 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 
 | Slice | Name | Status | PR/Commit | Completed (date) | Notes |
 |---:|---|---|---|---|---|
-| S1-A | Profile Completion Infrastructure | ⬜ | - | - | DB fields: timezone, onboarding_completed_at, user_consents table |
-| S1-B | Profile Completion Gate UI | ⬜ | - | - | ProfileCompletionGate, ProfileCompletionModal, TimezoneSelect |
+| S1-A | Profile Completion Infrastructure | ✅ | 5d18c75 | 2026-01-28 | Migration 20260128133716: profiles.timezone/onboarding_completed_at, user_consents table, students.preferred_subjects |
+| S1-B | Profile Completion Gate UI | ✅ | 5d18c75 | 2026-01-28 | ProfileCompletionGate, ProfileCompletionModal, TimezoneSelect, HouseRulesContent; role page integration |
 | S1-C | Advisor Invite System | ⬜ | - | - | advisor_invites table, /join/advisor, AdvisorInviteModal |
-| S1-D | House Rules Content | ⬜ | - | - | HouseRulesContent component, consent step content |
+| S1-D | House Rules Content | ✅ | 5d18c75 | 2026-01-28 | Included in S1-B commit - HouseRulesContent component with role-specific messaging |
 | S1-E | E2E Verification & Polish | ⬜ | - | - | Full user story testing, lint/build verification |
 
 ---
