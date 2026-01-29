@@ -290,7 +290,10 @@ export type Database = {
           last_seen_at: string | null
           lesson_29_test: string | null
           name: string | null
+          onboarding_completed_at: string | null
+          profile_completed_at: string | null
           role: string
+          timezone: string | null
           updated_at: string
         }
         Insert: {
@@ -304,7 +307,10 @@ export type Database = {
           last_seen_at?: string | null
           lesson_29_test?: string | null
           name?: string | null
+          onboarding_completed_at?: string | null
+          profile_completed_at?: string | null
           role: string
+          timezone?: string | null
           updated_at?: string
         }
         Update: {
@@ -318,7 +324,10 @@ export type Database = {
           last_seen_at?: string | null
           lesson_29_test?: string | null
           name?: string | null
+          onboarding_completed_at?: string | null
+          profile_completed_at?: string | null
           role?: string
+          timezone?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -409,6 +418,7 @@ export type Database = {
           id: string
           last_name: string | null
           parent_id: string
+          preferred_subjects: string[] | null
           school_name: string | null
           status: string | null
           student_user_id: string | null
@@ -424,6 +434,7 @@ export type Database = {
           id?: string
           last_name?: string | null
           parent_id: string
+          preferred_subjects?: string[] | null
           school_name?: string | null
           status?: string | null
           student_user_id?: string | null
@@ -439,6 +450,7 @@ export type Database = {
           id?: string
           last_name?: string | null
           parent_id?: string
+          preferred_subjects?: string[] | null
           school_name?: string | null
           status?: string | null
           student_user_id?: string | null
@@ -462,6 +474,44 @@ export type Database = {
           {
             foreignKeyName: "students_student_user_id_fkey"
             columns: ["student_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_consents: {
+        Row: {
+          consent_type: string
+          consent_version: string
+          consented_at: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          consent_type: string
+          consent_version?: string
+          consented_at?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          consent_type?: string
+          consent_version?: string
+          consented_at?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_consents_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
