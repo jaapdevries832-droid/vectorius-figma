@@ -348,16 +348,20 @@ export function ParentDashboard({
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <label htmlFor="first-name" className="text-sm font-medium text-gray-700">
-                        First name
+                        First name <span className="text-red-500">*</span>
                       </label>
                       <input
                         id="first-name"
                         type="text"
                         value={firstName}
                         onChange={(event) => onFirstNameChange(event.target.value)}
-                        className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
-                        required
+                        className={cn(
+                          "mt-2 w-full rounded-md border px-3 py-2 text-sm",
+                          formError?.includes("First name") ? "border-red-300 bg-red-50" : "border-border"
+                        )}
+                        placeholder="e.g., Maya"
                       />
+                      <p className="mt-1 text-xs text-gray-500">Min. 2 characters, letters only</p>
                     </div>
                     <div>
                       <label htmlFor="last-name" className="text-sm font-medium text-gray-700">
@@ -369,17 +373,24 @@ export function ParentDashboard({
                         value={lastName}
                         onChange={(event) => onLastNameChange(event.target.value)}
                         className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
+                        placeholder="Optional"
                       />
                     </div>
                     <div>
                       <label htmlFor="grade" className="text-sm font-medium text-gray-700">
-                        Grade
+                        Grade <span className="text-red-500">*</span>
                       </label>
                       <Select
                         value={grade}
                         onValueChange={(value) => onGradeChange(value)}
                       >
-                        <SelectTrigger id="grade" className="mt-2 w-full">
+                        <SelectTrigger
+                          id="grade"
+                          className={cn(
+                            "mt-2 w-full",
+                            formError?.includes("grade") ? "border-red-300 bg-red-50" : ""
+                          )}
+                        >
                           <SelectValue placeholder="Select grade" />
                         </SelectTrigger>
                         <SelectContent>
@@ -400,7 +411,12 @@ export function ParentDashboard({
                       </Select>
                     </div>
                   </div>
-                  {formError && <p className="text-sm text-red-600">{formError}</p>}
+                  {formError && (
+                    <p className="text-sm text-red-600 flex items-center gap-1">
+                      <AlertTriangle className="w-4 h-4" />
+                      {formError}
+                    </p>
+                  )}
                   <button
                     type="submit"
                     disabled={isSaving}

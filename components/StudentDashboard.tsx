@@ -8,6 +8,7 @@ import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles, Trophy, Flame, Edit2, Trash2 } from "lucide-react";
 import { NoteEditModal } from "./NoteEditModal";
+import { validateTitle } from "@/lib/validation";
 import { useRoleLayout } from "app/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase/client";
@@ -482,8 +483,11 @@ export function StudentDashboard() {
     if (!studentId) return;
     setCreateCourseError(null);
     const trimmedTitle = createTitle.trim();
-    if (!trimmedTitle) {
-      setCreateCourseError("Class title is required.");
+
+    // Validate title
+    const titleValidation = validateTitle(trimmedTitle, "Class title");
+    if (!titleValidation.valid) {
+      setCreateCourseError(titleValidation.error ?? "Invalid title");
       return;
     }
     setIsCreatingCourse(true);
@@ -728,14 +732,16 @@ export function StudentDashboard() {
           >
             <div className="text-sm font-medium text-gray-900">Create a class</div>
             <div className="grid gap-3 md:grid-cols-3">
-              <Input
-                placeholder="Class title"
-                value={createTitle}
-                onChange={(event) => setCreateTitle(event.target.value)}
-                disabled={isCreatingCourse}
-                required
-                className="rounded-xl border-gray-200 bg-white/80"
-              />
+              <div>
+                <Input
+                  placeholder="Class title *"
+                  value={createTitle}
+                  onChange={(event) => setCreateTitle(event.target.value)}
+                  disabled={isCreatingCourse}
+                  className={`rounded-xl bg-white/80 ${createCourseError?.includes("title") ? "border-red-300" : "border-gray-200"}`}
+                />
+                <p className="mt-1 text-xs text-gray-500">e.g., &quot;Math 101&quot; (min 3 chars)</p>
+              </div>
               <Input
                 placeholder="Teacher (optional)"
                 value={createTeacher}

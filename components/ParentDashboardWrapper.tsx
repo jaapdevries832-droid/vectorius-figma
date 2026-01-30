@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { InviteCodeModal } from "@/components/InviteCodeModal";
 import { clearSupabaseLocalSession } from "@/lib/supabase/logout";
 import { AssignmentModal, type AssignmentInput } from "@/components/AssignmentModal";
+import { validateName, validateGrade } from "@/lib/validation";
 import type { ScheduledCourse } from "app/lib/domain";
 import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
 
@@ -316,8 +317,17 @@ export function ParentDashboardWrapper() {
     const trimmedLast = lastName.trim();
     const trimmedGrade = grade.trim();
 
-    if (!trimmedFirst) {
-      setFormError("First name is required.");
+    // Validate first name
+    const firstNameValidation = validateName(trimmedFirst, "First name");
+    if (!firstNameValidation.valid) {
+      setFormError(firstNameValidation.error ?? "Invalid first name");
+      return;
+    }
+
+    // Validate grade selection
+    const gradeValidation = validateGrade(trimmedGrade);
+    if (!gradeValidation.valid) {
+      setFormError(gradeValidation.error ?? "Please select a grade");
       return;
     }
 

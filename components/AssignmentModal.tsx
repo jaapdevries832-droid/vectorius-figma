@@ -14,7 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select"
-import { BookOpen, ClipboardCheck, HelpCircle, Briefcase, CalendarDays, Save, X } from "lucide-react"
+import { BookOpen, ClipboardCheck, HelpCircle, Briefcase, CalendarDays, Save, X, AlertCircle } from "lucide-react"
+import { validateTitle, validateFutureDate } from "@/lib/validation"
 import type { LucideIcon } from "lucide-react"
 import type { ScheduledCourse } from "app/lib/domain"
 
@@ -54,6 +55,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
     dueDate: todayIso(),
     notes: '',
   })
+  const [errors, setErrors] = useState<{ title?: string; dueDate?: string }>({})
 
   useEffect(() => {
     if (isOpen) {
@@ -64,13 +66,33 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
         dueDate: todayIso(),
         notes: '',
       })
+      setErrors({})
     }
   }, [isOpen, classes])
 
   const selectedClass = useMemo(() => form.classId === 'none' ? null : classes.find(c => c.id === form.classId), [classes, form.classId])
 
   const handleSave = () => {
-    if (!form.title.trim() || !form.dueDate) return
+    const newErrors: { title?: string; dueDate?: string } = {}
+
+    // Validate title
+    const titleValidation = validateTitle(form.title, "Title")
+    if (!titleValidation.valid) {
+      newErrors.title = titleValidation.error
+    }
+
+    // Validate due date
+    const dateValidation = validateFutureDate(form.dueDate, "Due date")
+    if (!dateValidation.valid) {
+      newErrors.dueDate = dateValidation.error
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
+
+    setErrors({})
     onSave({ ...form })
     onClose()
   }
@@ -118,13 +140,23 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
 
             {/* Title */}
             <div className="space-y-2">
-              <Label>Title</Label>
+              <Label>Title <span className="text-red-500">*</span></Label>
               <Input
                 placeholder="e.g., Chapter 7 Homework"
                 value={form.title}
-                onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-                className="rounded-xl border-gray-200 bg-white/80 focus:border-indigo-300"
+                onChange={(e) => {
+                  setForm(prev => ({ ...prev, title: e.target.value }))
+                  if (errors.title) setErrors(prev => ({ ...prev, title: undefined }))
+                }}
+                className={`rounded-xl bg-white/80 focus:border-indigo-300 ${errors.title ? "border-red-300" : "border-gray-200"}`}
               />
+              {errors.title && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.title}
+                </p>
+              )}
+              <p className="text-xs text-gray-500">At least 3 characters</p>
             </div>
 
             {/* Type */}
@@ -152,14 +184,23 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
 
             {/* Due date */}
             <div className="space-y-2">
-              <Label>Due date</Label>
+              <Label>Due date <span className="text-red-500">*</span></Label>
               <Input
                 type="date"
                 min={todayIso()}
                 value={form.dueDate}
-                onChange={(e) => setForm(prev => ({ ...prev, dueDate: e.target.value }))}
-                className="rounded-xl border-gray-200 bg-white/80 focus:border-indigo-300"
+                onChange={(e) => {
+                  setForm(prev => ({ ...prev, dueDate: e.target.value }))
+                  if (errors.dueDate) setErrors(prev => ({ ...prev, dueDate: undefined }))
+                }}
+                className={`rounded-xl bg-white/80 focus:border-indigo-300 ${errors.dueDate ? "border-red-300" : "border-gray-200"}`}
               />
+              {errors.dueDate && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.dueDate}
+                </p>
+              )}
             </div>
 
             {/* Notes */}
