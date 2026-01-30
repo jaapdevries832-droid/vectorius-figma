@@ -3,16 +3,17 @@
 import React from "react";
 import { Button } from "./ui/button";
 import { cn } from "./ui/utils";
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Bot, 
+import {
+  LayoutDashboard,
+  FileText,
+  Bot,
   Settings,
   BookOpen,
   Users,
   Calendar,
   Award,
-  Brain
+  Brain,
+  TrendingUp
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Role, User } from "app/lib/domain";
@@ -80,13 +81,14 @@ export function Sidebar({ currentRole, activeItem, onItemChange, currentUser, cl
   }, [currentRole]);
 
   const getMenuItems = (role: Role) => {
-    // Parent-specific menu: includes child schedule/assignments views
+    // Parent-specific menu: includes child schedule/assignments views and reports
     if (role === 'parent') {
       return [
         { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard, color: '#3B82F6' },
+        { id: 'reports' as const, label: 'Reports', icon: TrendingUp, color: '#10B981' },
         { id: 'schedule' as const, label: 'Schedule', icon: Calendar, color: '#8B5CF6' },
-        { id: 'assignments' as const, label: 'Assignments', icon: FileText, color: '#10B981' },
-        { id: 'notes' as const, label: 'Notes', icon: BookOpen, color: '#F59E0B' },
+        { id: 'assignments' as const, label: 'Assignments', icon: FileText, color: '#F59E0B' },
+        { id: 'notes' as const, label: 'Notes', icon: BookOpen, color: '#EF4444' },
         { id: 'settings' as const, label: 'Settings', icon: Settings, color: '#64748B' },
       ];
     }

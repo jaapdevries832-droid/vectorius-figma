@@ -8,7 +8,8 @@ export type SidebarItem =
   | 'ai-chat'
   | 'achievements'
   | 'settings'
-  | 'students';
+  | 'students'
+  | 'reports';
 
 // Skill modules
 export type SkillModule = {

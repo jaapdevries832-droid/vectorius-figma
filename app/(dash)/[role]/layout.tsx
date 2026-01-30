@@ -10,6 +10,7 @@ import { MentorSkills } from '@/components/MentorSkills'
 import { StudentSkills } from '@/components/StudentSkills'
 import { NotesPage } from '@/components/NotesPage'
 import { AdvisorStudentsPage } from '@/components/AdvisorStudentsPage'
+import { ParentReportsPage } from '@/components/ParentReportsPage'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { RoleLayoutProvider } from 'app/lib/role-layout-context'
@@ -118,6 +119,8 @@ export default function RoleLayout({ children, params }: { children: React.React
         return <NotesPage role={role} />
       case 'students':
         return <AdvisorStudentsPage />
+      case 'reports':
+        return <ParentReportsPage />
       case 'settings':
         return (
           <div className="p-6 space-grid-6">
