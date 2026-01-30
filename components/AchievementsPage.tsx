@@ -212,18 +212,27 @@ export function AchievementsPage() {
             {badges.map((b) => {
               const Icon = b.icon;
               return (
-                <Card key={b.id} className={`rounded-2xl border-0 shadow-md ${b.achieved ? 'bg-white' : 'bg-gray-50'}`}>
+                <Card key={b.id} className={`rounded-2xl border-0 shadow-md transition-all duration-200 ${b.achieved ? 'bg-white' : 'bg-gray-50/80 hover:bg-white hover:shadow-lg'}`}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow ${b.achieved ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shadow ${b.achieved ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white' : 'bg-gray-200 text-gray-400'}`}
+                        title={b.achieved ? `Badge earned: ${b.name}` : `Locked - ${b.criteria}`}
+                      >
                         {b.achieved ? <Icon className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
                       </div>
-                      <span className={`${b.achieved ? 'text-gray-900' : 'text-gray-500'}`}>{b.name}</span>
-                      {b.achieved && <Badge className="ml-auto bg-emerald-100 text-emerald-700 border-emerald-200">Achieved</Badge>}
+                      <span className={`${b.achieved ? 'text-gray-900' : 'text-gray-600'}`}>{b.name}</span>
+                      {b.achieved ? (
+                        <Badge className="ml-auto bg-emerald-100 text-emerald-700 border-emerald-200">Achieved</Badge>
+                      ) : (
+                        <Badge className="ml-auto bg-gray-100 text-gray-500 border-gray-200">Locked</Badge>
+                      )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-gray-600">{b.criteria}</p>
+                    <p className={`text-sm ${b.achieved ? 'text-gray-600' : 'text-gray-500'}`}>
+                      {b.achieved ? b.criteria : `🔒 ${b.criteria}`}
+                    </p>
                   </CardContent>
                 </Card>
               )

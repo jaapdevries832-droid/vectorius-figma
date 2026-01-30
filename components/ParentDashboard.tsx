@@ -165,12 +165,12 @@ export function ParentDashboard({
               onValueChange={onSelectStudent}
               disabled={studentOptions.length === 0}
             >
-              <SelectTrigger className="w-48 border-2 border-blue-200 bg-white shadow-sm hover:border-blue-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+              <SelectTrigger className="w-56 min-w-[14rem] px-4 py-2 border-2 border-blue-200 bg-white shadow-sm hover:border-blue-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 cursor-pointer">
                 <SelectValue placeholder="Select student" />
               </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="min-w-[14rem]">
               {studentOptions.map((child) => (
-                <SelectItem key={child.id} value={child.id}>
+                <SelectItem key={child.id} value={child.id} className="cursor-pointer py-2">
                   <div className="flex items-center gap-2">
                     <Avatar className="w-6 h-6">
                       <AvatarFallback className="text-xs">{child.avatar}</AvatarFallback>

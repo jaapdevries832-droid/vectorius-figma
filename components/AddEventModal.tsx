@@ -154,9 +154,10 @@ export function AddEventModal({
               <Label>Date</Label>
               <Input
                 type="date"
+                min={todayIso()}
                 value={form.date}
                 onChange={(e) => setForm((prev) => ({ ...prev, date: e.target.value }))}
-                className="rounded-xl border-gray-200 bg-white/80 focus:border-indigo-300"
+                className="rounded-xl border-gray-200 bg-white/80 focus:border-indigo-300 cursor-pointer"
               />
             </div>
             <div className="space-y-2">

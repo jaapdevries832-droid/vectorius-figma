@@ -765,27 +765,41 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
             <div className="text-blue-100 text-sm">Total Classes</div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg rounded-2xl card-hover">
           <CardContent className="p-6 text-center">
             <Clock className="w-8 h-8 mx-auto mb-3 opacity-90" />
-            <div className="text-2xl font-semibold mb-1">24</div>
+            <div className="text-2xl font-semibold mb-1">
+              {isLoading ? "--" : (() => {
+                const totalMinutes = classes.reduce((sum, cls) => {
+                  const startMins = timeToMinutes(cls.startTime);
+                  const endMins = timeToMinutes(cls.endTime);
+                  const durationMins = endMins - startMins;
+                  return sum + (durationMins * cls.days.length);
+                }, 0);
+                return Math.round(totalMinutes / 60);
+              })()}
+            </div>
             <div className="text-green-100 text-sm">Hours/Week</div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg rounded-2xl card-hover">
           <CardContent className="p-6 text-center">
             <Users className="w-8 h-8 mx-auto mb-3 opacity-90" />
-            <div className="text-2xl font-semibold mb-1">8</div>
-            <div className="text-purple-100 text-sm">Professors</div>
+            <div className="text-2xl font-semibold mb-1">
+              {isLoading ? "--" : new Set(classes.map(c => c.teacherName).filter(Boolean)).size}
+            </div>
+            <div className="text-purple-100 text-sm">Instructors</div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0 shadow-lg rounded-2xl card-hover">
           <CardContent className="p-6 text-center">
             <MapPin className="w-8 h-8 mx-auto mb-3 opacity-90" />
-            <div className="text-2xl font-semibold mb-1">12</div>
+            <div className="text-2xl font-semibold mb-1">
+              {isLoading ? "--" : new Set(classes.map(c => c.room).filter(Boolean)).size}
+            </div>
             <div className="text-orange-100 text-sm">Locations</div>
           </CardContent>
         </Card>

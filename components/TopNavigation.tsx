@@ -53,13 +53,21 @@ export function TopNavigation({ currentRole, currentUser, onLogout }: TopNavigat
             style={hoverBgStyle}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)'}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            title="Notifications - Coming soon"
           >
             <Bell className="w-5 h-5 text-blue-600" />
           </Button>
         )}
 
-        
-        <Button variant="ghost" size="sm" className="p-3 rounded-2xl transition-colors" onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="p-3 rounded-2xl transition-colors"
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          title="Settings"
+        >
           <Settings className="w-5 h-5 text-blue-600" />
         </Button>
         
