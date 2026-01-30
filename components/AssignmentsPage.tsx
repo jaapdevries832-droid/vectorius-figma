@@ -33,6 +33,8 @@ type Assignment = {
   createdByRole?: string | null
   isSuggested?: boolean
   suggestionStatus?: SuggestionStatus | null
+  studentId?: string
+  studentName?: string | null
 }
 
 type TaskSource = 'student' | 'parent' | 'advisor' | 'ai' | 'google_classroom' | 'manual_import'
@@ -90,6 +92,11 @@ function resolveSource(role: string | null | undefined): TaskSource {
   return 'student'
 }
 
+type AdvisorStudent = {
+  id: string
+  name: string
+}
+
 export function AssignmentsPage() {
   const [open, setOpen] = useState<Record<string, boolean>>({
     Overdue: true,
@@ -114,6 +121,9 @@ export function AssignmentsPage() {
   const [studyPlanAssignment, setStudyPlanAssignment] = useState<Assignment | null>(null)
   const [studyPlanMilestones, setStudyPlanMilestones] = useState<StudyMilestone[]>([])
   const [studyPlanId, setStudyPlanId] = useState<string | null>(null)
+  // Advisor-specific state
+  const [advisorStudents, setAdvisorStudents] = useState<AdvisorStudent[]>([])
+  const [selectedAdvisorStudent, setSelectedAdvisorStudent] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -137,13 +147,100 @@ export function AssignmentsPage() {
       setCurrentRole(profile?.role ?? null)
       setCurrentProfileId(profile?.id ?? null)
 
-      if (profile?.role && profile.role !== "student") {
-        setLoadError("Assignments are available for student accounts only.")
+      // Handle advisor role
+      if (profile?.role === "advisor") {
+        // Load advisor's students from the advisor_student_summary view
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('advisor_student_summary')
+          .select('student_id, student_name')
+          .eq('advisor_id', user.id)
+          .order('student_name', { ascending: true })
+
+        if (!isMounted) return
+
+        if (studentsError) {
+          setLoadError(studentsError.message)
+          setAssignments([])
+          setIsLoading(false)
+          return
+        }
+
+        const mappedStudents = (studentsData ?? []).map((row) => ({
+          id: row.student_id,
+          name: row.student_name ?? 'Student'
+        }))
+
+        setAdvisorStudents(mappedStudents)
+
+        // If no students, show message
+        if (mappedStudents.length === 0) {
+          setLoadError('No students assigned to you yet.')
+          setAssignments([])
+          setIsLoading(false)
+          return
+        }
+
+        // Use first student by default
+        const firstStudentId = mappedStudents[0].id
+        setSelectedAdvisorStudent(firstStudentId)
+        setStudentId(firstStudentId)
+
+        // Load assignments for all advisor's students
+        const studentIds = mappedStudents.map(s => s.id)
+        const { data, error } = await supabase
+          .from('assignments')
+          .select('id, title, type, description, due_at, status, completed_at, priority, course_id, source, created_by_role, is_suggested, suggestion_status, student_id, course:courses (title, teacher_name), student:students (first_name, last_name)')
+          .in('student_id', studentIds)
+          .order('due_at', { ascending: true })
+
+        if (!isMounted) return
+
+        if (error) {
+          setLoadError(error.message)
+          setAssignments([])
+          setIsLoading(false)
+          return
+        }
+
+        const mapped = (data ?? []).map((row) => {
+          const course = Array.isArray(row.course) ? row.course[0] : row.course
+          const student = Array.isArray(row.student) ? row.student[0] : row.student
+          const studentName = student ? `${student.first_name ?? ''} ${student.last_name ?? ''}`.trim() : null
+          return {
+            id: row.id,
+            title: row.title ?? 'Untitled Assignment',
+            type: normalizeAssignmentType(row.type),
+            classId: row.course_id ?? '',
+            dueAt: row.due_at,
+            notes: row.description ?? null,
+            status: row.status,
+            completedAt: row.completed_at,
+            courseTitle: course?.title ?? null,
+            courseTeacher: course?.teacher_name ?? null,
+            priority: row.priority ?? null,
+            source: row.source ?? null,
+            createdByRole: row.created_by_role ?? null,
+            isSuggested: row.is_suggested ?? false,
+            suggestionStatus: row.suggestion_status ?? null,
+            studentId: row.student_id,
+            studentName,
+          }
+        })
+
+        setAssignments(mapped)
+        setIsLoading(false)
+        return
+      }
+
+      // Handle parent role - not allowed
+      if (profile?.role === "parent") {
+        setLoadError("Use the dashboard to view your children's assignments.")
         setAssignments([])
         setIsLoading(false)
         return
       }
 
+      // Handle student role
       const { data: student, error: studentError } = await supabase
         .from('students')
         .select('id')
@@ -269,12 +366,6 @@ export function AssignmentsPage() {
   )
 
   const visibleAssignments = assignmentFilter === 'pending' ? pendingSuggestions : activeAssignments
-
-  const grouped = useMemo(() => {
-    const groups: Record<string, Assignment[]> = { Overdue: [], Today: [], Upcoming: [] }
-    visibleAssignments.forEach(a => { groups[categorize(a.dueAt)].push(a) })
-    return groups
-  }, [visibleAssignments])
 
   const stats = useMemo(() => {
     const total = visibleAssignments.length
@@ -596,9 +687,14 @@ export function AssignmentsPage() {
                 </Badge>
               </div>
               <div className="font-semibold text-gray-900 leading-tight mt-1">{a.title}</div>
-                <div className="text-sm text-gray-600 mt-1">
-                  <span className={`inline-block w-2 h-2 rounded-full mr-2 ${cls?.color ?? 'bg-gray-300'}`} />
+                <div className="text-sm text-gray-600 mt-1 flex items-center gap-2">
+                  <span className={`inline-block w-2 h-2 rounded-full ${cls?.color ?? 'bg-gray-300'}`} />
                   {cls?.name ?? a.courseTitle ?? 'Class'}
+                  {currentRole === 'advisor' && a.studentName && (
+                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                      {a.studentName}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center space-grid-3 text-xs text-gray-600 mt-2">
                   <div className="flex items-center space-grid">
@@ -612,6 +708,10 @@ export function AssignmentsPage() {
                 {isPending ? (
                   <div className="mt-3 text-xs text-amber-700">
                     Respond on your dashboard to accept or decline.
+                  </div>
+                ) : currentRole === 'advisor' ? (
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    Only students can mark assignments complete.
                   </div>
                 ) : !isCompleted ? (
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -661,14 +761,48 @@ export function AssignmentsPage() {
     )
   }
 
-  const groupsOrder: Array<keyof typeof grouped> = ['Overdue', 'Today', 'Upcoming']
+  // Filter assignments by selected student for advisors
+  const filteredByStudent = currentRole === 'advisor' && selectedAdvisorStudent
+    ? visibleAssignments.filter(a => a.studentId === selectedAdvisorStudent)
+    : visibleAssignments
+
+  // Re-group using filtered assignments
+  const groupedFiltered = useMemo(() => {
+    const groups: Record<string, Assignment[]> = { Overdue: [], Today: [], Upcoming: [] }
+    filteredByStudent.forEach(a => { groups[categorize(a.dueAt)].push(a) })
+    return groups
+  }, [filteredByStudent])
+
+  const groupsOrder: Array<keyof typeof groupedFiltered> = ['Overdue', 'Today', 'Upcoming']
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-grid-6">
       {/* Page header */}
       <div className="mb-2">
         <h1 className="text-2xl font-semibold text-gray-900">Assignments</h1>
-        <p className="text-gray-600">Manage your assignments and track due dates</p>
+        <p className="text-gray-600">
+          {currentRole === 'advisor' ? "View and manage your students' assignments" : 'Manage your assignments and track due dates'}
+        </p>
+
+        {/* Advisor: Student filter */}
+        {currentRole === 'advisor' && advisorStudents.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">Student:</span>
+            <select
+              value={selectedAdvisorStudent ?? ''}
+              onChange={(e) => setSelectedAdvisorStudent(e.target.value || null)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white"
+            >
+              <option value="">All Students ({visibleAssignments.length})</option>
+              {advisorStudents.map((student) => (
+                <option key={student.id} value={student.id}>
+                  {student.name} ({visibleAssignments.filter(a => a.studentId === student.id).length})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Button
             size="sm"
@@ -705,7 +839,7 @@ export function AssignmentsPage() {
                     )}
                   </div>
                   {key}
-                  <Badge className="ml-2 bg-gray-100 text-gray-700 border-gray-200">{grouped[key].length}</Badge>
+                  <Badge className="ml-2 bg-gray-100 text-gray-700 border-gray-200">{groupedFiltered[key].length}</Badge>
                 </CardTitle>
                 <Button
                   variant="ghost"
@@ -718,10 +852,10 @@ export function AssignmentsPage() {
                 </Button>
               </CardHeader>
               <CardContent className={`space-grid-3 ${groupShade(key)} rounded-2xl p-4 ${open[key as string] ? '' : 'hidden'}` }>
-                {grouped[key].length === 0 ? (
+                {groupedFiltered[key].length === 0 ? (
                   <div className="p-6 rounded-2xl border border-dashed border-gray-200 text-gray-500 text-sm bg-white/40">No assignments</div>
                 ) : (
-                  grouped[key].map(renderAssignment)
+                  groupedFiltered[key].map(renderAssignment)
                 )}
               </CardContent>
             </Card>
