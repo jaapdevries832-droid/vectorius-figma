@@ -10,11 +10,13 @@ import {
   StickyNote,
   Plus,
   Trash2,
+  Edit2,
   User,
   MessageSquare,
   Send,
   Lock,
 } from "lucide-react";
+import { NoteEditModal } from "./NoteEditModal";
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile } from "@/lib/profile";
 import { toast } from "sonner";
@@ -64,6 +66,8 @@ export function NotesPage({ role }: NotesPageProps) {
   const [studentId, setStudentId] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [noteEditOpen, setNoteEditOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<{ id: string; body: string; color: string } | null>(null);
 
   // Load data based on role
   const loadData = useCallback(async () => {
@@ -219,6 +223,9 @@ export function NotesPage({ role }: NotesPageProps) {
 
   // Delete personal note (student only)
   const handleDeleteStudentNote = async (noteId: string) => {
+    const confirmed = window.confirm("Delete this note?");
+    if (!confirmed) return;
+
     const { error } = await supabase
       .from("student_notes")
       .delete()
@@ -231,6 +238,58 @@ export function NotesPage({ role }: NotesPageProps) {
 
     setStudentNotes((prev) => prev.filter((n) => n.id !== noteId));
     toast.success("Note deleted.");
+  };
+
+  // Edit personal note (student only)
+  const handleEditStudentNote = (note: StudentNote) => {
+    setEditingNote({ id: note.id, body: note.body, color: note.color });
+    setNoteEditOpen(true);
+  };
+
+  // Open modal for new note
+  const handleOpenNewNote = () => {
+    setEditingNote(null);
+    setNoteEditOpen(true);
+  };
+
+  // Save note (create or update)
+  const handleSaveNote = async (body: string, color: string) => {
+    if (!studentId) return;
+
+    if (editingNote) {
+      // Update existing note
+      const { error } = await supabase
+        .from("student_notes")
+        .update({ body, color })
+        .eq("id", editingNote.id);
+
+      if (error) {
+        toast.error("Unable to update note.");
+        return;
+      }
+
+      setStudentNotes((prev) =>
+        prev.map((n) => (n.id === editingNote.id ? { ...n, body, color } : n))
+      );
+      toast.success("Note updated!");
+    } else {
+      // Create new note
+      const { data, error } = await supabase
+        .from("student_notes")
+        .insert({ student_id: studentId, body, color })
+        .select("id, body, color, created_at")
+        .single();
+
+      if (error) {
+        toast.error("Unable to add note.");
+        return;
+      }
+
+      if (data) {
+        setStudentNotes((prev) => [data, ...prev]);
+        toast.success("Note added!");
+      }
+    }
   };
 
   // Add advisor note (advisor only)
@@ -336,15 +395,21 @@ export function NotesPage({ role }: NotesPageProps) {
 
         {/* Personal Notes */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <StickyNote className="w-5 h-5" />
-              My Personal Notes
-            </CardTitle>
-            <div className="mt-1 inline-flex items-center gap-2 text-xs text-amber-700">
-              <Lock className="h-3 w-3" />
-              Private
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <StickyNote className="w-5 h-5" />
+                My Personal Notes
+              </CardTitle>
+              <div className="mt-1 inline-flex items-center gap-2 text-xs text-amber-700">
+                <Lock className="h-3 w-3" />
+                Private
+              </div>
             </div>
+            <Button size="sm" variant="outline" onClick={handleOpenNewNote}>
+              <Plus className="w-4 h-4 mr-1" />
+              New Note
+            </Button>
           </CardHeader>
           <CardContent>
             {studentNotes.length === 0 ? (
@@ -358,22 +423,42 @@ export function NotesPage({ role }: NotesPageProps) {
                     key={note.id}
                     className={`p-4 rounded-xl ${note.color} relative group`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{note.body}</p>
+                    <p className="text-sm whitespace-pre-wrap pr-14">{note.body}</p>
                     <p className="text-xs text-gray-500 mt-2">
                       {formatDate(note.created_at)}
                     </p>
-                    <button
-                      onClick={() => handleDeleteStudentNote(note.id)}
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white/50 rounded"
-                    >
-                      <Trash2 className="w-4 h-4 text-gray-500" />
-                    </button>
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleEditStudentNote(note)}
+                        className="p-1.5 hover:bg-white/50 rounded"
+                        title="Edit note"
+                      >
+                        <Edit2 className="w-4 h-4 text-gray-600" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteStudentNote(note.id)}
+                        className="p-1.5 hover:bg-red-100/50 rounded"
+                        title="Delete note"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Note Edit Modal */}
+        <NoteEditModal
+          open={noteEditOpen}
+          onClose={() => setNoteEditOpen(false)}
+          onSave={handleSaveNote}
+          initialBody={editingNote?.body ?? ""}
+          initialColor={editingNote?.color ?? noteColors[studentNotes.length % noteColors.length]}
+          isNew={!editingNote}
+        />
 
         {/* Advisor Feedback */}
         <Card>

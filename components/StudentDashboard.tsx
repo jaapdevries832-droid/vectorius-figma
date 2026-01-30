@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles, Trophy, Flame } from "lucide-react";
+import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles, Trophy, Flame, Edit2, Trash2 } from "lucide-react";
+import { NoteEditModal } from "./NoteEditModal";
 import { useRoleLayout } from "app/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase/client";
@@ -60,6 +61,8 @@ export function StudentDashboard() {
   const [notes, setNotes] = React.useState<
     { id: string; body: string; color: string; created_at: string }[]
   >([]);
+  const [noteEditOpen, setNoteEditOpen] = React.useState(false);
+  const [editingNote, setEditingNote] = React.useState<{ id: string; body: string; color: string } | null>(null);
 
   const overallProgress = dashboardMetrics?.progressPercent ?? 0;
   const avgGradeDisplay = dashboardMetrics?.avgGradePercent != null ? `${dashboardMetrics.avgGradePercent}%` : "—";
@@ -512,27 +515,55 @@ export function StudentDashboard() {
     toast.success(`"${trimmedTitle}" added to your classes!`);
   };
 
-  const handleAddNote = async () => {
+  const handleAddNote = () => {
+    setEditingNote(null);
+    setNoteEditOpen(true);
+  };
+
+  const handleEditNote = (note: { id: string; body: string; color: string }) => {
+    setEditingNote(note);
+    setNoteEditOpen(true);
+  };
+
+  const handleSaveNote = async (body: string, color: string) => {
     const resolvedStudentId = await resolveStudentId();
     if (!resolvedStudentId) return;
-    const input = window.prompt("Add a quick note");
-    if (!input) return;
-    const body = input.trim();
-    if (!body) return;
-    const color = noteColors[notes.length % noteColors.length];
-    const { data, error } = await supabase
-      .from("student_notes")
-      .insert({ student_id: resolvedStudentId, body, color })
-      .select("id, body, color, created_at")
-      .single();
 
-    if (error) {
-      console.error("Failed to add note", error);
-      return;
-    }
+    if (editingNote) {
+      // Update existing note
+      const { error } = await supabase
+        .from("student_notes")
+        .update({ body, color })
+        .eq("id", editingNote.id);
 
-    if (data) {
-      setNotes((prev) => [data, ...prev]);
+      if (error) {
+        console.error("Failed to update note", error);
+        toast.error("Failed to update note");
+        return;
+      }
+
+      setNotes((prev) =>
+        prev.map((n) => (n.id === editingNote.id ? { ...n, body, color } : n))
+      );
+      toast.success("Note updated");
+    } else {
+      // Create new note
+      const { data, error } = await supabase
+        .from("student_notes")
+        .insert({ student_id: resolvedStudentId, body, color })
+        .select("id, body, color, created_at")
+        .single();
+
+      if (error) {
+        console.error("Failed to add note", error);
+        toast.error("Failed to add note");
+        return;
+      }
+
+      if (data) {
+        setNotes((prev) => [data, ...prev]);
+        toast.success("Note added");
+      }
     }
   };
 
@@ -950,14 +981,44 @@ export function StudentDashboard() {
               {notes.map((note) => (
                 <div
                   key={note.id}
-                  className={`p-4 rounded-xl ${note.color} shadow-sm cursor-pointer`}
-                  onClick={() => handleDeleteNote(note.id)}
+                  className={`p-4 rounded-xl ${note.color} shadow-sm group relative`}
                 >
-                  <p className="text-sm font-medium text-gray-800 leading-relaxed">{note.body}</p>
+                  <p className="text-sm font-medium text-gray-800 leading-relaxed pr-16">{note.body}</p>
+                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleEditNote(note)}
+                      className="p-1.5 rounded-lg bg-white/80 hover:bg-white shadow-sm"
+                      title="Edit note"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-gray-600" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteNote(note.id)}
+                      className="p-1.5 rounded-lg bg-white/80 hover:bg-red-50 shadow-sm"
+                      title="Delete note"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                    </button>
+                  </div>
                 </div>
               ))}
+              {notes.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  No notes yet. Click + to add one.
+                </p>
+              )}
             </CardContent>
           </Card>
+
+          {/* Note Edit Modal */}
+          <NoteEditModal
+            open={noteEditOpen}
+            onClose={() => setNoteEditOpen(false)}
+            onSave={handleSaveNote}
+            initialBody={editingNote?.body ?? ""}
+            initialColor={editingNote?.color ?? noteColors[notes.length % noteColors.length]}
+            isNew={!editingNote}
+          />
 
           {/* AI Chat Quick Access */}
           <Card className="bg-gradient-to-br from-purple-500 to-pink-500 border-0 shadow-xl rounded-2xl text-white card-hover overflow-hidden">
