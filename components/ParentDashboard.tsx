@@ -60,6 +60,8 @@ type AdvisorNote = {
   } | null;
 };
 
+export type SignalCardType = "overdue" | "upcoming" | "plan" | "suggestions";
+
 type ParentDashboardProps = {
   email: string | null;
   students: StudentSummary[];
@@ -91,6 +93,7 @@ type ParentDashboardProps = {
   advisorNotes?: AdvisorNote[];
   onInviteStudent?: (student: StudentSummary) => void;
   onSuggestAssignment?: () => void;
+  onSignalCardClick?: (cardType: SignalCardType) => void;
 };
 
 export function ParentDashboard({
@@ -124,6 +127,7 @@ export function ParentDashboard({
   advisorNotes = [],
   onInviteStudent,
   onSuggestAssignment,
+  onSignalCardClick,
 }: ParentDashboardProps) {
   const studentOptions = students.map((student) => {
     const initials = `${student.first_name[0] ?? ""}${student.last_name?.[0] ?? ""}`.toUpperCase();
@@ -195,7 +199,13 @@ export function ParentDashboard({
 
       {/* Parent Signals */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <Card className="border-0 bg-gradient-to-br from-red-50 to-red-100">
+        <Card
+          className={cn(
+            "border-0 bg-gradient-to-br from-red-50 to-red-100 transition-all",
+            currentSignals && onSignalCardClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]"
+          )}
+          onClick={() => currentSignals && onSignalCardClick?.("overdue")}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -206,13 +216,22 @@ export function ParentDashboard({
                 {!currentSignals && (
                   <p className="mt-1 text-xs text-red-700">Select a student to see alerts.</p>
                 )}
+                {currentSignals && onSignalCardClick && (
+                  <p className="mt-1 text-xs text-red-600">Click to view</p>
+                )}
               </div>
               <AlertTriangle className="w-8 h-8 text-red-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 bg-gradient-to-br from-purple-50 to-purple-100">
+        <Card
+          className={cn(
+            "border-0 bg-gradient-to-br from-purple-50 to-purple-100 transition-all",
+            currentSignals && onSignalCardClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]"
+          )}
+          onClick={() => currentSignals && onSignalCardClick?.("upcoming")}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -226,13 +245,22 @@ export function ParentDashboard({
                 {nextBigItem && nextBigItemDate && (
                   <p className="mt-1 text-xs text-purple-600">Due {nextBigItemDate}</p>
                 )}
+                {currentSignals && onSignalCardClick && nextBigItem && (
+                  <p className="mt-1 text-xs text-purple-600 font-medium">Click to view</p>
+                )}
               </div>
               <TrendingUp className="w-8 h-8 text-purple-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 bg-gradient-to-br from-blue-50 to-blue-100">
+        <Card
+          className={cn(
+            "border-0 bg-gradient-to-br from-blue-50 to-blue-100 transition-all",
+            currentSignals && onSignalCardClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]"
+          )}
+          onClick={() => currentSignals && onSignalCardClick?.("plan")}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -243,13 +271,22 @@ export function ParentDashboard({
                 {!currentSignals && (
                   <p className="mt-1 text-xs text-blue-600">Select a student to see status.</p>
                 )}
+                {currentSignals && onSignalCardClick && (
+                  <p className="mt-1 text-xs text-blue-600">Click to view schedule</p>
+                )}
               </div>
               <Calendar className="w-8 h-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-0 bg-gradient-to-br from-amber-50 to-amber-100">
+        <Card
+          className={cn(
+            "border-0 bg-gradient-to-br from-amber-50 to-amber-100 transition-all",
+            currentSignals && onSignalCardClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]"
+          )}
+          onClick={() => currentSignals && onSignalCardClick?.("suggestions")}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -259,6 +296,9 @@ export function ParentDashboard({
                 </p>
                 {!currentSignals && (
                   <p className="mt-1 text-xs text-amber-700">Pending suggestions appear here.</p>
+                )}
+                {currentSignals && onSignalCardClick && (
+                  <p className="mt-1 text-xs text-amber-600">Click to view</p>
                 )}
               </div>
               <Clock className="w-8 h-8 text-amber-500" />

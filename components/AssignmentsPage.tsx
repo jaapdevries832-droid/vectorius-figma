@@ -232,10 +232,86 @@ export function AssignmentsPage() {
         return
       }
 
-      // Handle parent role - not allowed
+      // Handle parent role - show children's assignments (read-only)
       if (profile?.role === "parent") {
-        setLoadError("Use the dashboard to view your children's assignments.")
-        setAssignments([])
+        // Load parent's students (children)
+        const { data: childrenData, error: childrenError } = await supabase
+          .from('students')
+          .select('id, first_name, last_name')
+          .eq('parent_id', user.id)
+          .order('first_name', { ascending: true })
+
+        if (!isMounted) return
+
+        if (childrenError) {
+          setLoadError(childrenError.message)
+          setAssignments([])
+          setIsLoading(false)
+          return
+        }
+
+        const mappedChildren = (childrenData ?? []).map((row) => ({
+          id: row.id,
+          name: `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim() || 'Child'
+        }))
+
+        setAdvisorStudents(mappedChildren) // Reuse advisor students state for parent's children
+
+        if (mappedChildren.length === 0) {
+          setLoadError('No children added yet. Add a child from the dashboard.')
+          setAssignments([])
+          setIsLoading(false)
+          return
+        }
+
+        // Use first child by default
+        const firstChildId = mappedChildren[0].id
+        setSelectedAdvisorStudent(firstChildId)
+        setStudentId(firstChildId)
+
+        // Load assignments for all children
+        const childIds = mappedChildren.map(c => c.id)
+        const { data, error } = await supabase
+          .from('assignments')
+          .select('id, title, type, description, due_at, status, completed_at, priority, course_id, source, created_by_role, is_suggested, suggestion_status, student_id, course:courses (title, teacher_name), student:students (first_name, last_name)')
+          .in('student_id', childIds)
+          .order('due_at', { ascending: true })
+
+        if (!isMounted) return
+
+        if (error) {
+          setLoadError(error.message)
+          setAssignments([])
+          setIsLoading(false)
+          return
+        }
+
+        const mapped = (data ?? []).map((row) => {
+          const course = Array.isArray(row.course) ? row.course[0] : row.course
+          const student = Array.isArray(row.student) ? row.student[0] : row.student
+          const studentName = student ? `${student.first_name ?? ''} ${student.last_name ?? ''}`.trim() : null
+          return {
+            id: row.id,
+            title: row.title ?? 'Untitled Assignment',
+            type: normalizeAssignmentType(row.type),
+            classId: row.course_id ?? '',
+            dueAt: row.due_at,
+            notes: row.description ?? null,
+            status: row.status,
+            completedAt: row.completed_at,
+            courseTitle: course?.title ?? null,
+            courseTeacher: course?.teacher_name ?? null,
+            priority: row.priority ?? null,
+            source: row.source ?? null,
+            createdByRole: row.created_by_role ?? null,
+            isSuggested: row.is_suggested ?? false,
+            suggestionStatus: row.suggestion_status ?? null,
+            studentId: row.student_id,
+            studentName,
+          }
+        })
+
+        setAssignments(mapped)
         setIsLoading(false)
         return
       }
@@ -781,19 +857,27 @@ export function AssignmentsPage() {
       <div className="mb-2">
         <h1 className="text-2xl font-semibold text-gray-900">Assignments</h1>
         <p className="text-gray-600">
-          {currentRole === 'advisor' ? "View and manage your students' assignments" : 'Manage your assignments and track due dates'}
+          {currentRole === 'advisor'
+            ? "View and manage your students' assignments"
+            : currentRole === 'parent'
+            ? "View your children's assignments and track their progress"
+            : 'Manage your assignments and track due dates'}
         </p>
 
-        {/* Advisor: Student filter */}
-        {currentRole === 'advisor' && advisorStudents.length > 0 && (
+        {/* Advisor/Parent: Student filter */}
+        {(currentRole === 'advisor' || currentRole === 'parent') && advisorStudents.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-muted-foreground">Student:</span>
+            <span className="text-sm text-muted-foreground">
+              {currentRole === 'parent' ? 'Child:' : 'Student:'}
+            </span>
             <select
               value={selectedAdvisorStudent ?? ''}
               onChange={(e) => setSelectedAdvisorStudent(e.target.value || null)}
               className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white"
             >
-              <option value="">All Students ({visibleAssignments.length})</option>
+              <option value="">
+                {currentRole === 'parent' ? 'All Children' : 'All Students'} ({visibleAssignments.length})
+              </option>
               {advisorStudents.map((student) => (
                 <option key={student.id} value={student.id}>
                   {student.name} ({visibleAssignments.filter(a => a.studentId === student.id).length})
@@ -864,24 +948,26 @@ export function AssignmentsPage() {
 
         {/* Right: Actions + Stats */}
         <div className="space-grid-6">
-          {/* Add Assignment card */}
-          <Card className="bg-gradient-card border-0 shadow-lg rounded-2xl card-hover">
-            <CardContent className="pt-8 pb-6 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
-                <Plus className="w-7 h-7" />
-              </div>
-              <h3 className="text-lg font-semibold mb-1">Add Assignment</h3>
-              <p className="text-gray-600 mb-4">Create a new assignment with due date and class information</p>
-              <Button
-                onClick={() => setIsOpen(true)}
-                className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
-                disabled={!studentId}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Assignment
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Add Assignment card - only for students */}
+          {currentRole !== 'advisor' && currentRole !== 'parent' && (
+            <Card className="bg-gradient-card border-0 shadow-lg rounded-2xl card-hover">
+              <CardContent className="pt-8 pb-6 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
+                  <Plus className="w-7 h-7" />
+                </div>
+                <h3 className="text-lg font-semibold mb-1">Add Assignment</h3>
+                <p className="text-gray-600 mb-4">Create a new assignment with due date and class information</p>
+                <Button
+                  onClick={() => setIsOpen(true)}
+                  className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
+                  disabled={!studentId}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Assignment
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Quick Stats card */}
           <Card className="bg-gradient-card border-0 shadow-lg rounded-2xl card-hover">

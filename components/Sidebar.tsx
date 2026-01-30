@@ -80,10 +80,12 @@ export function Sidebar({ currentRole, activeItem, onItemChange, currentUser, cl
   }, [currentRole]);
 
   const getMenuItems = (role: Role) => {
-    // Parent-specific menu: simplified navigation
+    // Parent-specific menu: includes child schedule/assignments views
     if (role === 'parent') {
       return [
         { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard, color: '#3B82F6' },
+        { id: 'schedule' as const, label: 'Schedule', icon: Calendar, color: '#8B5CF6' },
+        { id: 'assignments' as const, label: 'Assignments', icon: FileText, color: '#10B981' },
         { id: 'notes' as const, label: 'Notes', icon: BookOpen, color: '#F59E0B' },
         { id: 'settings' as const, label: 'Settings', icon: Settings, color: '#64748B' },
       ];

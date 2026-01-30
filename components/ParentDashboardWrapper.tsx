@@ -3,7 +3,8 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { ParentDashboard } from "@/components/ParentDashboard";
+import { ParentDashboard, type SignalCardType } from "@/components/ParentDashboard";
+import { useRoleLayout } from "app/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
 import { toast } from "sonner";
 import { InviteCodeModal } from "@/components/InviteCodeModal";
@@ -61,6 +62,7 @@ type AdvisorNote = {
 
 export function ParentDashboardWrapper() {
   const router = useRouter();
+  const { setActiveItem } = useRoleLayout();
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [profileRole, setProfileRole] = useState<string | null>(null);
@@ -508,6 +510,33 @@ export function ParentDashboardWrapper() {
     toast.error("Clipboard not available.");
   };
 
+  const handleSignalCardClick = (cardType: SignalCardType) => {
+    if (!selectedStudentId) return;
+
+    switch (cardType) {
+      case "overdue":
+        // Navigate to assignments page - shows overdue items
+        setActiveItem("assignments");
+        toast.info("Viewing assignments - check for overdue items");
+        break;
+      case "upcoming":
+        // Navigate to schedule to see upcoming tests/projects
+        setActiveItem("schedule");
+        toast.info("Viewing schedule for upcoming tests and projects");
+        break;
+      case "plan":
+        // Navigate to schedule to see study plan
+        setActiveItem("schedule");
+        toast.info("Viewing study plan schedule");
+        break;
+      case "suggestions":
+        // Navigate to assignments to see pending suggestions
+        setActiveItem("assignments");
+        toast.info("Viewing assignments - check pending suggestions");
+        break;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
@@ -557,6 +586,7 @@ export function ParentDashboardWrapper() {
         advisorNotes={advisorNotes}
         onInviteStudent={handleOpenInvite}
         onSuggestAssignment={handleOpenSuggestModal}
+        onSignalCardClick={handleSignalCardClick}
       />
       {inviteStudent && (
         <InviteCodeModal
