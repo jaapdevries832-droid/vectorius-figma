@@ -21,6 +21,8 @@ import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile } from "@/lib/profile";
 import { AssignmentModal, type AssignmentInput } from "./AssignmentModal";
 import { AdvisorInviteModal } from "./AdvisorInviteModal";
+import { AdvisorMessageModal } from "./AdvisorMessageModal";
+import { StudentProfileModal } from "./StudentProfileModal";
 import type { ScheduledCourse } from "app/lib/domain";
 import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
 import { toast } from "sonner";
@@ -49,6 +51,8 @@ export function AdvisorDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [studentClasses, setStudentClasses] = useState<ScheduledCourse[]>([]);
 
   useEffect(() => {
@@ -470,11 +474,11 @@ export function AdvisorDashboard() {
                 </div>
                 
                 <div className="pt-4 space-y-2">
-                  <Button size="sm" className="w-full">
+                  <Button size="sm" className="w-full" onClick={() => setIsMessageModalOpen(true)}>
                     <MessageSquare className="w-4 h-4 mr-2" />
                     Send Message
                   </Button>
-                  <Button size="sm" variant="outline" className="w-full">
+                  <Button size="sm" variant="outline" className="w-full" onClick={() => setIsProfileModalOpen(true)}>
                     View Full Profile
                   </Button>
                 </div>
@@ -528,15 +532,39 @@ export function AdvisorDashboard() {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full justify-start" variant="outline">
+              <Button
+                className="w-full justify-start"
+                variant="outline"
+                onClick={() => {
+                  if (selectedStudentId) {
+                    setIsModalOpen(true);
+                  } else {
+                    toast.error("Please select a student first");
+                  }
+                }}
+              >
                 <FileText className="w-4 h-4 mr-2" />
                 Create Assignment
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              <Button
+                className="w-full justify-start"
+                variant="outline"
+                onClick={() => {
+                  if (selectedStudentId) {
+                    setIsMessageModalOpen(true);
+                  } else {
+                    toast.error("Please select a student first");
+                  }
+                }}
+              >
                 <MessageSquare className="w-4 h-4 mr-2" />
-                Send Announcement
+                Send Message
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              <Button
+                className="w-full justify-start"
+                variant="outline"
+                onClick={() => toast.info("Schedule meeting coming soon!")}
+              >
                 <Calendar className="w-4 h-4 mr-2" />
                 Schedule Meeting
               </Button>
@@ -544,6 +572,31 @@ export function AdvisorDashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Message Modal */}
+      {selectedStudentData && (
+        <AdvisorMessageModal
+          open={isMessageModalOpen}
+          onClose={() => setIsMessageModalOpen(false)}
+          studentId={selectedStudentData.id}
+          studentName={selectedStudentData.name}
+        />
+      )}
+
+      {/* Profile Modal */}
+      {selectedStudentData && (
+        <StudentProfileModal
+          open={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          studentId={selectedStudentData.id}
+          studentName={selectedStudentData.name}
+          studentGrade={selectedStudentData.grade}
+          studentSubject={selectedStudentData.subject}
+          performance={selectedStudentData.performance}
+          gradeMetric={selectedStudentData.gradeMetric}
+          avatar={selectedStudentData.avatar}
+        />
+      )}
     </div>
   );
 }
