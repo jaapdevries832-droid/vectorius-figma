@@ -38,7 +38,7 @@ npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts `
   --user-id "860b887a-521d-42b9-a8c9-308144fc0e64" `
   --persona "maya-7th-grader" `
   --role "student" `
-  --base-url "https://YOUR-VERCEL-PREVIEW-URL.vercel.app"
+  --base-url "https://vectorius-figma-git-lesson-53-jaap-de-vries-projects.vercel.app"
 ```
 
 ---
@@ -58,7 +58,7 @@ npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts `
   --user-id "09345bb5-e880-441f-88b1-d39ca655d6c3" `
   --persona "sarah-parent" `
   --role "parent" `
-  --base-url "https://YOUR-VERCEL-PREVIEW-URL.vercel.app"
+  --base-url "https://vectorius-figma-git-lesson-53-jaap-de-vries-projects.vercel.app"
 ```
 
 ---
@@ -78,7 +78,7 @@ npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts `
   --user-id "8bab11ff-be97-4a6e-b38b-e8224932bb96" `
   --persona "michael-advisor" `
   --role "advisor" `
-  --base-url "https://YOUR-VERCEL-PREVIEW-URL.vercel.app"
+  --base-url "https://vectorius-figma-git-lesson-53-jaap-de-vries-projects.vercel.app"
 ```
 
 ---
@@ -155,7 +155,7 @@ npx dotenv -e .env.local -- npx tsx scripts/generate-persona-token.ts `
   --persona "maya-7th-grader" `
   --role "student" `
   --ttl 48 `
-  --base-url "https://vectorius-figma-git-lesson-51-jaap-de-vries-projects.vercel.app"
+  --base-url "https://vectorius-figma-git-lesson-53-jaap-de-vries-projects.vercel.app"
 ```
 
 ---
