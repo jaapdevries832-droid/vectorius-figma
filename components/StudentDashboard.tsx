@@ -195,7 +195,25 @@ export function StudentDashboard() {
       setStudentInitials(initials || "ST");
       setStudentId(student.id);
 
-      const { data: assignmentRows, error: assignmentError } = await supabase
+      // Helper to check if assignment is an active (non-pending) assignment
+      // Matches AssignmentsPage logic: not a pending suggestion and not declined
+      const isActiveAssignment = (row: { is_suggested?: boolean | null; suggestion_status?: string | null }) => {
+        const isPending = row.is_suggested && (!row.suggestion_status || row.suggestion_status === 'pending');
+        return !isPending && row.suggestion_status !== 'declined';
+      };
+
+      // Fetch ALL assignments to compute accurate metrics
+      const { data: allAssignmentRows, error: allAssignmentError } = await supabase
+        .from("assignments")
+        .select("id, due_at, status, completed_at, score, max_score, is_suggested, suggestion_status")
+        .eq("student_id", student.id);
+
+      if (allAssignmentError) {
+        console.error("Failed to load all assignments for metrics", allAssignmentError);
+      }
+
+      // Fetch recent assignments for display (limited to 6)
+      const { data: displayRows, error: displayError } = await supabase
         .from("assignments")
         .select("id, title, due_at, status, completed_at, priority, score, max_score, source, created_by_role, is_suggested, suggestion_status, course:courses (title)")
         .eq("student_id", student.id)
@@ -203,21 +221,23 @@ export function StudentDashboard() {
         .order("due_at", { ascending: true })
         .limit(6);
 
-      if (assignmentError) {
-        console.error("Failed to load assignments for dashboard", assignmentError);
+      if (displayError) {
+        console.error("Failed to load assignments for dashboard display", displayError);
       }
 
       if (!isMounted) return;
 
-      const rows = assignmentRows ?? [];
-      const total = rows.length;
-      const completed = rows.filter((row) => row.completed_at || row.status === "done" || row.status === "completed").length;
+      // Filter to active assignments only (matching AssignmentsPage logic)
+      const activeRows = (allAssignmentRows ?? []).filter(isActiveAssignment);
+
+      const total = activeRows.length;
+      const completed = activeRows.filter((row) => row.completed_at || row.status === "done" || row.status === "completed").length;
       const endOfToday = endOfDay(new Date());
       let due = 0;
       let sumScore = 0;
       let sumMax = 0;
-      rows.forEach((row) => {
-        if (!row.completed_at && row.due_at) {
+      activeRows.forEach((row) => {
+        if (!row.completed_at && row.status !== "done" && row.status !== "completed" && row.due_at) {
           const dueAt = new Date(row.due_at);
           if (dueAt < endOfToday) due += 1;
         }
@@ -229,6 +249,7 @@ export function StudentDashboard() {
       const avgGradePercent = sumMax > 0 ? Math.round((sumScore / sumMax) * 100) : null;
       const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
+      const rows = displayRows ?? [];
       const mappedAssignments = rows.map((row) => {
         const course = Array.isArray(row.course) ? row.course[0] : row.course;
         return {

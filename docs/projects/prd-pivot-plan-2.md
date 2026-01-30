@@ -1,457 +1,529 @@
-# Vectorius PRD Pivot: Sprint 1 - Pilot Onboarding + Role Plumbing
+# Vectorius PRD Pivot Plan 2: UI Fixes from Bot Testing
 
-**Created**: 2026-01-27
+**Created**: 2026-01-29
 **Branch**: lesson-53
-**Target**: Invite a family + advisor and have everyone land in the right place with the right permissions
+**Target**: Fix all UI issues found by bot testing across Parent, Student, and Advisor dashboards
 
 ---
 
-## Key Decisions (User Confirmed)
+## Key Findings Summary
 
-| Decision | Choice |
-|----------|--------|
-| Parent signup | Self-register (no invite codes needed) |
-| Student signup | Invite-only (already implemented in Plan 1) |
-| Advisor signup | Invite codes from existing advisors |
-| Consent capture location | First dashboard visit (profile completion gate) |
-| Timezone location | `profiles.timezone` field |
+A UI testing bot explored the application as three personas:
+- **Sarah** (Parent of Maya, 7th grader)
+- **Maya** (Student)
+- **Michael** (Math Advisor)
 
----
-
-## A) Repo Recon Summary
-
-### Current State (Post Plan 1)
-
-#### Already Implemented
-| Feature | Status | Location |
-|---------|--------|----------|
-| Student invite codes | Done | `student_invites` table, `/join` page, `InviteCodeModal.tsx` |
-| Role system | Done | `app_role` enum (parent, student, advisor, admin) |
-| Role-based routing | Done | `/[role]` with verification in layout |
-| Profiles table | Done | id, role, first_name, last_name, avatar_url |
-| Students table | Done | parent_id, student_user_id, advisor_id, grade, school_name |
-| Advisor dashboard | Done | `AdvisorDashboard.tsx`, `advisor_student_summary` view |
-| Task provenance | Done | `task_source` enum, `created_by_role` on assignments |
-| Parent signals | Done | `parent_student_signals` view |
-| Calendar events | Done | `calendar_events` table |
-
-#### Database Schema (Key Tables from Plan 1)
-| Table | Purpose | Key Columns |
-|-------|---------|-------------|
-| `profiles` | User identity + role | `id`, `role`, `first_name`, `last_name`, `email` |
-| `students` | Student records | `id`, `parent_id`, `student_user_id`, `advisor_id`, `grade` |
-| `student_invites` | Student invite codes | `parent_id`, `student_id`, `invite_code`, `expires_at` |
-| `advisor_profiles` | Advisor details | `user_id`, `bio`, `specialties[]` |
+The bot identified 16 issues across three severity levels.
 
 ---
 
-### Gaps vs Sprint 1 Requirements
+## A) Issues Identified
 
-| Sprint 1 Requirement | Current State | Gap |
-|---------------------|---------------|-----|
-| **Profile completion gate** | Users can access dashboard immediately | Need `onboarding_completed_at` + gate UI |
-| **Consent/house rules** | No consent tracking | Need `user_consents` table + house rules modal |
-| **Advisor invite codes** | Only student invites exist | Need `advisor_invites` table + `/join/advisor` |
-| **Timezone field** | Not in profiles table | Need `profiles.timezone` column |
-| **Minimal profile fields** | grade/school on students only | Need timezone on all profiles |
+### MAJOR Issues (Must Fix)
+
+| # | Issue | Role | Location |
+|---|-------|------|----------|
+| 1 | No dedicated Reports/Children Overview page | Parent | Missing page |
+| 2 | Add Assignment button non-functional | Student | AssignmentsPage |
+| 3 | Inconsistent assignment counts (dashboard shows 3, page shows 0) | Student/Advisor | Dashboard vs AssignmentsPage |
+| 4 | Empty Students page ("Advisor-only area" placeholder) | Advisor | Students page |
+| 5 | Non-functional buttons (View Full Profile, Send Message, Create Assignment) | Advisor | AdvisorDashboard |
+
+### MEDIUM Issues
+
+| # | Issue | Role | Location |
+|---|-------|------|----------|
+| 6 | Summary cards look clickable but aren't | Parent | ParentDashboard |
+| 7 | "Linked/Invite" labels don't behave like buttons | Parent | ParentDashboard |
+| 8 | Assignments page shows "available for student accounts only" | Advisor | AssignmentsPage |
+| 9 | Due date field doesn't open calendar | Advisor | AssignmentModal |
+| 10 | Schedule shows 24 hours/week but calendar is empty | Advisor | WeeklyPlanner |
+| 11 | Notes cannot be edited or deleted | Student | StudentDashboard/NotesPage |
+
+### MINOR Issues
+
+| # | Issue | Role | Location |
+|---|-------|------|----------|
+| 12 | Viewing dropdown has narrow clickable area | Parent | ParentDashboard |
+| 13 | Top-bar icons (star/sparkle) have no tooltip or function | All | TopNavigation |
+| 14 | Add Student form lacks validation messages | Parent | ParentDashboard |
+| 15 | Locked badges have no tooltips showing how to earn them | Student | AchievementsPage |
+| 16 | Class creation lacks validation for day/time format | Student | StudentDashboard |
 
 ---
 
-## B) 5-Slice Implementation Plan
+## B) 10-Slice Implementation Plan
 
 ---
 
-### Slice S1-A: Profile Completion Infrastructure
+### Slice S2-A: Fix Assignment Data Consistency
 
-**Goal**: Add database fields for profile completion tracking and consent.
+**Goal**: Ensure dashboard assignment counts match the Assignments page data.
+
+**Issue Addressed**: #3 - Inconsistent assignment counts
+
+#### Root Cause
+- `StudentDashboard.tsx` fetches with `.limit(6)` and filters suggested tasks differently
+- `AssignmentsPage.tsx` uses different filtering logic
+- Counts diverge due to inconsistent query filters
 
 #### DB + RLS Changes
-
-**New Migration**: `YYYYMMDDHHMMSS_profile_completion_consent.sql`
-
-```sql
--- Profile completion fields
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS timezone text,
-  ADD COLUMN IF NOT EXISTS profile_completed_at timestamptz,
-  ADD COLUMN IF NOT EXISTS onboarding_completed_at timestamptz;
-
--- Consent tracking table
-CREATE TABLE IF NOT EXISTS public.user_consents (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  consent_type text NOT NULL, -- 'ai_coach_rules', 'terms_of_service', 'privacy_policy'
-  consent_version text NOT NULL DEFAULT '1.0',
-  consented_at timestamptz NOT NULL DEFAULT now(),
-  ip_address text,
-  user_agent text,
-  UNIQUE (user_id, consent_type)
-);
-
-ALTER TABLE public.user_consents ENABLE ROW LEVEL SECURITY;
-
--- Users can read/write their own consents
-CREATE POLICY "user_consents_own" ON public.user_consents
-  FOR ALL USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
-
--- Subjects on students (optional quick reference)
-ALTER TABLE public.students
-  ADD COLUMN IF NOT EXISTS preferred_subjects text[];
-```
-
-#### Backend Changes
-- None (infrastructure only)
+- None required
 
 #### Frontend Changes
-- None (infrastructure only)
+- **Modify**: `components/StudentDashboard.tsx`
+  - Use separate count query without `.limit()`
+  - Align filter: `.or("is_suggested.eq.false,suggestion_status.eq.accepted,suggestion_status.is.null")`
+
+- **Modify**: `components/AssignmentsPage.tsx`
+  - Ensure filter logic matches dashboard for active assignments
 
 #### Acceptance Criteria
-- [ ] Migration applies cleanly
-- [ ] `user_consents` table has RLS enabled
-- [ ] `profiles` has new columns: timezone, profile_completed_at, onboarding_completed_at
-- [ ] `students` has preferred_subjects array column
-- [ ] `supabase db push/pull/list` succeed
+- [ ] Dashboard "X due" count matches Assignments page totals
+- [ ] Adding an assignment updates both counts
+- [ ] Completing an assignment updates both counts
+- [ ] Pending suggestions excluded from active counts
 
 #### Manual Test Script
-1. Run `supabase migration new profile_completion_consent`
-2. Add SQL to migration file
-3. Run `supabase db push`
-4. Verify tables/columns exist in Supabase Studio
-5. Test RLS by inserting/selecting consents as authenticated user
-6. Run `supabase db pull` and `supabase migration list`
-
-#### Notes/Risks
-- This is infrastructure only; no user-facing changes
-- v2: Add consent versioning for GDPR compliance
+1. Login as Maya (student)
+2. Dashboard - note "Due" count
+3. Assignments page - count Overdue + Today items
+4. Verify counts match
+5. Create new assignment with due date = today
+6. Return to Dashboard - verify count incremented
 
 ---
 
-### Slice S1-B: Profile Completion Gate UI
+### Slice S2-B: Make Parent Summary Cards Interactive
 
-**Goal**: Gate dashboard access until profile is completed and consent given.
+**Goal**: Parent dashboard signal cards link to detailed views.
+
+**Issues Addressed**: #6, #7 - Non-interactive cards, non-actionable labels
 
 #### DB + RLS Changes
-- None (uses S1-A infrastructure)
-
-#### Backend Changes
-- Server action: `completeOnboarding({ firstName, lastName, timezone, consentTypes[] })`
-- Updates `profiles.onboarding_completed_at` and inserts `user_consents` records
+- None required
 
 #### Frontend Changes
-- **New component**: `components/ProfileCompletionGate.tsx`
-  - Wrapper component that checks `profile.onboarding_completed_at`
-  - If null, shows ProfileCompletionModal
-  - Once complete, renders children (dashboard)
+- **Modify**: `components/ParentDashboard.tsx`
+  - Lines 197-268: Add onClick handlers to signal cards
+    - "Overdue Items" → assignments view with `?filter=overdue`
+    - "Upcoming Test/Project" → highlight specific assignment
+    - "Study Plan" → schedule view
+    - "Your Suggestions" → pending suggestions view
+  - Lines 462-478: Make "Linked/Invite" labels proper buttons
+  - Add hover states and cursor-pointer
 
-- **New component**: `components/ProfileCompletionModal.tsx`
-  - Multi-step modal (cannot be dismissed without completing):
-    - Step 1: Basic info (first_name, last_name, timezone)
-    - Step 2: House rules consent checkbox + submit
-  - Role-specific required fields:
-    - **Student**: first_name, timezone, AI coach consent
-    - **Parent**: first_name, timezone, AI coach consent + terms
-    - **Advisor**: first_name, last_name, timezone, consent
-
-- **New component**: `components/TimezoneSelect.tsx`
-  - Dropdown with common timezones
-  - Auto-detect from browser as default (`Intl.DateTimeFormat().resolvedOptions().timeZone`)
-
-- **Modify**: `app/(dash)/[role]/page.tsx`
-  - Wrap dashboard components with `ProfileCompletionGate`
+- **Modify**: `components/ParentDashboardWrapper.tsx`
+  - Add navigation handlers for card clicks
 
 #### Acceptance Criteria
-- [ ] New users see modal on first dashboard visit
-- [ ] Modal cannot be dismissed without completing all required fields
-- [ ] Timezone auto-detected from browser
-- [ ] `onboarding_completed_at` set after completion
-- [ ] Consent record saved to `user_consents` table
-- [ ] Subsequent visits go directly to dashboard
+- [ ] Clicking "Overdue Items" navigates to filtered assignments
+- [ ] Clicking "Upcoming Test/Project" highlights the item
+- [ ] Clicking "Study Plan" navigates to schedule
+- [ ] Clicking "Your Suggestions" shows pending suggestions
+- [ ] Cards have visible hover state
+- [ ] "Invite" label opens invite modal on click
 
 #### Manual Test Script
-1. Create new user via signup (any role)
-2. Navigate to dashboard
-3. Verify modal appears with Step 1 (name + timezone)
-4. Complete Step 1, proceed to Step 2
-5. Read house rules, check consent box
-6. Submit and verify dashboard loads
-7. Refresh page - modal should NOT appear again
-8. Check database: `onboarding_completed_at` is set, consent record exists
-
-#### Notes/Risks
-- Must not block existing users who already completed informal onboarding
-- Consider: Should existing users be prompted to complete consent retroactively?
+1. Login as Sarah (parent)
+2. Select Maya as viewing student
+3. Click each signal card - verify navigation
+4. Find student with "Invite" label - click it
+5. Verify invite modal opens
 
 ---
 
-### Slice S1-C: Advisor Invite System
+### Slice S2-C: Add Parent Reports/Children Overview Page
 
-**Goal**: Allow existing advisors to invite new advisors via codes.
+**Goal**: Create dedicated reports page for grade breakdowns and test scores.
+
+**Issue Addressed**: #1 (MAJOR) - No Reports/Children Overview page
 
 #### DB + RLS Changes
 
-**New Migration**: `YYYYMMDDHHMMSS_advisor_invites.sql`
+**New Migration**: `YYYYMMDDHHMMSS_parent_children_report_view.sql`
 
 ```sql
--- Create advisor invites table
-CREATE TABLE IF NOT EXISTS public.advisor_invites (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  invited_by uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  invite_code text NOT NULL UNIQUE,
-  email text, -- optional: pre-specify email
-  expires_at timestamptz NOT NULL DEFAULT (now() + interval '7 days'),
-  accepted_at timestamptz,
-  accepted_by uuid REFERENCES public.profiles(id),
-  created_at timestamptz NOT NULL DEFAULT now()
-);
+CREATE OR REPLACE VIEW public.parent_children_report
+WITH (security_invoker = true)
+AS
+SELECT
+  s.id as student_id,
+  s.parent_id,
+  concat(s.first_name, ' ', coalesce(s.last_name, '')) as student_name,
+  s.grade,
 
-CREATE INDEX IF NOT EXISTS idx_advisor_invites_code ON public.advisor_invites(invite_code);
+  -- Assignment statistics
+  count(a.id) filter (where a.status not in ('completed', 'done', 'archived')) as active_assignments,
+  count(a.id) filter (where a.status in ('completed', 'done')) as completed_assignments,
+  count(a.id) filter (where a.status not in ('completed', 'done', 'archived') and a.due_at < now()) as overdue_assignments,
 
-ALTER TABLE public.advisor_invites ENABLE ROW LEVEL SECURITY;
+  -- Grade statistics (percentage)
+  round(avg(case when a.max_score > 0 then (a.score::numeric / a.max_score) * 100 end)::numeric, 1) as avg_grade_percent,
 
--- Only advisors/admins can create invites
-CREATE POLICY "advisor_invites_create" ON public.advisor_invites
-  FOR INSERT WITH CHECK (
-    auth.uid() IN (
-      SELECT id FROM public.profiles
-      WHERE role IN ('advisor', 'admin')
-    )
-  );
+  -- Recent activity
+  max(a.completed_at) as last_completion,
+  max(a.created_at) as last_assignment_added
 
--- Advisors can view invites they created
-CREATE POLICY "advisor_invites_view_own" ON public.advisor_invites
-  FOR SELECT USING (invited_by = auth.uid());
-
--- Anyone authenticated can read by code (to validate during acceptance)
-CREATE POLICY "advisor_invites_read_by_code" ON public.advisor_invites
-  FOR SELECT USING (auth.uid() IS NOT NULL);
-
--- Function to accept advisor invite
-CREATE OR REPLACE FUNCTION public.accept_advisor_invite(invite_code_input text)
-RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  invite_record record;
-BEGIN
-  SELECT * INTO invite_record
-  FROM public.advisor_invites
-  WHERE upper(invite_code) = upper(invite_code_input)
-  FOR UPDATE;
-
-  IF invite_record IS NULL THEN
-    RAISE EXCEPTION 'Invite not found';
-  END IF;
-
-  IF invite_record.accepted_at IS NOT NULL THEN
-    RAISE EXCEPTION 'Invite already used';
-  END IF;
-
-  IF invite_record.expires_at < now() THEN
-    RAISE EXCEPTION 'Invite expired';
-  END IF;
-
-  -- Update invite as accepted
-  UPDATE public.advisor_invites
-  SET accepted_at = now(), accepted_by = auth.uid()
-  WHERE id = invite_record.id;
-
-  -- Update user's role to advisor
-  UPDATE public.profiles
-  SET role = 'advisor'
-  WHERE id = auth.uid();
-
-  -- Create advisor_profile if not exists
-  INSERT INTO public.advisor_profiles (user_id)
-  VALUES (auth.uid())
-  ON CONFLICT (user_id) DO NOTHING;
-
-  RETURN invite_record.id;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.accept_advisor_invite(text) TO authenticated;
+FROM students s
+LEFT JOIN assignments a ON a.student_id = s.id
+GROUP BY s.id, s.parent_id, s.first_name, s.last_name, s.grade;
 ```
 
-#### Backend Changes
-- Server action: `generateAdvisorInviteCode()` → returns 8-char alphanumeric code
-- Uses same code generation pattern as student invites
+#### Frontend Changes
+- **New page**: `app/(dash)/parent/reports/page.tsx`
+- **New component**: `components/ParentReportsPage.tsx`
+  - Student selector
+  - Grade breakdown by assignment type
+  - Assignment completion rate
+  - Upcoming tests/projects list
+  - Recent scores table
+
+- **Modify**: `components/Sidebar.tsx` - Add "Reports" for parent role
+- **Modify**: `app/(dash)/[role]/layout.tsx` - Add 'reports' case
+
+#### Acceptance Criteria
+- [ ] Parents see "Reports" in sidebar
+- [ ] Reports page shows student selector
+- [ ] Grade breakdown displays by type
+- [ ] Completion rate shown as percentage
+- [ ] Upcoming items listed with due dates
+- [ ] Recent scores shown in table
+
+#### Manual Test Script
+1. Login as Sarah (parent)
+2. Click "Reports" in sidebar
+3. Verify student selector shows Maya
+4. Verify grade data displays
+5. Check completion rate
+6. Verify upcoming items list
+
+---
+
+### Slice S2-D: Fix Advisor Students Page
+
+**Goal**: Replace placeholder text with actual student roster.
+
+**Issue Addressed**: #4 (MAJOR) - Empty Students page
+
+#### DB + RLS Changes
+- None required (`advisor_student_summary` view exists)
 
 #### Frontend Changes
-- **New page**: `app/join/advisor/page.tsx`
-  - Similar to `/join` but for advisors
-  - Accepts 8-char code
-  - Shows "Create Account" or "Sign In" options
-  - Calls `accept_advisor_invite` RPC on success
-  - Redirects to `/advisor` dashboard
+- **New component**: `components/AdvisorStudentsPage.tsx`
+  - Fetch from `advisor_student_summary` view
+  - Display: Name, grade, performance %, status badge, assignments count
+  - Search/filter functionality
+  - Click row to view details
 
-- **New component**: `components/AdvisorInviteModal.tsx`
-  - Used by advisors to generate invite codes
-  - Shows code + copy button + optional mailto: link
-  - Similar structure to `InviteCodeModal.tsx`
+- **Modify**: `app/(dash)/[role]/layout.tsx`
+  - Lines 119-124: Replace placeholder with `<AdvisorStudentsPage />`
 
 - **Modify**: `components/AdvisorDashboard.tsx`
-  - Add "Invite Advisor" button in header area
-
-- **Modify**: `app/login/page.tsx`
-  - Add "I have an advisor invite code" link → `/join/advisor`
+  - Add "View All Students" link
 
 #### Acceptance Criteria
-- [ ] Advisors can generate 8-char invite codes
-- [ ] Codes are case-insensitive
-- [ ] `/join/advisor` accepts codes and creates advisor account
-- [ ] Role updated to 'advisor' and advisor_profile created
-- [ ] Used codes cannot be reused
-- [ ] Codes expire after 7 days
-- [ ] Expired codes show appropriate error message
+- [ ] Advisor sees full student roster on Students page
+- [ ] Students sorted by last activity
+- [ ] Search filters by name
+- [ ] Performance badges display correctly
+- [ ] Empty state shows "No students assigned"
 
 #### Manual Test Script
-1. Login as existing advisor
-2. Click "Invite Advisor" button
-3. Copy the generated code
-4. Log out
-5. Go to `/join/advisor`
-6. Enter code + create new account with email/password
-7. Verify role is 'advisor' in database
-8. Verify redirected to `/advisor` dashboard
-9. Verify roster is visible (empty initially)
-10. Test expired code (modify expires_at in DB, try to use)
-11. Test already-used code
-
-#### Notes/Risks
-- First advisor must be created manually (seed data or admin panel)
-- v2: Admin panel for managing advisor invites
+1. Login as Michael (advisor)
+2. Click "Students" in sidebar
+3. Verify roster loads with Maya
+4. Use search to filter
+5. Verify performance badges
 
 ---
 
-### Slice S1-D: House Rules Content
+### Slice S2-E: Fix Advisor Dashboard Buttons
 
-**Goal**: Create the AI coach rules content displayed during onboarding consent.
+**Goal**: Make View Full Profile, Send Message, and Create Assignment buttons functional.
+
+**Issue Addressed**: #5 (MAJOR) - Non-functional buttons
 
 #### DB + RLS Changes
-- None (uses S1-A `user_consents` table)
-
-#### Backend Changes
-- None
+- None required
 
 #### Frontend Changes
-- **New component**: `components/HouseRulesContent.tsx`
-  - Markdown/JSX content explaining:
-    - **AI is a coach, not a ghostwriter** - AI helps you learn, it doesn't do your work
-    - **Students own their work** - All assignments and notes belong to the student
-    - **Parents see signals, not surveillance** - Parents get alerts about overdue items and big tests, not full assignment details
-    - **Advisors guide, they don't do the work** - Advisors provide direction and feedback
+- **Modify**: `components/AdvisorDashboard.tsx`
+  - Lines 473-478: Wire "Send Message" to message modal
+  - Lines 476-478: Wire "View Full Profile" to profile modal
 
-- **Modify**: `components/ProfileCompletionModal.tsx` (from S1-B)
-  - Include HouseRulesContent in Step 2
-  - Checkbox: "I understand and agree to these guidelines"
-  - Store consent type: `ai_coach_rules`
+- **New component**: `components/AdvisorMessageModal.tsx`
+  - Message text input, priority selector
+  - Inserts into `advisor_notes` table
+  - Success toast on send
+
+- **New component**: `components/StudentProfileModal.tsx`
+  - Student details: name, grade, school
+  - Advisor notes history
+  - Assignment summary
 
 #### Acceptance Criteria
-- [ ] House rules displayed clearly in consent step
-- [ ] Rules are readable and scannable (use headers, bullet points)
-- [ ] Checkbox required to proceed
-- [ ] Consent record saved with type `ai_coach_rules`
-- [ ] Different consent types for different roles if needed
+- [ ] "View Full Profile" opens profile modal
+- [ ] "Send Message" opens message modal
+- [ ] Message creates advisor_notes record
+- [ ] Message appears in student's advisor feedback
+- [ ] "Create Assignment" opens modal (verify existing)
 
 #### Manual Test Script
-1. Start profile completion flow (new user)
-2. Complete Step 1 (name + timezone)
-3. Reach Step 2 - verify house rules are displayed
-4. Try to submit without checking consent box - should fail
-5. Check consent box and submit
-6. Verify `user_consents` record with `consent_type = 'ai_coach_rules'`
-
-#### Notes/Risks
-- Content should be reviewed by product/legal for accuracy
-- v2: Versioned consent for GDPR compliance (track which version user agreed to)
+1. Login as Michael (advisor)
+2. Select student from roster
+3. Click "View Full Profile" - modal opens
+4. Close, click "Send Message"
+5. Send message with priority
+6. Login as Maya - verify message appears
 
 ---
 
-### Slice S1-E: End-to-End Verification & Polish
+### Slice S2-F: Fix Advisor Assignments Page Access
 
-**Goal**: Verify all user stories work end-to-end; final polish.
+**Goal**: Allow advisors to view and manage assignments for their students.
+
+**Issue Addressed**: #8 - Assignments page blocked for advisors
 
 #### DB + RLS Changes
-- None
 
-#### Backend Changes
-- None
+**New Migration**: `YYYYMMDDHHMMSS_advisor_assignments_access.sql`
+
+```sql
+-- Allow advisors to read assignments for their assigned students
+CREATE POLICY "advisors_read_student_assignments" ON public.assignments
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM students
+      WHERE students.id = assignments.student_id
+      AND students.advisor_id = auth.uid()
+    )
+  );
+```
 
 #### Frontend Changes
-- Fix any bugs found during E2E testing
-- Add loading states where missing
+- **Modify**: `components/AssignmentsPage.tsx`
+  - Lines 139-145: Remove role check blocking non-students
+  - Add advisor view:
+    - Load assignments for ALL assigned students
+    - Show student name column
+    - Add student filter dropdown
+  - Advisor can create but not complete assignments
+
+#### Acceptance Criteria
+- [ ] Advisors can access Assignments page
+- [ ] Shows assignments for all assigned students
+- [ ] Student filter allows focusing on one
+- [ ] Advisor can create assignment
+- [ ] Advisor cannot mark complete (student-only)
+
+#### Manual Test Script
+1. Login as Michael (advisor)
+2. Click "Assignments" in sidebar
+3. Verify page loads (not blocked)
+4. Verify shows Maya's assignments
+5. Use student filter
+6. Create new assignment
+
+---
+
+### Slice S2-G: Student Notes Edit/Delete Functionality
+
+**Goal**: Allow students to edit and delete their quick notes.
+
+**Issue Addressed**: #11 - Notes cannot be edited/deleted
+
+#### DB + RLS Changes
+- None required
+
+#### Frontend Changes
+- **Modify**: `components/StudentDashboard.tsx`
+  - Lines 929-939: Add edit functionality
+  - Add visible delete button with confirmation
+
+- **Modify**: `components/NotesPage.tsx`
+  - Lines 357-374: Add edit button alongside delete
+  - Inline edit mode or edit modal
+
+- **New component**: `components/NoteEditModal.tsx`
+  - Edit note body and color
+  - Save/cancel buttons
+
+#### Acceptance Criteria
+- [ ] Student can edit existing notes
+- [ ] Edit saves to database
+- [ ] Student can delete notes with confirmation
+- [ ] Both dashboard and Notes page support edit/delete
+
+#### Manual Test Script
+1. Login as Maya (student)
+2. Dashboard > Quick Notes
+3. Edit a note - verify change persists
+4. Delete a note with confirmation
+5. Notes page - verify same functionality
+
+---
+
+### Slice S2-H: Form Validation Improvements
+
+**Goal**: Add proper validation with helpful error messages.
+
+**Issues Addressed**: #14, #16 - Form validation lacking
+
+#### DB + RLS Changes
+- None required
+
+#### Frontend Changes
+- **Modify**: `components/ParentDashboard.tsx`
+  - Lines 307-371: Add Student form validation
+    - First name: required, min 2 chars
+    - Grade: required selection
+    - Inline error messages
+
+- **Modify**: `components/StudentDashboard.tsx`
+  - Lines 673-713: Class creation validation
+    - Title: required, min 3 chars
+    - Format helper text for schedule
+
+- **Modify**: `components/AssignmentModal.tsx`
+  - Title: required, min 3 chars
+  - Due date: required, not in past
+
+- **New utility**: `lib/validation.ts`
+  - `validateName()`, `validateRequired()`, `validateFutureDate()`
+
+#### Acceptance Criteria
+- [ ] Add Student shows error for empty name
+- [ ] Grade selection required
+- [ ] Class creation shows format guidance
+- [ ] Assignment modal validates title/date
+- [ ] Errors clear when corrected
+
+#### Manual Test Script
+1. Login as Sarah (parent)
+2. Try add student with empty name - error
+3. Enter valid data - submits
+4. Login as Maya (student)
+5. Try create class with short title - error
+
+---
+
+### Slice S2-I: UI Polish (Tooltips, Date Pickers, Clickable Areas)
+
+**Goal**: Fix minor UI interaction issues.
+
+**Issues Addressed**: #9, #12, #13, #15
+
+#### DB + RLS Changes
+- None required
+
+#### Frontend Changes
+- **Modify**: `components/AssignmentModal.tsx`
+  - Lines 154-163: Verify date picker works, add click handler if needed
+
+- **Modify**: `components/ParentDashboard.tsx`
+  - Lines 159-182: Increase dropdown trigger width/padding
+
+- **Modify**: `components/TopNavigation.tsx`
+  - Add tooltips to bell and settings icons
+  - Wire icons to actions
+
+- **Modify**: `components/AchievementsPage.tsx`
+  - Add tooltips to locked badges showing unlock criteria
+
+#### Acceptance Criteria
+- [ ] Date picker opens on click
+- [ ] Student dropdown has wide clickable area
+- [ ] Icons have tooltips
+- [ ] Locked badges show unlock criteria on hover
+
+#### Manual Test Script
+1. Login as Michael (advisor)
+2. Open assignment modal - verify date picker
+3. Login as Sarah (parent)
+4. Click student selector - verify easy to click
+5. Hover icons - tooltips show
+6. Login as Maya (student)
+7. Achievements - hover locked badge - criteria shows
+
+---
+
+### Slice S2-J: E2E Verification and Polish
+
+**Goal**: Verify all fixes work together; fix remaining issues.
+
+#### DB + RLS Changes
+- None (unless issues found)
+
+#### Frontend Changes
+- Fix bugs discovered during E2E testing
+- Add missing loading states
 - Improve error messages
 
 #### Acceptance Criteria
-- [ ] **Student story**: Get invite code from parent → `/join` → complete profile → see dashboard with "this is my school hub" messaging
-- [ ] **Parent story**: Self-register → complete profile with consent → add student → generate invite code → student joins
-- [ ] **Advisor story**: Get invite code from existing advisor → `/join/advisor` → complete profile → see empty roster → get assigned students
+- [ ] **Parent Flow**: Login → correct counts → click cards → view reports → suggest task
+- [ ] **Student Flow**: Login → correct counts → edit/delete notes → accept suggestions → complete assignments
+- [ ] **Advisor Flow**: Login → see roster → view profile → send message → create assignment → view assignments
 - [ ] `npm run lint` passes
 - [ ] `npm run build` succeeds
-- [ ] No console errors in browser
-- [ ] All profile completion required before dashboard access
+- [ ] No console errors
+- [ ] All 16 issues verified fixed
 
 #### Manual Test Script
-1. **Parent Flow**:
-   - Go to `/login` → Create account as parent
-   - Verify profile completion modal appears
-   - Complete profile with consent
-   - Add a student (Maya, Grade 7)
-   - Generate invite code for Maya
-   - Copy code
 
-2. **Student Flow**:
-   - Log out
-   - Go to `/join`
-   - Enter Maya's invite code
-   - Create student account
-   - Verify profile completion modal appears
-   - Complete profile with consent
-   - Verify dashboard shows "Welcome Maya" and linked to parent's data
+**Full Parent Flow:**
+1. Login as Sarah
+2. Dashboard shows correct overdue count
+3. Click "Overdue Items" - navigates to filtered view
+4. Click "Reports" - view grade breakdown
+5. Suggest task to Maya
 
-3. **Advisor Flow**:
-   - (Requires existing advisor - use seed data or manual DB insert)
-   - Login as existing advisor
-   - Generate advisor invite code
-   - Log out
-   - Go to `/join/advisor`
-   - Create advisor account with code
-   - Verify profile completion modal
-   - Complete profile
-   - Verify advisor dashboard with roster
+**Full Student Flow:**
+1. Login as Maya
+2. Dashboard shows correct due count
+3. Accept parent's suggestion
+4. Edit a note, delete another
+5. Assignments page - counts match dashboard
 
-4. **Verification Checks**:
-   - All users have `onboarding_completed_at` set
-   - All users have consent records
-   - Run `npm run lint` and `npm run build`
+**Full Advisor Flow:**
+1. Login as Michael
+2. Click "Students" - see Maya
+3. View Full Profile
+4. Send Message
+5. Assignments page - see Maya's assignments
+6. Create assignment
 
-#### Notes/Risks
-- May discover edge cases during E2E testing
-- First advisor bootstrap requires manual intervention or seed script
+**Cross-Role:**
+1. Login as Maya - verify advisor message
+2. Login as Sarah - verify advisor note visible
 
 ---
 
 ## C) Dependencies & Sequencing
 
 ```
-S1-A (DB Infrastructure) ──┬──> S1-B (Gate UI) ──> S1-D (House Rules)
-                           │                              │
-                           │                              ▼
-S1-C (Advisor Invites) ────┴─────────────────────> S1-E (E2E Verification)
+S2-A (Counts) ─────────────────────────────────────────────────────┐
+                                                                    │
+S2-B (Cards) ──────────────────────────────────────┐                │
+                                                    │                │
+S2-C (Reports) ────────────────────────────────────┤                │
+                                                    │                │
+S2-D (Students) ──────> S2-E (Buttons) ──────> S2-F (Assignments)   │
+                                                    │                │
+S2-G (Notes) ──────────────────────────────────────┤                │
+                                                    │                │
+S2-H (Validation) ─────────────────────────────────┤                │
+                                                    │                │
+S2-I (Polish) ─────────────────────────────────────┴────────────────┴──> S2-J (E2E)
 ```
 
-**Required order**:
-1. S1-A must complete first (DB foundation)
-2. S1-B depends on S1-A (needs columns/tables)
-3. S1-D depends on S1-B (extends the modal)
-4. S1-C can run in parallel with S1-B
-5. S1-E must be last (verifies everything)
+**Required Order:**
+1. S2-D before S2-E (need roster before buttons)
+2. S2-E before S2-F (need profile/message before full access)
+3. S2-J must be last
 
-**Recommended execution order**:
-S1-A → S1-B → S1-C (parallel with S1-D) → S1-D → S1-E
+**Recommended Execution:**
+S2-A → S2-D → S2-E → S2-F → S2-B → S2-C → S2-G → S2-H → S2-I → S2-J
 
 ---
 
@@ -459,162 +531,95 @@ S1-A → S1-B → S1-C (parallel with S1-D) → S1-D → S1-E
 
 | Slice | New Files | Modified Files |
 |-------|-----------|----------------|
-| S1-A | `supabase/migrations/YYYYMMDDHHMMSS_profile_completion_consent.sql` | - |
-| S1-B | `components/ProfileCompletionGate.tsx`, `components/ProfileCompletionModal.tsx`, `components/TimezoneSelect.tsx` | `app/(dash)/[role]/page.tsx` |
-| S1-C | `app/join/advisor/page.tsx`, `components/AdvisorInviteModal.tsx`, `supabase/migrations/YYYYMMDDHHMMSS_advisor_invites.sql` | `components/AdvisorDashboard.tsx`, `app/login/page.tsx` |
-| S1-D | `components/HouseRulesContent.tsx` | `components/ProfileCompletionModal.tsx` |
-| S1-E | - | Various bug fixes |
+| S2-A | - | `StudentDashboard.tsx`, `AssignmentsPage.tsx` |
+| S2-B | - | `ParentDashboard.tsx`, `ParentDashboardWrapper.tsx` |
+| S2-C | `ParentReportsPage.tsx`, migration | `Sidebar.tsx`, `layout.tsx` |
+| S2-D | `AdvisorStudentsPage.tsx` | `layout.tsx`, `AdvisorDashboard.tsx` |
+| S2-E | `AdvisorMessageModal.tsx`, `StudentProfileModal.tsx` | `AdvisorDashboard.tsx` |
+| S2-F | migration | `AssignmentsPage.tsx`, `layout.tsx` |
+| S2-G | `NoteEditModal.tsx` | `StudentDashboard.tsx`, `NotesPage.tsx` |
+| S2-H | `lib/validation.ts` | `ParentDashboard.tsx`, `StudentDashboard.tsx`, `AssignmentModal.tsx` |
+| S2-I | - | `AssignmentModal.tsx`, `ParentDashboard.tsx`, `TopNavigation.tsx`, `AchievementsPage.tsx` |
+| S2-J | - | Various bug fixes |
 
 ---
 
-## E) Verification Checklist (Per Slice)
-
-Each slice must pass before merge:
-
-- [ ] New migration created (never edit existing)
-- [ ] `supabase db push` succeeds
-- [ ] `supabase db pull` confirms sync
-- [ ] `supabase migration list` shows aligned
-- [ ] `npm run lint` passes
-- [ ] `npm run build` succeeds
-- [ ] Manual test script executed successfully
-- [ ] Commit message follows format: `slice S1-X: <description>`
-- [ ] No secrets committed
-- [ ] Slice marked complete in tracker
-
----
-
-## F) Risk Register
-
-| Risk | Mitigation |
-|------|------------|
-| Existing users blocked by profile gate | Check `onboarding_completed_at` - if null but user existed before migration, auto-complete or prompt once |
-| First advisor bootstrap | Require manual DB insert or seed script for first advisor |
-| Timezone detection fails | Fallback to UTC, allow manual selection |
-| Consent checkbox skipped | Form validation prevents submission without consent |
-| Migration conflicts with Plan 1 | Run `supabase migration list` before starting each slice |
-
----
-
-## G) What We Are NOT Doing
-
-- **Invite-only signup for parents** - Would add friction with no benefit
-- **Admin approval workflow for advisors** - Invite codes are sufficient control
-- **Complex multi-step onboarding wizard** - Keep it to 2 steps max
-- **Email verification** - Rely on Supabase Auth defaults
-- **Parent invite system** - Can be added later if co-parent scenarios needed
-- **Subjects field on profiles** - Already handled via course enrollments
-
----
-
-## H) Slice Status Tracker
+## E) Slice Status Tracker
 
 Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 
-| Slice | Name | Status | PR/Commit | Completed (date) | Notes |
+| Slice | Name | Status | PR/Commit | Completed | Notes |
 |---:|---|---|---|---|---|
-| S1-A | Profile Completion Infrastructure | ✅ | 5d18c75 | 2026-01-28 | Migration 20260128133716: profiles.timezone/onboarding_completed_at, user_consents table, students.preferred_subjects |
-| S1-B | Profile Completion Gate UI | ✅ | 5d18c75 | 2026-01-28 | ProfileCompletionGate, ProfileCompletionModal, TimezoneSelect, HouseRulesContent; role page integration |
-| S1-C | Advisor Invite System | ⬜ | - | - | advisor_invites table, /join/advisor, AdvisorInviteModal |
-| S1-D | House Rules Content | ✅ | 5d18c75 | 2026-01-28 | Included in S1-B commit - HouseRulesContent component with role-specific messaging |
-| S1-E | E2E Verification & Polish | ⬜ | - | - | Full user story testing, lint/build verification |
+| S2-A | Fix Assignment Data Consistency | ⬜ | - | - | Dashboard/page count mismatch |
+| S2-B | Interactive Parent Cards | ⬜ | - | - | Cards drill-down to details |
+| S2-C | Parent Reports Page | ⬜ | - | - | Grade breakdowns, test scores |
+| S2-D | Advisor Students Page | ⬜ | - | - | Real roster, not placeholder |
+| S2-E | Advisor Dashboard Buttons | ⬜ | - | - | View Profile, Send Message |
+| S2-F | Advisor Assignments Access | ⬜ | - | - | Remove role block |
+| S2-G | Notes Edit/Delete | ⬜ | - | - | Student note management |
+| S2-H | Form Validation | ⬜ | - | - | Add Student, Class creation |
+| S2-I | UI Polish | ⬜ | - | - | Tooltips, date pickers, etc. |
+| S2-J | E2E Verification | ⬜ | - | - | Full flow testing |
 
 ---
 
-## I) User Stories Verification
+## F) Verification Checklist (Per Slice)
 
-After all slices complete, verify these user stories:
+Each slice must pass before commit:
 
-### Student Story
-> "As a student, I want to join with a code and see my dashboard immediately so I know 'this is my school hub.'"
-
-- [ ] Student receives invite code from parent
-- [ ] Student goes to `/join` and enters code
-- [ ] Student creates account or links existing account
-- [ ] Profile completion modal appears (name, timezone, consent)
-- [ ] After completion, student sees dashboard with their data
-- [ ] Dashboard feels like "my school hub" (personalized greeting, my assignments, my schedule)
-
-### Parent Story
-> "As a parent, I want to link to my child and give consent so I can confidently let them use the app."
-
-- [ ] Parent self-registers at `/login`
-- [ ] Profile completion modal captures consent to house rules
-- [ ] Parent understands AI is a coach, not ghostwriter
-- [ ] Parent adds student and generates invite code
-- [ ] Parent shares code with student (manually)
-- [ ] Parent sees student linked after student joins
-- [ ] Parent has confidence child is in safe learning environment
-
-### Advisor Story
-> "As an advisor, I want to see my roster so I know who I'm responsible for."
-
-- [ ] Advisor receives invite code from existing advisor
-- [ ] Advisor goes to `/join/advisor` and uses code
-- [ ] Profile completion modal captures advisor info
-- [ ] Advisor sees their roster (students assigned to them)
-- [ ] Roster shows student names, grades, and quick stats
-- [ ] Advisor knows who they're responsible for
+- [ ] `supabase db push` succeeds (if migration)
+- [ ] `supabase db pull` confirms sync (if migration)
+- [ ] `supabase migration list` shows aligned (if migration)
+- [ ] `npm run lint` passes
+- [ ] `npm run build` succeeds
+- [ ] Manual test script executed successfully
+- [ ] Commit message: `slice S2-X: <description>`
+- [ ] Co-Authored-By included
+- [ ] Slice marked ✅ in tracker
 
 ---
 
-## J) Agent Correction Checklist
+## G) Risk Register
 
-Use this checklist when reviewing agent work or making corrections:
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Assignment count queries slow | Medium | Use `count` aggregation with `head: true` |
+| Reports page empty for no assignments | Low | Graceful empty state messaging |
+| Date picker browser compatibility | Low | Test Chrome, Firefox, Safari |
+| Advisor RLS too permissive | High | Test cross-advisor isolation |
+| Notes edit loses data | Medium | Confirmation before discard |
+
+---
+
+## H) What We Are NOT Doing
+
+- Real-time subscription updates (page load refresh only)
+- Complex charting library (CSS/SVG for simple charts)
+- Full messaging system (using advisor_notes table)
+- Student profile editing by advisor (view-only)
+- Batch assignment creation
+- Email notifications
+
+---
+
+## I) Agent Correction Checklist
 
 ### Before Each Slice
-- [ ] Confirmed current branch is `lesson-53` or appropriate feature branch
-- [ ] `git status` shows clean working tree (or only expected changes)
-- [ ] Read the slice requirements completely before starting
+- [ ] Confirmed branch is `lesson-53`
+- [ ] `git status` shows clean working tree
+- [ ] Read slice requirements completely
 
 ### During Implementation
-- [ ] Only creating NEW migration files (not editing existing ones)
-- [ ] Migration file follows naming: `YYYYMMDDHHMMSS_<descriptive_name>.sql`
-- [ ] RLS enabled on new tables with deny-by-default
-- [ ] New components follow existing patterns in codebase
-- [ ] No hardcoded values that should be configurable
+- [ ] Only creating NEW migration files
+- [ ] RLS enabled with deny-by-default
+- [ ] Following existing codebase patterns
 
 ### After Each Slice
-- [ ] `supabase db push` succeeded
-- [ ] `supabase db pull` shows "No schema changes found" (or expected changes)
-- [ ] `supabase migration list` shows local and remote aligned
-- [ ] `npm run lint` passes (fix any errors before commit)
-- [ ] `npm run build` succeeds (fix any errors before commit)
-- [ ] Manual test script executed and passed
-- [ ] `git diff` reviewed - only expected files changed
-- [ ] No secrets in diff (check for API keys, passwords, .env values)
-- [ ] Commit message follows format: `slice S1-X: <description>`
-- [ ] Commit includes `Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`
-- [ ] Slice status updated to ✅ in tracker with commit SHA and date
-
-### Common Corrections
-| Issue | Correction |
-|-------|------------|
-| Forgot to enable RLS | Create fix-forward migration: `ALTER TABLE x ENABLE ROW LEVEL SECURITY;` |
-| Wrong column type | Create fix-forward migration with `ALTER COLUMN` or add new column |
-| Missing index | Create fix-forward migration: `CREATE INDEX IF NOT EXISTS...` |
-| RLS policy too permissive | Create fix-forward migration: `DROP POLICY` + `CREATE POLICY` with correct rules |
-| Component not rendering | Check imports, check that parent component uses it, check console for errors |
-| Modal not closing | Check state management, ensure `onClose` callback is wired correctly |
-| Form not submitting | Check validation, check network tab, check server action errors |
-| Timezone not detecting | Ensure `Intl.DateTimeFormat().resolvedOptions().timeZone` is called client-side only |
-
-### Recovery Commands
-```bash
-# If migration failed mid-way
-supabase db push  # Retry
-
-# If local/remote migrations out of sync
-supabase migration list  # Check status
-supabase db pull  # Pull remote changes
-
-# If build fails
-npm run build 2>&1 | head -50  # See first 50 lines of errors
-
-# If lint fails
-npm run lint -- --fix  # Auto-fix what's possible
-
-# If need to see what changed
-git diff --stat  # Summary of changes
-git diff <file>  # Specific file changes
-```
+- [ ] `supabase db push` succeeded (if migration)
+- [ ] `npm run lint` passes
+- [ ] `npm run build` succeeds
+- [ ] Manual test executed
+- [ ] `git diff` reviewed
+- [ ] No secrets in diff
+- [ ] Commit follows format
+- [ ] Slice status updated
