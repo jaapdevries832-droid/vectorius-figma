@@ -39,6 +39,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      advisor_invites: {
+        Row: {
+          id: string
+          invited_by: string
+          invite_code: string
+          email: string | null
+          expires_at: string
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          invited_by?: string
+          invite_code: string
+          email?: string | null
+          expires_at?: string
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          invited_by?: string
+          invite_code?: string
+          email?: string | null
+          expires_at?: string
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "advisor_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "advisor_invites_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       advisor_profiles: {
         Row: {
           bio: string | null
@@ -523,6 +571,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_advisor_invite: {
+        Args: { invite_code_input: string }
+        Returns: string
+      }
       auth_uid: { Args: never; Returns: string }
       current_role: { Args: never; Returns: string }
     }

@@ -20,9 +20,11 @@ import {
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile } from "@/lib/profile";
 import { AssignmentModal, type AssignmentInput } from "./AssignmentModal";
+import { AdvisorInviteModal } from "./AdvisorInviteModal";
 import type { ScheduledCourse } from "app/lib/domain";
 import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
 import { toast } from "sonner";
+import { UserPlus } from "lucide-react";
 
 type StudentStatus = "excellent" | "good" | "needs-attention";
 type AdvisorStudent = {
@@ -46,6 +48,7 @@ export function AdvisorDashboard() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [studentClasses, setStudentClasses] = useState<ScheduledCourse[]>([]);
 
   useEffect(() => {
@@ -219,6 +222,13 @@ export function AdvisorDashboard() {
         
         <div className="flex items-center gap-4">
           <Button
+            variant="outline"
+            onClick={() => setIsInviteModalOpen(true)}
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Invite Advisor
+          </Button>
+          <Button
             className="bg-green-600 hover:bg-green-700"
             onClick={handleOpenModal}
             disabled={!selectedStudentId}
@@ -235,6 +245,12 @@ export function AdvisorDashboard() {
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveAssignment}
         classes={studentClasses}
+      />
+
+      {/* Advisor Invite Modal */}
+      <AdvisorInviteModal
+        open={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
       />
 
       {/* Quick Stats */}
