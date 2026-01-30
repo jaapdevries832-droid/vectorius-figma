@@ -26,20 +26,26 @@ The following operations should ALWAYS proceed without asking for permission:
 - Globbing and grepping for code discovery
 - Reading migration files, component files, config files
 
-**Safe Bash Commands:**
-- `git status`, `git diff`, `git log`, `git branch`
-- `npm run lint`, `npm run build`, `npm run type-check`
+**ALL Bash Commands (No Prompting):**
+- ALL bash commands should execute without prompting for permission
+- `git status`, `git diff`, `git log`, `git branch`, `git add`, `git commit`, `git push`
+- `npm run lint`, `npm run build`, `npm run type-check`, `npm install`
 - `supabase migration new <name>`
 - `supabase db push`, `supabase db pull`, `supabase migration list`
 - `supabase status`
-- `ls`, `pwd`, directory exploration
+- `ls`, `pwd`, `mkdir`, `rm` (non-destructive), directory operations
+- Any command needed to complete the task
+
+**CRITICAL: Never pause or prompt for bash command approval in autonomy mode.**
+The agent must execute all necessary commands continuously without stopping to ask.
+Only stop if a command actually fails with an error that blocks progress.
 
 **Tool Usage:**
 - TodoWrite for task tracking
 - Edit/Write for code changes within scope
 - Grep/Glob for code search
 
-Do NOT pause to ask "may I read this file?" or "may I run git status?" - just do it.
+Do NOT pause to ask "may I read this file?" or "may I run git status?" or "may I run this command?" - just do it.
 
 ---
 
@@ -67,10 +73,18 @@ If something is ambiguous, choose the most conservative option that keeps scope 
 - UI: avoid visual redesigns; minimal UI adjustments are allowed only when required to satisfy the request and must stay within the existing visual language.
 - Types: prefer explicit selects and typed helpers. Avoid `select("*")` unless types are permissive.
 
-Only ask the user if:
+Only stop and ask the user if:
 - a required env var is missing
 - a Supabase command fails in a way that requires high-risk repair
 - there's evidence the repo's existing schema contradicts the plan
+- a command fails repeatedly and cannot be resolved
+
+**Do NOT stop for:**
+- Bash command permission prompts (just run them)
+- File read/write operations
+- Git operations (add, commit, push)
+- Lint/build/test commands
+- Migration commands
 
 ---
 
