@@ -497,6 +497,7 @@ export function AssignmentsPage() {
         created_by: creatorId ?? null,
         created_by_role: role ?? null,
         source: resolveSource(role),
+        color: input.color || null,
       })
       .select('id, title, type, description, due_at, status, completed_at, priority, course_id, source, created_by_role, is_suggested, suggestion_status, course:courses (title, teacher_name)')
       .single()
