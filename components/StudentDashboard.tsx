@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles, Trophy, Flame, Edit2, Trash2 } from "lucide-react";
+import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles, Trophy, Flame, Edit2, Trash2, Users } from "lucide-react";
+import { ParentInviteModal } from "./ParentInviteModal";
 import { NoteEditModal } from "./NoteEditModal";
 import { validateTitle } from "@/lib/validation";
 import { useRoleLayout } from "app/lib/role-layout-context";
@@ -79,6 +80,14 @@ export function StudentDashboard() {
   const [createLocation, setCreateLocation] = React.useState("");
   const [createCourseError, setCreateCourseError] = React.useState<string | null>(null);
   const [isCreatingCourse, setIsCreatingCourse] = React.useState(false);
+
+  // Parent invite state
+  const [parentInviteOpen, setParentInviteOpen] = React.useState(false);
+  const [parentInviteCode, setParentInviteCode] = React.useState<string | null>(null);
+  const [parentInviteExpires, setParentInviteExpires] = React.useState<string | null>(null);
+  const [parentInviteLoading, setParentInviteLoading] = React.useState(false);
+  const [parentInviteError, setParentInviteError] = React.useState<string | null>(null);
+  const [parentInviteEmail, setParentInviteEmail] = React.useState("");
   React.useEffect(() => {
     try {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('assignedSkills') : null
@@ -126,6 +135,49 @@ export function StudentDashboard() {
     const nd = new Date(d);
     nd.setHours(23, 59, 59, 999);
     return nd;
+  };
+
+  // Generate a random 8-character invite code
+  const generateInviteCode = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
+
+  const handleGenerateParentInvite = async () => {
+    if (!studentId) return;
+    setParentInviteLoading(true);
+    setParentInviteError(null);
+
+    const code = generateInviteCode();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const { error } = await supabase.from("parent_invites").insert({
+      student_id: studentId,
+      invite_code: code,
+      expires_at: expiresAt.toISOString(),
+    });
+
+    if (error) {
+      setParentInviteError(error.message);
+      setParentInviteLoading(false);
+      return;
+    }
+
+    setParentInviteCode(code);
+    setParentInviteExpires(expiresAt.toISOString());
+    setParentInviteLoading(false);
+  };
+
+  const handleCopyParentInvite = () => {
+    if (parentInviteCode) {
+      navigator.clipboard.writeText(parentInviteCode);
+      toast.success("Invite code copied!");
+    }
   };
 
   const computeSummary = (items: typeof upcomingAssignments) => {
@@ -610,7 +662,7 @@ export function StudentDashboard() {
                       Welcome back, {studentName ?? "Student"}!
                     </h1>
                     <p className="text-gray-600">Ready to continue your learning journey today?</p>
-                    <div className="flex items-center mt-2 space-grid-2">
+                    <div className="flex items-center mt-2 space-grid-2 flex-wrap gap-2">
                       <Badge className="bg-blue-100 text-blue-700">
                         {assignmentCounts ? `${assignmentCounts.total} assignments` : "Assignments"}
                       </Badge>
@@ -619,6 +671,15 @@ export function StudentDashboard() {
                           {assignedSkillsCount} skill module{assignedSkillsCount > 1 ? 's' : ''} assigned
                         </Badge>
                       )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full text-xs"
+                        onClick={() => setParentInviteOpen(true)}
+                      >
+                        <Users className="w-3.5 h-3.5 mr-1" />
+                        Invite Parent
+                      </Button>
                     </div>
                   </div>
                 </>
@@ -1048,6 +1109,21 @@ export function StudentDashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Parent Invite Modal */}
+      <ParentInviteModal
+        open={parentInviteOpen}
+        studentName={studentName ?? "Student"}
+        inviteCode={parentInviteCode}
+        expiresAt={parentInviteExpires}
+        isLoading={parentInviteLoading}
+        error={parentInviteError}
+        email={parentInviteEmail}
+        onEmailChange={setParentInviteEmail}
+        onGenerate={handleGenerateParentInvite}
+        onCopy={handleCopyParentInvite}
+        onClose={() => setParentInviteOpen(false)}
+      />
     </div>
   );
 }
