@@ -6,7 +6,7 @@ import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import type { ScheduledCourse } from "app/lib/domain"
 import { AssignmentModal, type AssignmentInput, type AssignmentType } from "./AssignmentModal"
-import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Edit, Trash2, Plus, ExternalLink, Copy, ChevronDown, Check, Trophy, Sparkles } from "lucide-react"
+import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Edit, Trash2, Plus, ExternalLink, Copy, ChevronDown, Trophy, Sparkles } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { GamificationCongratsModal } from "./GamificationCongratsModal"
 import { StudyPlanPreview, type StudyMilestone } from "./StudyPlanPreview"
@@ -569,6 +569,41 @@ export function AssignmentsPage() {
     setUpdatingId(null)
   }
 
+  // Delete assignment handler
+  async function handleDeleteAssignment(assignmentId: string) {
+    if (!confirm("Delete this assignment? This cannot be undone.")) return
+
+    const { error } = await supabase
+      .from('assignments')
+      .delete()
+      .eq('id', assignmentId)
+
+    if (error) {
+      toast.error(`Failed to delete: ${error.message}`)
+      return
+    }
+
+    setAssignments(prev => prev.filter(a => a.id !== assignmentId))
+    toast.success("Assignment deleted.")
+  }
+
+  // Format due date for display
+  function formatDueDisplay(dueAt: string | null): string {
+    if (!dueAt) return 'No due date'
+
+    const today = startOfDay(new Date())
+    const due = startOfDay(new Date(dueAt))
+
+    const diffDays = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (diffDays === 0) return 'due today'
+    if (diffDays === -1) return 'due yesterday'
+    if (diffDays === 1) return 'due tomorrow'
+    if (diffDays < -1) return `${Math.abs(diffDays)} days overdue`
+
+    return `Due ${new Date(dueAt).toLocaleDateString()}`
+  }
+
   const itemLeftBar = (cat: string) => {
     switch (cat) {
       case 'Overdue': return 'before:bg-red-400/80'
@@ -720,7 +755,6 @@ export function AssignmentsPage() {
       const chip = formatMonthDay(a.dueAt)
       return <Badge className="bg-blue-50 text-blue-700 border-blue-200">{chip}</Badge>
     })()
-    const potential = a.pointsAvailable ?? computePotentialPoints(a.dueAt)
     const sourceLabel = resolveSourceLabel(a.source, a.createdByRole)
     return (
       <div
@@ -731,17 +765,6 @@ export function AssignmentsPage() {
           `before:content-[''] before:absolute before:left-0 before:top-4 before:bottom-4 before:w-1.5 before:rounded-full ${itemLeftBar(cat)}`
         }
       >
-        {/* Points badge in corner */}
-        <div className="absolute top-3 right-3">
-          {isCompleted ? (
-            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 inline-flex items-center gap-1">
-              <Check className="w-3.5 h-3.5" />
-              +{a.pointsEarned ?? 0} pts
-            </Badge>
-          ) : (
-            <Badge className="bg-amber-100 text-amber-700 border-amber-200">+{potential} pts</Badge>
-          )}
-        </div>
         <div className="flex items-start justify-between">
           <div className="flex items-start space-grid-4">
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-md">
@@ -776,9 +799,7 @@ export function AssignmentsPage() {
                 <div className="flex items-center space-grid-3 text-xs text-gray-600 mt-2">
                   <div className="flex items-center space-grid">
                     <Calendar className="w-3 h-3" />
-                    <span>
-                      {a.dueAt ? `Due ${new Date(a.dueAt).toLocaleDateString()}` : 'No due date'}
-                    </span>
+                    <span>{formatDueDisplay(a.dueAt)}</span>
                   </div>
                   {a.notes && <div className="text-gray-600 truncate bg-gray-100/70 px-3 py-1 rounded-lg">{a.notes}</div>}
                 </div>
@@ -831,7 +852,14 @@ export function AssignmentsPage() {
             <Button variant="ghost" size="sm" className="p-2 h-auto rounded-xl hover:bg-gray-100"><ExternalLink className="w-4 h-4 text-gray-600" /></Button>
             <Button variant="ghost" size="sm" className="p-2 h-auto rounded-xl hover:bg-gray-100"><Copy className="w-4 h-4 text-gray-600" /></Button>
             <Button variant="ghost" size="sm" className="p-2 h-auto rounded-xl hover:bg-gray-100"><Edit className="w-4 h-4 text-gray-600" /></Button>
-            <Button variant="ghost" size="sm" className="p-2 h-auto rounded-xl hover:bg-gray-100"><Trash2 className="w-4 h-4 text-red-600" /></Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-2 h-auto rounded-xl hover:bg-red-50"
+              onClick={() => handleDeleteAssignment(a.id)}
+            >
+              <Trash2 className="w-4 h-4 text-red-600" />
+            </Button>
           </div>
         </div>
       </div>
