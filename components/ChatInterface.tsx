@@ -5,11 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { Send, Bot, User, Sparkles } from "lucide-react";
+import { Send, Bot, User, ChevronDown, Award } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { Progress } from "./ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 type Role = 'user' | 'assistant';
 
@@ -117,10 +129,27 @@ export function ChatInterface() {
   };
 
   const quickPrompts = [
-    "Help me with algebra",
-    "Explain photosynthesis", 
-    "Essay writing tips",
-    "History of World War II"
+    { label: "Math", prompts: [
+      "Explain how to solve quadratic equations",
+      "Help me understand fractions and decimals",
+      "What are the rules for order of operations?",
+      "How do I calculate percentages?",
+    ]},
+    { label: "Science", prompts: [
+      "Explain photosynthesis",
+      "How does the water cycle work?",
+      "What are the laws of motion?",
+    ]},
+    { label: "Writing", prompts: [
+      "Essay writing tips",
+      "How do I structure a paragraph?",
+      "Help me with thesis statements",
+    ]},
+    { label: "History", prompts: [
+      "History of World War II",
+      "Explain the American Revolution",
+      "What caused the Industrial Revolution?",
+    ]},
   ];
 
   const handleQuickPrompt = (prompt: string) => {
@@ -134,72 +163,68 @@ export function ChatInterface() {
     }
   };
 
+  // Curiosity badge progress calculation
+  const questionsAsked = messages.filter(m => m.role === 'user').length;
+  const curiosityGoal = 10;
+  const curiosityProgress = Math.min(questionsAsked, curiosityGoal) / curiosityGoal * 100;
+
   return (
     <div className="h-full flex flex-col">
       <Card className="flex-1 flex flex-col border-0 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-t-lg">
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-t-lg py-3">
+          <CardTitle className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
               <Bot className="w-5 h-5" />
             </div>
-            AI Tutor
-            <Sparkles className="w-4 h-4 ml-auto" />
-          </CardTitle>
-        </CardHeader>
-        
-        <CardContent className="flex-1 flex flex-col p-0">
-          {/* Gamification banner */}
-          <div className="px-4 pt-4">
-            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <p className="text-sm font-medium text-amber-800">Earn points for asking questions!</p>
-                {(() => {
-                  const asked = messages.filter(m => m.role === 'user').length;
-                  const goal = 10;
-                  const progress = Math.min(asked, goal) / goal * 100;
-                  return (
-                    <div className="min-w-[220px]">
-                      <div className="flex justify-between text-xs text-amber-800 mb-1">
-                        <span>Curiosity badge</span>
-                        <span>{Math.min(asked, goal)} / {goal}</span>
-                      </div>
-                      <Progress value={progress} />
-                    </div>
-                  );
-                })()}
+            <span>AI Tutor</span>
+
+            {/* Mode dropdown */}
+            <Select
+              value={mode}
+              onValueChange={(value: Mode) => {
+                setMode(value);
+                if (typeof window !== 'undefined') localStorage.setItem('chatMode', value);
+              }}
+            >
+              <SelectTrigger className="w-[130px] h-8 bg-white/20 border-white/30 text-white text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tutor">Tutor Mode</SelectItem>
+                <SelectItem value="checker">Checker Mode</SelectItem>
+                <SelectItem value="explainer">Explainer Mode</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Curiosity badge in header */}
+            <div className="ml-auto flex items-center gap-2 bg-white/20 rounded-full px-3 py-1">
+              <Award className="w-4 h-4 text-amber-300" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs">Curiosity</span>
+                <div className="w-16 h-2 bg-white/30 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-300 transition-all duration-300"
+                    style={{ width: `${curiosityProgress}%` }}
+                  />
+                </div>
+                <span className="text-xs">{Math.min(questionsAsked, curiosityGoal)}/{curiosityGoal}</span>
               </div>
             </div>
-          </div>
+          </CardTitle>
+        </CardHeader>
 
-          {/* Chat availability + Mode selector */}
-          <div className="p-4 border-b bg-white flex items-center gap-3 flex-wrap">
-            <div className="text-sm text-gray-600">Mode:</div>
-            <div className="flex gap-2">
-              {([
-                { key: 'tutor', label: 'Tutor' },
-                { key: 'checker', label: 'Checker' },
-                { key: 'explainer', label: 'Explainer' },
-              ] as { key: Mode; label: string }[]).map(m => (
-                <Button
-                  key={m.key}
-                  variant={mode === m.key ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => { setMode(m.key); if (typeof window !== 'undefined') localStorage.setItem('chatMode', m.key); }}
-                  className={mode === m.key ? 'bg-purple-600 hover:bg-purple-700' : ''}
-                >
-                  {m.label}
-                </Button>
-              ))}
-            </div>
-            {enabled === false && (
-              <Alert variant="destructive" className="ml-auto">
+        <CardContent className="flex-1 flex flex-col p-0">
+          {/* Chat availability warning */}
+          {enabled === false && (
+            <div className="p-4 border-b">
+              <Alert variant="destructive">
                 <AlertTitle>Chat disabled</AlertTitle>
                 <AlertDescription>
                   Missing Azure OpenAI configuration. Please set credentials in <code>.env.local</code>.
                 </AlertDescription>
               </Alert>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Messages Area */}
           <div className="flex-1 p-4 overflow-y-auto space-y-4 min-h-0">
@@ -277,29 +302,34 @@ export function ChatInterface() {
             </div>
           )}
 
-          {/* Quick Prompts */}
-          {messages.length === 1 && (
-            <div className="p-4 border-t bg-gray-50">
-              <p className="text-sm text-gray-600 mb-3">Try asking about:</p>
-              <div className="flex flex-wrap gap-2">
-                {quickPrompts.map((prompt, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickPrompt(prompt)}
-                    className="text-xs"
-                  >
-                    {prompt}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Input Area */}
+          {/* Input Area with Quick Prompts Dropdown */}
           <div className="p-4 border-t bg-white">
             <div className="flex gap-2">
+              {/* Quick prompts dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="shrink-0" disabled={isTyping || enabled === false}>
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-72">
+                  {quickPrompts.map((category) => (
+                    <div key={category.label}>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-gray-500">{category.label}</div>
+                      {category.prompts.map((prompt) => (
+                        <DropdownMenuItem
+                          key={prompt}
+                          onClick={() => handleQuickPrompt(prompt)}
+                          className="text-sm cursor-pointer"
+                        >
+                          {prompt}
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Input
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
@@ -308,7 +338,7 @@ export function ChatInterface() {
                 className="flex-1"
                 disabled={isTyping || enabled === false}
               />
-              <Button 
+              <Button
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isTyping || enabled === false}
                 className="bg-purple-600 hover:bg-purple-700"
