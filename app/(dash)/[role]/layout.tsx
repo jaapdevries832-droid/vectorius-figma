@@ -5,6 +5,7 @@ import { BottomNavigation } from '@/components/BottomNavigation'
 import { WeeklyPlanner } from '@/components/WeeklyPlanner'
 import AssignmentsPage from '@/components/AssignmentsPage'
 import { ChatInterface } from '@/components/ChatInterface'
+import { ParentChatInterface } from '@/components/ParentChatInterface'
 import { AchievementsPage } from '@/components/AchievementsPage'
 import { MentorSkills } from '@/components/MentorSkills'
 import { StudentSkills } from '@/components/StudentSkills'
@@ -108,7 +109,7 @@ export default function RoleLayout({ children, params }: { children: React.React
       case 'schedule':
         return <div className="p-4"><WeeklyPlanner currentUser={currentUser} /></div>
       case 'ai-chat':
-        return <div className="p-4"><ChatInterface /></div>
+        return <div className="p-4">{role === 'parent' ? <ParentChatInterface /> : <ChatInterface />}</div>
       case 'assignments':
         return <div className="p-4"><AssignmentsPage /></div>
       case 'skills':

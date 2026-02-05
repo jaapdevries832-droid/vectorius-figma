@@ -89,6 +89,7 @@ export function Sidebar({ currentRole, activeItem, onItemChange, currentUser, cl
         { id: 'schedule' as const, label: 'Schedule', icon: Calendar, color: '#8B5CF6' },
         { id: 'assignments' as const, label: 'Assignments', icon: FileText, color: '#F59E0B' },
         { id: 'notes' as const, label: 'Notes', icon: BookOpen, color: '#EF4444' },
+        { id: 'ai-chat' as const, label: 'AI Assistant', icon: Bot, color: '#14B8A6' },
         { id: 'settings' as const, label: 'Settings', icon: Settings, color: '#64748B' },
       ];
     }
