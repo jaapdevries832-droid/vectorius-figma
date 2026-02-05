@@ -13,7 +13,6 @@ import { StudyPlanPreview, type StudyMilestone } from "./StudyPlanPreview"
 import { supabase } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { getCurrentProfile } from "@/lib/profile"
-import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule"
 
 type Assignment = {
   id: string
@@ -391,7 +390,7 @@ export function AssignmentsPage() {
   useEffect(() => {
     let isMounted = true
 
-    const loadSchedule = async () => {
+    const loadEnrolledCourses = async () => {
       const { user, profile } = await getCurrentProfile()
 
       if (!isMounted) return
@@ -406,21 +405,37 @@ export function AssignmentsPage() {
         return
       }
 
-      const { data, error } = await fetchStudentScheduleEvents()
+      // Use student_enrolled_courses view which includes ALL enrolled courses
+      // (not just those with course_meetings like student_schedule_events)
+      const { data, error } = await supabase
+        .from('student_enrolled_courses')
+        .select('course_id, title, teacher_name, location, color')
 
       if (!isMounted) return
 
       if (error) {
-        console.error("Failed to load schedule events", error)
+        console.error("Failed to load enrolled courses", error)
         setLoadError("Unable to load class labels right now.")
         setClasses([])
         return
       }
 
-      setClasses(mapScheduleEventsToCourses(data))
+      // Map to ScheduledCourse format (without schedule info since we don't need it for dropdown)
+      const courses: ScheduledCourse[] = (data ?? []).map(c => ({
+        id: c.course_id,
+        name: c.title,
+        teacherName: c.teacher_name ?? 'Staff',
+        room: c.location ?? undefined,
+        color: c.color ?? 'bg-blue-500',
+        days: [],
+        startTime: '',
+        endTime: '',
+      }))
+
+      setClasses(courses)
     }
 
-    loadSchedule()
+    loadEnrolledCourses()
 
     return () => {
       isMounted = false
