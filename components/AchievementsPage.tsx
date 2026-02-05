@@ -4,13 +4,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Award, Star, Gift, Lock, Flame, Trophy } from "lucide-react";
+import { Input } from "./ui/input";
+import { Award, Star, Gift, Lock, Flame, Trophy, Target, Plus, Check, Trash2, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { LucideIcon } from "lucide-react";
+import { toast } from "sonner";
 
 type Reward = { id: string; name: string; cost: number; description: string };
 type BadgeData = { id: string; name: string; icon: LucideIcon; achieved: boolean; criteria: string };
+type Goal = {
+  id: string;
+  title: string;
+  description: string | null;
+  target_date: string | null;
+  is_completed: boolean;
+  completed_at: string | null;
+};
 
 const iconMap: Record<string, LucideIcon> = {
   star: Star,
@@ -24,7 +34,12 @@ export function AchievementsPage() {
   const [streakDays] = useState(0); // TODO: implement streak calculation
   const [badges, setBadges] = useState<BadgeData[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [studentId, setStudentId] = useState<string | null>(null);
+  const [newGoalTitle, setNewGoalTitle] = useState("");
+  const [newGoalDate, setNewGoalDate] = useState("");
+  const [isAddingGoal, setIsAddingGoal] = useState(false);
   const level = Math.floor(points / 200) + 1;
 
   useEffect(() => {
@@ -52,13 +67,14 @@ export function AchievementsPage() {
       return;
     }
 
-    const studentId = studentData.id;
+    const currentStudentId = studentData.id;
+    setStudentId(currentStudentId);
 
     // Fetch total points
     const { data: pointsData } = await supabase
       .from("points_ledger")
       .select("points")
-      .eq("student_id", studentId);
+      .eq("student_id", currentStudentId);
 
     const totalPoints = pointsData?.reduce((sum, entry) => sum + entry.points, 0) ?? 0;
     setPoints(totalPoints);
@@ -72,7 +88,17 @@ export function AchievementsPage() {
     const { data: earnedBadges } = await supabase
       .from("student_badges")
       .select("badge_id")
-      .eq("student_id", studentId);
+      .eq("student_id", currentStudentId);
+
+    // Fetch student goals
+    const { data: goalsData } = await supabase
+      .from("student_goals")
+      .select("*")
+      .eq("student_id", currentStudentId)
+      .order("is_completed")
+      .order("target_date", { nullsFirst: false });
+
+    setGoals(goalsData ?? []);
 
     const earnedBadgeIds = new Set(earnedBadges?.map(b => b.badge_id) ?? []);
 
@@ -155,6 +181,75 @@ export function AchievementsPage() {
     alert(`Successfully redeemed ${r.name}!`);
   };
 
+  const handleAddGoal = async () => {
+    if (!newGoalTitle.trim() || !studentId) return;
+    setIsAddingGoal(true);
+
+    const { data, error } = await supabase
+      .from("student_goals")
+      .insert({
+        student_id: studentId,
+        title: newGoalTitle.trim(),
+        target_date: newGoalDate || null,
+      })
+      .select()
+      .single();
+
+    setIsAddingGoal(false);
+
+    if (error) {
+      toast.error(`Failed to add goal: ${error.message}`);
+      return;
+    }
+
+    setGoals(prev => [...prev, data]);
+    setNewGoalTitle("");
+    setNewGoalDate("");
+    toast.success("Goal added!");
+  };
+
+  const handleToggleGoal = async (goal: Goal) => {
+    const newCompleted = !goal.is_completed;
+    const { error } = await supabase
+      .from("student_goals")
+      .update({
+        is_completed: newCompleted,
+        completed_at: newCompleted ? new Date().toISOString() : null,
+      })
+      .eq("id", goal.id);
+
+    if (error) {
+      toast.error(`Failed to update goal: ${error.message}`);
+      return;
+    }
+
+    setGoals(prev =>
+      prev.map(g =>
+        g.id === goal.id
+          ? { ...g, is_completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null }
+          : g
+      )
+    );
+    toast.success(newCompleted ? "Goal completed!" : "Goal reopened");
+  };
+
+  const handleDeleteGoal = async (goalId: string) => {
+    if (!confirm("Delete this goal?")) return;
+
+    const { error } = await supabase
+      .from("student_goals")
+      .delete()
+      .eq("id", goalId);
+
+    if (error) {
+      toast.error(`Failed to delete goal: ${error.message}`);
+      return;
+    }
+
+    setGoals(prev => prev.filter(g => g.id !== goalId));
+    toast.success("Goal deleted");
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -203,8 +298,9 @@ export function AchievementsPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="badges" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 rounded-2xl">
+        <TabsList className="grid w-full grid-cols-3 rounded-2xl">
           <TabsTrigger value="badges">Badges</TabsTrigger>
+          <TabsTrigger value="goals">Goals</TabsTrigger>
           <TabsTrigger value="rewards">Rewards</TabsTrigger>
         </TabsList>
         <TabsContent value="badges" className="mt-4">
@@ -237,6 +333,102 @@ export function AchievementsPage() {
                 </Card>
               )
             })}
+          </div>
+        </TabsContent>
+        <TabsContent value="goals" className="mt-4">
+          <Card className="rounded-2xl border-0 shadow-md bg-white mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Plus className="w-5 h-5 text-indigo-600" />
+                Add New Goal
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Input
+                  placeholder="What do you want to achieve?"
+                  value={newGoalTitle}
+                  onChange={(e) => setNewGoalTitle(e.target.value)}
+                  className="flex-1"
+                />
+                <div className="flex gap-2">
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      type="date"
+                      value={newGoalDate}
+                      onChange={(e) => setNewGoalDate(e.target.value)}
+                      className="pl-9 w-[150px]"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleAddGoal}
+                    disabled={!newGoalTitle.trim() || isAddingGoal}
+                    className="bg-gradient-primary text-white btn-glow"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-3">
+            {goals.length === 0 ? (
+              <Card className="rounded-2xl border-0 shadow-md bg-gray-50/80">
+                <CardContent className="py-8 text-center">
+                  <Target className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                  <p className="text-gray-500">No goals yet. Add your first goal above!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              goals.map((goal) => (
+                <Card
+                  key={goal.id}
+                  className={`rounded-2xl border-0 shadow-md transition-all duration-200 ${
+                    goal.is_completed ? 'bg-emerald-50/50' : 'bg-white'
+                  }`}
+                >
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <button
+                      onClick={() => handleToggleGoal(goal)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                        goal.is_completed
+                          ? 'bg-emerald-500 text-white'
+                          : 'border-2 border-gray-300 hover:border-indigo-400'
+                      }`}
+                    >
+                      {goal.is_completed && <Check className="w-4 h-4" />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-medium ${goal.is_completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                        {goal.title}
+                      </p>
+                      {goal.target_date && (
+                        <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(goal.target_date).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                    {goal.is_completed && (
+                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 shrink-0">
+                        Completed
+                      </Badge>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteGoal(goal.id)}
+                      className="text-gray-400 hover:text-red-500 shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
         <TabsContent value="rewards" className="mt-4">
