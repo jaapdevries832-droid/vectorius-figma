@@ -463,7 +463,7 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 |---:|---|---|---|---|---|
 | S4-A | Fix Parent-Student Linking | ✅ | 20260205212110 | 2026-02-05 | RLS migration |
 | S4-B | Classes in Assignment Dropdown | ✅ | 20260205212311 | 2026-02-05 | View + query update |
-| S4-C | Chat Message Persistence | ⬜ | - | - | localStorage |
+| S4-C | Chat Message Persistence | ✅ | - | 2026-02-05 | localStorage |
 | S4-D | Parent Chat Interface | ⬜ | - | - | New component |
 
 ---

@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { Send, Bot, User, ChevronDown, Award } from "lucide-react";
+import { Send, Bot, User, ChevronDown, Award, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
@@ -39,13 +39,71 @@ type ChatResponse = { enabled?: boolean; reply?: string; error?: string };
 const getErrorMessage = (err: unknown, fallback: string) =>
   err instanceof Error ? err.message : fallback;
 
+// localStorage persistence constants
+const CHAT_STORAGE_KEY = 'vectorius_chat_messages';
+const CHAT_STORAGE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
+
+interface StoredChat {
+  messages: Array<{ id: string; content: string; role: Role; timestamp: string }>;
+  timestamp: number;
+}
+
+const getWelcomeMessage = (): Message => ({
+  id: 'welcome',
+  content: "Hello! I'm your AI tutor. What are you working on today?",
+  role: 'assistant',
+  timestamp: new Date(),
+});
+
+// Load messages from localStorage
+const loadStoredMessages = (): Message[] => {
+  if (typeof window === 'undefined') return [getWelcomeMessage()];
+
+  try {
+    const stored = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!stored) return [getWelcomeMessage()];
+
+    const parsed: StoredChat = JSON.parse(stored);
+
+    // Check if expired (24 hours)
+    if (Date.now() - parsed.timestamp > CHAT_STORAGE_EXPIRY) {
+      localStorage.removeItem(CHAT_STORAGE_KEY);
+      return [getWelcomeMessage()];
+    }
+
+    // Restore timestamps as Date objects
+    const messages = parsed.messages.map(m => ({
+      ...m,
+      timestamp: new Date(m.timestamp)
+    }));
+
+    return messages.length > 0 ? messages : [getWelcomeMessage()];
+  } catch {
+    return [getWelcomeMessage()];
+  }
+};
+
+// Save messages to localStorage
+const saveMessages = (messages: Message[]) => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const stored: StoredChat = {
+      messages: messages.map(m => ({
+        ...m,
+        timestamp: m.timestamp.toISOString()
+      })),
+      timestamp: Date.now()
+    };
+
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(stored));
+  } catch {
+    // Ignore storage errors
+  }
+};
+
 export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([{
-    id: 'welcome',
-    content: "Hello! I'm your AI tutor. What are you working on today?",
-    role: 'assistant',
-    timestamp: new Date(),
-  }]);
+  const [messages, setMessages] = useState<Message[]>(() => loadStoredMessages());
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [enabled, setEnabled] = useState<boolean | null>(null);
@@ -60,6 +118,17 @@ export function ChatInterface() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Persist messages to localStorage when they change
+  useEffect(() => {
+    saveMessages(messages);
+  }, [messages]);
+
+  // Clear chat handler
+  const handleClearChat = useCallback(() => {
+    localStorage.removeItem(CHAT_STORAGE_KEY);
+    setMessages([getWelcomeMessage()]);
+  }, []);
 
   // Load chat enabled flag and persisted mode
   useEffect(() => {
@@ -344,6 +413,15 @@ export function ChatInterface() {
                 className="bg-purple-600 hover:bg-purple-700"
               >
                 <Send className="w-4 h-4" />
+              </Button>
+              <Button
+                onClick={handleClearChat}
+                variant="ghost"
+                size="icon"
+                className="shrink-0 text-gray-400 hover:text-red-500"
+                title="Clear chat"
+              >
+                <Trash2 className="w-4 h-4" />
               </Button>
             </div>
             <p className="text-xs text-gray-500 mt-2 text-center">
