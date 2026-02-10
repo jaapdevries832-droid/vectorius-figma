@@ -567,7 +567,7 @@ Legend: [ ] not started | [~] in progress | [x] complete | [!] blocked
 | S5-B | Modal Save Safety | [x] | a3e0126 | 2026-02-10 | Completed; lint/type-check/build pass; manual path: S5-B script |
 | S5-C1 | Parent View Migration | [x] | 7dc3fd6 | 2026-02-10 | Completed; db push/pull/list + lint/build pass; added view + remote schema sync |
 | S5-C2 | Parent Query Cutover | [x] | 5ae5680 | 2026-02-10 | Completed; parent_id app filter + single view query; lint/type-check/build pass |
-| S5-I | Unknown Role Handling | [ ] | - | - | Safety |
+| S5-I | Unknown Role Handling | [x] | 147f368 | 2026-02-10 | Completed; unknown roles log and redirect to /login; lint/type-check/build pass |
 | S5-D | Dead Surface Cleanup | [ ] | - | - | Housekeeping |
 | S5-E | Shared Auth Session Layer | [ ] | - | - | Dedup auth logic |
 | S5-F | Advisor/Mentor Naming | [ ] | - | - | Consistency |
