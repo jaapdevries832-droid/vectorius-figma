@@ -565,7 +565,7 @@ Legend: [ ] not started | [~] in progress | [x] complete | [!] blocked
 |------:|------|--------|-----------|-----------|-------|
 | S5-A | Assignment Status Normalization | [x] | ab2111a | 2026-02-10 | Completed; lint/type-check/build pass; manual path: S5-A script |
 | S5-B | Modal Save Safety | [x] | a3e0126 | 2026-02-10 | Completed; lint/type-check/build pass; manual path: S5-B script |
-| S5-C1 | Parent View Migration | [ ] | - | - | Must fix: secure view foundation |
+| S5-C1 | Parent View Migration | [x] | 7dc3fd6 | 2026-02-10 | Completed; db push/pull/list + lint/build pass; added view + remote schema sync |
 | S5-C2 | Parent Query Cutover | [ ] | - | - | Must fix: remove N+1 and enforce explicit filter |
 | S5-I | Unknown Role Handling | [ ] | - | - | Safety |
 | S5-D | Dead Surface Cleanup | [ ] | - | - | Housekeeping |
