@@ -466,10 +466,6 @@ export function ParentChatInterface() {
             <p className="text-xs text-gray-500 mt-2 text-center">
               AI assistant to help you support your child&apos;s education
             </p>
-            {/* DEBUG: remove after verifying chat isolation */}
-            <p className="text-[10px] text-gray-300 text-center mt-1 select-all">
-              uid: {authUserId ? authUserId.slice(0, 8) : 'loading...'}
-            </p>
           </div>
         </CardContent>
       </Card>

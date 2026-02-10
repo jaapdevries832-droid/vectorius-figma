@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile } from "@/lib/profile";
+import { clearSupabaseLocalSession } from "@/lib/supabase/logout";
+import { clearCurrentUser } from "app/lib/current-user";
 
 type AuthMode = "sign-up" | "sign-in";
 
@@ -23,6 +25,7 @@ export default function ParentJoinPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [existingUserName, setExistingUserName] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -33,6 +36,11 @@ export default function ParentJoinPage() {
       if (user) {
         setUserId(user.id);
         setRole(profile?.role ?? null);
+        // Store the existing user's display name for the session warning
+        const name = profile?.first_name
+          ? `${profile.first_name} ${profile.last_name ?? ''}`.trim()
+          : user.email ?? 'another user';
+        setExistingUserName(name);
       }
       setIsCheckingAuth(false);
     };
@@ -42,6 +50,17 @@ export default function ParentJoinPage() {
       isMounted = false;
     };
   }, []);
+
+  const handleSignOutAndContinue = async () => {
+    await supabase.auth.signOut({ scope: 'local' });
+    await fetch('/api/auth/logout', { method: 'POST' });
+    clearSupabaseLocalSession();
+    clearCurrentUser();
+    setUserId(null);
+    setRole(null);
+    setExistingUserName(null);
+    setStatus(null);
+  };
 
   const normalizeCode = (value: string) => value.replace(/\s+/g, "").toUpperCase();
 
@@ -161,6 +180,23 @@ export default function ParentJoinPage() {
             Enter the 8-character invite code provided by your child.
           </p>
         </div>
+        {userId && existingUserName && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+            <p className="text-sm text-amber-800">
+              You are signed in as <strong>{existingUserName}</strong>.
+            </p>
+            <p className="text-xs text-amber-700">
+              If you are a different parent, sign out first to create your own account.
+            </p>
+            <button
+              type="button"
+              onClick={handleSignOutAndContinue}
+              className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-amber-800 hover:bg-amber-100"
+            >
+              Sign out and join as a different parent
+            </button>
+          </div>
+        )}
         {!userId && (
           <div className="grid grid-cols-2 gap-2 text-sm">
             <button
