@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  buildAzureChatCompletionsUrl,
+  buildAzureHeaders,
+  getAzureConfig,
+} from "@/lib/azure-openai";
 
 type ScheduleHint = {
   title?: string;
@@ -15,16 +20,10 @@ type Milestone = {
   type: "study_block";
 };
 
-function isEnabled() {
-  const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-  const apiKey = process.env.AZURE_OPENAI_API_KEY;
-  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
-  return Boolean(endpoint && apiKey && deployment);
-}
-
 export async function POST(req: NextRequest) {
   try {
-    if (!isEnabled()) {
+    const azureConfig = getAzureConfig();
+    if (!azureConfig) {
       return NextResponse.json(
         { error: "Study plan generation is not enabled. Missing Azure OpenAI configuration." },
         { status: 503 }
@@ -39,11 +38,6 @@ export async function POST(req: NextRequest) {
     if (!title || !dueDate) {
       return NextResponse.json({ error: "Missing title or dueDate." }, { status: 400 });
     }
-
-    const endpoint = process.env.AZURE_OPENAI_ENDPOINT as string;
-    const apiKey = process.env.AZURE_OPENAI_API_KEY as string;
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT as string;
-    const apiVersion = process.env.AZURE_OPENAI_API_VERSION || "2024-02-15-preview";
 
     const scheduleText = schedule.length
       ? schedule
@@ -69,15 +63,9 @@ export async function POST(req: NextRequest) {
       scheduleText,
     ].join("\n");
 
-    const url = new URL(`/openai/deployments/${deployment}/chat/completions`, endpoint);
-    url.searchParams.set("api-version", apiVersion);
-
-    const response = await fetch(url.toString(), {
+    const response = await fetch(buildAzureChatCompletionsUrl(azureConfig), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
+      headers: buildAzureHeaders(azureConfig),
       body: JSON.stringify({
         messages: [
           { role: "system", content: systemPrompt },

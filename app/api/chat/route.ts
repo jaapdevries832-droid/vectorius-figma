@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import {
+  buildAzureChatCompletionsUrl,
+  buildAzureHeaders,
+  getAzureConfig,
+  isAzureEnabled,
+} from "@/lib/azure-openai";
 
 type Mode = "tutor" | "checker" | "explainer";
 
@@ -12,16 +18,9 @@ async function readPrompt(name: string): Promise<string> {
   return buf.toString("utf-8");
 }
 
-function isEnabled() {
-  const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-  const apiKey = process.env.AZURE_OPENAI_API_KEY;
-  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
-  return Boolean(endpoint && apiKey && deployment);
-}
-
 export async function GET() {
   try {
-    return NextResponse.json({ enabled: isEnabled() });
+    return NextResponse.json({ enabled: isAzureEnabled() });
   } catch {
     return NextResponse.json({ enabled: false });
   }
@@ -34,7 +33,8 @@ interface HistoryMessage {
 
 export async function POST(req: NextRequest) {
   try {
-    if (!isEnabled()) {
+    const azureConfig = getAzureConfig();
+    if (!azureConfig) {
       return NextResponse.json(
         { error: "Chat is not enabled. Missing Azure OpenAI configuration." },
         { status: 503 }
@@ -82,20 +82,9 @@ export async function POST(req: NextRequest) {
 
     messages.push({ role: "user", content: question });
 
-    const endpoint = process.env.AZURE_OPENAI_ENDPOINT as string;
-    const apiKey = process.env.AZURE_OPENAI_API_KEY as string;
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT as string;
-    const apiVersion = process.env.AZURE_OPENAI_API_VERSION || "2024-02-15-preview";
-
-    const url = new URL(`/openai/deployments/${deployment}/chat/completions`, endpoint);
-    url.searchParams.set("api-version", apiVersion);
-
-    const response = await fetch(url.toString(), {
+    const response = await fetch(buildAzureChatCompletionsUrl(azureConfig), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
+      headers: buildAzureHeaders(azureConfig),
       body: JSON.stringify({
         messages,
         temperature: temperatureMap[selectedMode],

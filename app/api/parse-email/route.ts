@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  buildAzureChatCompletionsUrl,
+  buildAzureHeaders,
+  getAzureConfig,
+} from "@/lib/azure-openai";
 
 type ParsedEvent = {
   title: string;
@@ -10,16 +15,10 @@ type ParsedEvent = {
   description?: string | null;
 };
 
-function isEnabled() {
-  const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-  const apiKey = process.env.AZURE_OPENAI_API_KEY;
-  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
-  return Boolean(endpoint && apiKey && deployment);
-}
-
 export async function POST(req: NextRequest) {
   try {
-    if (!isEnabled()) {
+    const azureConfig = getAzureConfig();
+    if (!azureConfig) {
       return NextResponse.json(
         { error: "Email parsing is not enabled. Missing Azure OpenAI configuration." },
         { status: 503 }
@@ -33,11 +32,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email text." }, { status: 400 });
     }
 
-    const endpoint = process.env.AZURE_OPENAI_ENDPOINT as string;
-    const apiKey = process.env.AZURE_OPENAI_API_KEY as string;
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT as string;
-    const apiVersion = process.env.AZURE_OPENAI_API_VERSION || "2024-02-15-preview";
-
     const systemPrompt = [
       "You extract calendar events from school emails.",
       "Return ONLY valid JSON: an array of objects with fields:",
@@ -48,15 +42,9 @@ export async function POST(req: NextRequest) {
       "Do not include any additional keys or text.",
     ].join(" ");
 
-    const url = new URL(`/openai/deployments/${deployment}/chat/completions`, endpoint);
-    url.searchParams.set("api-version", apiVersion);
-
-    const response = await fetch(url.toString(), {
+    const response = await fetch(buildAzureChatCompletionsUrl(azureConfig), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
+      headers: buildAzureHeaders(azureConfig),
       body: JSON.stringify({
         messages: [
           { role: "system", content: systemPrompt },
