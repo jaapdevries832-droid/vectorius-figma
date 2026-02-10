@@ -13,7 +13,7 @@ import { validateTitle } from "@/lib/validation";
 import { useRoleLayout } from "app/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase/client";
-  import {
+import {
     addEnrollment,
     createCourse,
     fetchMyEnrollments,
@@ -21,7 +21,6 @@ import { supabase } from "@/lib/supabase/client";
     type CourseWithMeetings,
     type EnrollmentWithCourse,
   } from "@/lib/student-classes";
-import type { AssignedSkill } from "app/lib/types";
 import { Input } from "./ui/input";
 import { toast } from "sonner";
 import {
@@ -89,17 +88,35 @@ export function StudentDashboard() {
   const [parentInviteError, setParentInviteError] = React.useState<string | null>(null);
   const [parentInviteEmail, setParentInviteEmail] = React.useState("");
   React.useEffect(() => {
-    try {
-      const raw = typeof window !== 'undefined' ? localStorage.getItem('assignedSkills') : null
-      if (!raw) return
-      const arr = JSON.parse(raw) as AssignedSkill[]
+    let isMounted = true;
+
+    const loadAssignedSkillsCount = async () => {
       if (!studentId) {
-        setAssignedSkillsCount(0)
-        return
+        setAssignedSkillsCount(0);
+        return;
       }
-      setAssignedSkillsCount(arr.filter(a => a.studentId === studentId).length)
-    } catch {}
-  }, [studentId])
+
+      const { count, error } = await supabase
+        .from("skill_assignments")
+        .select("id", { count: "exact", head: true })
+        .eq("student_id", studentId);
+
+      if (!isMounted) return;
+      if (error) {
+        console.error("Failed to load assigned skills count", error);
+        setAssignedSkillsCount(0);
+        return;
+      }
+
+      setAssignedSkillsCount(count ?? 0);
+    };
+
+    loadAssignedSkillsCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [studentId]);
 
   const refreshEnrollments = React.useCallback(async (studentIdValue: string) => {
     setEnrollmentsLoading(true);
