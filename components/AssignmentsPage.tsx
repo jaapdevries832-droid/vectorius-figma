@@ -121,8 +121,8 @@ export function AssignmentsPage() {
   const [studyPlanMilestones, setStudyPlanMilestones] = useState<StudyMilestone[]>([])
   const [studyPlanId, setStudyPlanId] = useState<string | null>(null)
   // Advisor-specific state
-  const [advisorStudents, setAdvisorStudents] = useState<AdvisorStudent[]>([])
-  const [selectedAdvisorStudent, setSelectedAdvisorStudent] = useState<string | null>(null)
+  const [linkedStudents, setLinkedStudents] = useState<AdvisorStudent[]>([])
+  const [selectedLinkedStudent, setSelectedLinkedStudent] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -169,7 +169,7 @@ export function AssignmentsPage() {
           name: row.student_name ?? 'Student'
         }))
 
-        setAdvisorStudents(mappedStudents)
+        setLinkedStudents(mappedStudents)
 
         // If no students, show message
         if (mappedStudents.length === 0) {
@@ -181,7 +181,7 @@ export function AssignmentsPage() {
 
         // Use first student by default
         const firstStudentId = mappedStudents[0].id
-        setSelectedAdvisorStudent(firstStudentId)
+        setSelectedLinkedStudent(firstStudentId)
         setStudentId(firstStudentId)
 
         // Load assignments for all advisor's students
@@ -254,7 +254,7 @@ export function AssignmentsPage() {
           name: `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim() || 'Child'
         }))
 
-        setAdvisorStudents(mappedChildren) // Reuse advisor students state for parent's children
+        setLinkedStudents(mappedChildren)
 
         if (mappedChildren.length === 0) {
           setLoadError('No children added yet. Add a child from the dashboard.')
@@ -265,7 +265,7 @@ export function AssignmentsPage() {
 
         // Use first child by default
         const firstChildId = mappedChildren[0].id
-        setSelectedAdvisorStudent(firstChildId)
+        setSelectedLinkedStudent(firstChildId)
         setStudentId(firstChildId)
 
         // Load assignments for all children
@@ -886,8 +886,8 @@ export function AssignmentsPage() {
   }
 
   // Filter assignments by selected student for advisors
-  const filteredByStudent = currentRole === 'advisor' && selectedAdvisorStudent
-    ? visibleAssignments.filter(a => a.studentId === selectedAdvisorStudent)
+  const filteredByStudent = currentRole === 'advisor' && selectedLinkedStudent
+    ? visibleAssignments.filter(a => a.studentId === selectedLinkedStudent)
     : visibleAssignments
 
   // Re-group using filtered assignments
@@ -913,20 +913,20 @@ export function AssignmentsPage() {
         </p>
 
         {/* Advisor/Parent: Student filter */}
-        {(currentRole === 'advisor' || currentRole === 'parent') && advisorStudents.length > 0 && (
+        {(currentRole === 'advisor' || currentRole === 'parent') && linkedStudents.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted-foreground">
               {currentRole === 'parent' ? 'Child:' : 'Student:'}
             </span>
             <select
-              value={selectedAdvisorStudent ?? ''}
-              onChange={(e) => setSelectedAdvisorStudent(e.target.value || null)}
+              value={selectedLinkedStudent ?? ''}
+              onChange={(e) => setSelectedLinkedStudent(e.target.value || null)}
               className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white"
             >
               <option value="">
                 {currentRole === 'parent' ? 'All Children' : 'All Students'} ({visibleAssignments.length})
               </option>
-              {advisorStudents.map((student) => (
+              {linkedStudents.map((student) => (
                 <option key={student.id} value={student.id}>
                   {student.name} ({visibleAssignments.filter(a => a.studentId === student.id).length})
                 </option>

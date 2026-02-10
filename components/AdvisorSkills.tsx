@@ -14,7 +14,7 @@ import type { Student } from 'app/lib/domain'
 import { DEFAULT_SKILL_MODULES } from 'app/lib/skills-data'
 import { supabase } from '@/lib/supabase/client'
 
-type MentorNotification = {
+type AdvisorNotification = {
   id: string
   studentId: string
   studentName: string
@@ -25,9 +25,9 @@ type MentorNotification = {
   readAt?: string
 }
 
-export function MentorSkills() {
+export function AdvisorSkills() {
   const [modules, setModules] = useState<SkillModule[]>([])
-  const [notifications, setNotifications] = useState<MentorNotification[]>([])
+  const [notifications, setNotifications] = useState<AdvisorNotification[]>([])
   const [query, setQuery] = useState('')
   const [topicFilter, setTopicFilter] = useState<string>('all')
   const [openAssign, setOpenAssign] = useState(false)
@@ -83,7 +83,7 @@ export function MentorSkills() {
           completedAt: row.created_at,
           readAt: row.read_at
         }
-      }) as MentorNotification[]
+      }) as AdvisorNotification[]
 
       setNotifications(normalized)
     }
@@ -360,4 +360,4 @@ export function MentorSkills() {
   )
 }
 
-export default MentorSkills
+export default AdvisorSkills

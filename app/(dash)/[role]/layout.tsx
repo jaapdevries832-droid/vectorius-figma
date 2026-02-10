@@ -7,7 +7,7 @@ import AssignmentsPage from '@/components/AssignmentsPage'
 import { ChatInterface } from '@/components/ChatInterface'
 import { ParentChatInterface } from '@/components/ParentChatInterface'
 import { AchievementsPage } from '@/components/AchievementsPage'
-import { MentorSkills } from '@/components/MentorSkills'
+import { AdvisorSkills } from '@/components/AdvisorSkills'
 import { StudentSkills } from '@/components/StudentSkills'
 import { NotesPage } from '@/components/NotesPage'
 import { AdvisorStudentsPage } from '@/components/AdvisorStudentsPage'
@@ -113,7 +113,7 @@ export default function RoleLayout({ children, params }: { children: React.React
       case 'assignments':
         return <div className="p-4"><AssignmentsPage /></div>
       case 'skills':
-        return <div className="p-4">{role === 'advisor' ? <MentorSkills /> : <StudentSkills />}</div>
+        return <div className="p-4">{role === 'advisor' ? <AdvisorSkills /> : <StudentSkills />}</div>
       case 'achievements':
         return <div className="p-4"><AchievementsPage /></div>
       case 'notes':
