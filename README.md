@@ -11,8 +11,7 @@ It preserves the look & feel (cards, gradients, glassmorphism) and reorganizes t
 - **Tailwind CSS** with design tokens from Figma mapped to CSS variables
 - A reusable **UI library** (shadcn-style) under `components/ui`
 - Role-based dashboards: **Student**, **Parent**, **Advisor**
-- **Login screen** (client-side navigation to role dashboards)
-- **Top/Side/Bottom navigation** + floating AI chat drawer
+- **Top/Side/Bottom navigation** with integrated AI chat surfaces
 - Clean imports (Radix/Lucide/Recharts without version suffixes)
 - CI-ready structure and professional `.gitignore`
 
@@ -57,8 +56,6 @@ components/
   ParentDashboard.tsx
   AdvisorDashboard.tsx
   ChatInterface.tsx
-  FloatingChatDrawer.tsx
-  LoginScreen.tsx
   WeeklyPlanner.tsx
   ClassSetupModal.tsx
   ui/*                    # shadcn-style primitives (button, card, badge, etc.)
