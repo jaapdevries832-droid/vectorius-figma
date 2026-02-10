@@ -574,7 +574,7 @@ Legend: [ ] not started | [~] in progress | [x] complete | [!] blocked
 | S5-G1 | Skills DB Source | [x] | 68f800f | 2026-02-10 | Completed; dashboard skills count now from skill_assignments query |
 | S5-G2 | Azure Adapter Consolidation | [x] | 17340e2 | 2026-02-10 | Completed; shared azure-openai adapter used by chat/parse/study routes |
 | S5-J | UX Pattern Standardization | [x] | caba8b0 | 2026-02-10 | Completed; shared ConfirmDialog + test script + removed placeholder actions |
-| S5-H | Import & Dependency Cleanup | [ ] | - | - | After S5-F and S5-G2 |
+| S5-H | Import & Dependency Cleanup | [x] | 8fcf5e1 | 2026-02-10 | Completed; includes rename commit b48bbaf; import normalization + middleware matcher intent comment; lint/build/type-check pass |
 
 ---
 
