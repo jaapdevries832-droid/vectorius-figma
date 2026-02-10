@@ -595,17 +595,17 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     toast.success("Event removed from your schedule.");
   };
 
-  const handleSaveEvent = async (eventInput: CalendarEventForm) => {
+  const handleSaveEvent = async (eventInput: CalendarEventForm): Promise<boolean> => {
     const { user, profile } = await getCurrentProfile();
     if (!user || !profile) {
       toast.error("Please sign in to add events.");
-      return;
+      return false;
     }
 
     const targetStudentId = profile.role === "parent" ? selectedStudentId : activeStudentId;
     if (!targetStudentId) {
       toast.error("Select a student to add events.");
-      return;
+      return false;
     }
 
     const startTime = eventInput.allDay ? "08:00" : eventInput.startTime;
@@ -615,7 +615,7 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
 
     if (!eventInput.allDay && endAt <= startAt) {
       toast.error("End time must be after the start time.");
-      return;
+      return false;
     }
 
     setIsLoading(true);
@@ -634,14 +634,14 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
         console.error("Failed to update event", updateError);
         toast.error("Unable to update that event right now.");
         setIsLoading(false);
-        return;
+        return false;
       }
 
       await reloadSchedule();
       setSelectedEvent(null);
       setIsLoading(false);
       toast.success("Event updated successfully.");
-      return;
+      return true;
     }
 
     const source = profile.role === "parent" ? "parent" : "student";
@@ -662,12 +662,13 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
       console.error("Failed to create event", error);
       toast.error("Unable to add that event right now.");
       setIsLoading(false);
-      return;
+      return false;
     }
 
     await reloadSchedule();
     setIsLoading(false);
     toast.success("Event added to your schedule.");
+    return true;
   };
 
   const isCurrentDay = (date: Date) => {

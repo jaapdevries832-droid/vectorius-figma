@@ -439,12 +439,15 @@ export function ParentDashboardWrapper() {
     setIsSuggestModalOpen(true);
   };
 
-  const handleSaveSuggestion = async (assignment: AssignmentInput) => {
-    if (!selectedStudentId) return;
+  const handleSaveSuggestion = async (assignment: AssignmentInput): Promise<boolean> => {
+    if (!selectedStudentId) {
+      toast.error("Select a student before suggesting an assignment.");
+      return false;
+    }
     const { user, profile } = await getCurrentProfile();
     if (!user) {
       toast.error("Please sign in to suggest assignments.");
-      return;
+      return false;
     }
 
     const { error } = await supabase.from("assignments").insert({
@@ -464,12 +467,12 @@ export function ParentDashboardWrapper() {
 
     if (error) {
       toast.error(`Error creating suggestion: ${error.message}`);
-      return;
+      return false;
     }
 
-    setIsSuggestModalOpen(false);
     toast.success(`Suggested "${assignment.title}" to the student.`);
     await fetchStudentSignals();
+    return true;
   };
 
   const handleGenerateInvite = async () => {

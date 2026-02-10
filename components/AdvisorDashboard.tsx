@@ -183,13 +183,16 @@ export function AdvisorDashboard() {
     setIsModalOpen(true);
   };
 
-  const handleSaveAssignment = async (assignment: AssignmentInput) => {
-    if (!selectedStudentId) return;
+  const handleSaveAssignment = async (assignment: AssignmentInput): Promise<boolean> => {
+    if (!selectedStudentId) {
+      toast.error("Please select a student first.");
+      return false;
+    }
 
     const { user, profile } = await getCurrentProfile();
     if (!user) {
       toast.error("Please sign in to create assignments.");
-      return;
+      return false;
     }
 
     const { error } = await supabase.from("assignments").insert({
@@ -209,9 +212,10 @@ export function AdvisorDashboard() {
 
     if (error) {
       toast.error(`Error creating assignment: ${error.message}`);
+      return false;
     } else {
-      setIsModalOpen(false);
       toast.success(`Assignment "${assignment.title}" created successfully!`);
+      return true;
     }
   };
 

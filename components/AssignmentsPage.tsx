@@ -474,11 +474,12 @@ export function AssignmentsPage() {
 
   const classById = useMemo(() => Object.fromEntries(classes.map(c => [c.id, c])), [classes])
 
-  const addAssignment = async (input: AssignmentInput) => {
+  const addAssignment = async (input: AssignmentInput): Promise<boolean> => {
     if (!studentId) {
       console.error("Assignments: missing student id, cannot create assignment.")
       setLoadError("Unable to create assignment right now.")
-      return
+      toast.error("Unable to create assignment right now.")
+      return false
     }
 
     const dueAt = input.dueDate ? new Date(`${input.dueDate}T00:00:00`).toISOString() : null
@@ -496,7 +497,8 @@ export function AssignmentsPage() {
 
     if (!currentUserId && !creatorId) {
       setLoadError("Unable to identify the current user.")
-      return
+      toast.error("Unable to identify the current user.")
+      return false
     }
 
     const { data, error } = await supabase
@@ -520,7 +522,8 @@ export function AssignmentsPage() {
     if (error) {
       console.error("Assignments: failed to create assignment", error)
       setLoadError("Unable to create assignment right now.")
-      return
+      toast.error("Unable to create assignment right now.")
+      return false
     }
 
     const basePts = computePotentialPoints(input.dueDate)
@@ -545,6 +548,7 @@ export function AssignmentsPage() {
     }
 
     setAssignments(prev => [...prev, nextAssignment])
+    return true
   }
 
   function computePotentialPoints(dueIso: string | null) {

@@ -18,6 +18,7 @@ import { BookOpen, ClipboardCheck, HelpCircle, Briefcase, CalendarDays, Save, X,
 import { validateTitle, validateFutureDate } from "@/lib/validation"
 import type { LucideIcon } from "lucide-react"
 import type { ScheduledCourse } from "app/lib/domain"
+import { toast } from "sonner"
 
 export type AssignmentType = 'homework' | 'quiz' | 'test' | 'project'
 
@@ -33,7 +34,7 @@ export interface AssignmentInput {
 export interface AssignmentModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (assignment: AssignmentInput) => void
+  onSave: (assignment: AssignmentInput) => Promise<boolean>
   classes: ScheduledCourse[]
 }
 
@@ -79,6 +80,7 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
     color: '',
   })
   const [errors, setErrors] = useState<{ title?: string; dueDate?: string }>({})
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -91,13 +93,14 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
         color: '',
       })
       setErrors({})
+      setIsSaving(false)
     }
   }, [isOpen, classes])
 
   const selectedClass = useMemo(() => form.classId === 'none' ? null : classes.find(c => c.id === form.classId), [classes, form.classId])
   const selectedType = useMemo(() => typeOptions.find(t => t.key === form.type), [form.type])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const newErrors: { title?: string; dueDate?: string } = {}
 
     // Validate title
@@ -118,15 +121,32 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
     }
 
     setErrors({})
-    onSave({ ...form })
-    onClose()
+    setIsSaving(true)
+    try {
+      const ok = await onSave({ ...form })
+      if (ok) {
+        onClose()
+        return
+      }
+      toast.error("Could not save assignment. Please try again.")
+    } catch (error) {
+      console.error("Failed to save assignment", error)
+      toast.error("Could not save assignment. Please try again.")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Determine preview color
   const previewColor = form.color || selectedClass?.color || 'bg-indigo-500'
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && !isSaving) onClose()
+      }}
+    >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto glass border-0 shadow-2xl rounded-3xl p-8">
         <DialogHeader className="pb-6">
           <DialogTitle className="flex items-center gap-4 text-2xl">
@@ -307,13 +327,22 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
 
         {/* Actions */}
         <div className="flex justify-end gap-4 pt-6 border-t border-gray-200/50 mt-6">
-          <Button variant="outline" onClick={onClose} className="rounded-xl border-gray-200 hover:bg-gray-50">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="rounded-xl border-gray-200 hover:bg-gray-50"
+            disabled={isSaving}
+          >
             <X className="w-4 h-4 mr-2" />
             Cancel
           </Button>
-          <Button onClick={handleSave} className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow">
+          <Button
+            onClick={handleSave}
+            className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
+            disabled={isSaving}
+          >
             <Save className="w-4 h-4 mr-2" />
-            Save Assignment
+            {isSaving ? "Saving..." : "Save Assignment"}
           </Button>
         </div>
       </DialogContent>

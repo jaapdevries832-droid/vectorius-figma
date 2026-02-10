@@ -15,6 +15,7 @@ import {
 } from "./ui/select";
 import { Calendar, Clock, Save, X } from "lucide-react";
 import type { CalendarEventType } from "@/lib/calendar-events";
+import { toast } from "sonner";
 
 export type CalendarEventForm = {
   title: string;
@@ -34,7 +35,7 @@ export type CalendarEventFormData = CalendarEventForm & {
 type AddEventModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (event: CalendarEventForm) => void;
+  onSave: (event: CalendarEventForm) => Promise<boolean>;
   initialData?: CalendarEventFormData | null;
   allowPrivate?: boolean;
 };
@@ -69,6 +70,7 @@ export function AddEventModal({
     allDay: false,
     isPrivate: false,
   });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -95,18 +97,36 @@ export function AddEventModal({
       allDay: false,
       isPrivate: false,
     });
+    setIsSaving(false);
   }, [initialData, isOpen]);
 
   const isEdit = useMemo(() => Boolean(initialData), [initialData]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title.trim() || !form.date) return;
-    onSave({ ...form });
-    onClose();
+    setIsSaving(true);
+    try {
+      const ok = await onSave({ ...form });
+      if (ok) {
+        onClose();
+        return;
+      }
+      toast.error("Could not save event. Please try again.");
+    } catch (error) {
+      console.error("Failed to save event", error);
+      toast.error("Could not save event. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && !isSaving) onClose();
+      }}
+    >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto glass border-0 shadow-2xl rounded-3xl p-8">
         <DialogHeader className="pb-6">
           <DialogTitle className="flex items-center gap-4 text-2xl">
@@ -220,13 +240,22 @@ export function AddEventModal({
         </div>
 
         <div className="flex justify-end gap-4 pt-8 border-t border-gray-200/50 mt-8">
-          <Button variant="outline" onClick={onClose} className="rounded-xl border-gray-200 hover:bg-gray-50">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="rounded-xl border-gray-200 hover:bg-gray-50"
+            disabled={isSaving}
+          >
             <X className="w-4 h-4 mr-2" />
             Cancel
           </Button>
-          <Button onClick={handleSave} className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow">
+          <Button
+            onClick={handleSave}
+            className="bg-gradient-primary text-white rounded-xl shadow-md btn-glow"
+            disabled={isSaving}
+          >
             <Save className="w-4 h-4 mr-2" />
-            {isEdit ? "Save Changes" : "Save Event"}
+            {isSaving ? "Saving..." : isEdit ? "Save Changes" : "Save Event"}
           </Button>
         </div>
       </DialogContent>
