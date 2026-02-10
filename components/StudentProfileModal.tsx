@@ -94,12 +94,10 @@ export function StudentProfileModal({
           return !isPending && a.suggestion_status !== "declined"
         })
 
-        const completed = active.filter(
-          (a) => a.completed_at || a.status === "done" || a.status === "completed"
-        ).length
+        const completed = active.filter((a) => a.completed_at || a.status === "done").length
 
         const overdue = active.filter((a) => {
-          if (a.completed_at || a.status === "done" || a.status === "completed") return false
+          if (a.completed_at || a.status === "done") return false
           if (!a.due_at) return false
           return new Date(a.due_at) < endOfToday
         }).length

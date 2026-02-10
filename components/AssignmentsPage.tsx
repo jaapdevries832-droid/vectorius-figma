@@ -760,7 +760,7 @@ export function AssignmentsPage() {
     const Icon = meta.icon
     const cls = classById[a.classId]
     const cat = categorize(a.dueAt)
-    const isCompleted = a.status === 'done' || a.status === 'completed' || Boolean(a.completedAt)
+    const isCompleted = a.status === 'done' || Boolean(a.completedAt)
     const isPending = isPendingSuggestion(a)
     const isStudyEligible = a.type === 'test' || a.type === 'project'
     const statusBadge = (() => {

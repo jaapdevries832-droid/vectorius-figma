@@ -121,7 +121,7 @@ export function ParentReportsPage() {
         .from("assignments")
         .select("id, title, type, score, max_score, completed_at, due_at, status")
         .eq("student_id", selectedChildId)
-        .in("status", ["completed", "done"])
+        .eq("status", "done")
         .order("completed_at", { ascending: false })
         .limit(5)
 
@@ -137,7 +137,7 @@ export function ParentReportsPage() {
         .from("assignments")
         .select("id, title, type, due_at")
         .eq("student_id", selectedChildId)
-        .not("status", "in", "(completed,done)")
+        .neq("status", "done")
         .not("due_at", "is", null)
         .lte("due_at", twoWeeksFromNow.toISOString())
         .gte("due_at", new Date().toISOString())

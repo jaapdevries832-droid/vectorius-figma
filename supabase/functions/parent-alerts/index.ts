@@ -42,7 +42,7 @@ serve(async () => {
       .from("assignments")
       .select("id, title, due_at, type, student_id, students(parent_id)")
       .lt("due_at", nowIso)
-      .not("status", "in", "(completed,archived)")
+      .not("status", "in", "(done,archived)")
   );
 
   const upcomingAssignments = await fetchAssignments(
@@ -52,7 +52,7 @@ serve(async () => {
       .in("type", ["test", "project"])
       .gte("due_at", nowIso)
       .lte("due_at", weekFromNow)
-      .not("status", "in", "(completed,archived)")
+      .not("status", "in", "(done,archived)")
   );
 
   const declinedSuggestions = await fetchAssignments(

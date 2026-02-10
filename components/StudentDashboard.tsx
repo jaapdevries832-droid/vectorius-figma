@@ -287,13 +287,13 @@ export function StudentDashboard() {
       const activeRows = (allAssignmentRows ?? []).filter(isActiveAssignment);
 
       const total = activeRows.length;
-      const completed = activeRows.filter((row) => row.completed_at || row.status === "done" || row.status === "completed").length;
+      const completed = activeRows.filter((row) => row.completed_at || row.status === "done").length;
       const endOfToday = endOfDay(new Date());
       let due = 0;
       let sumScore = 0;
       let sumMax = 0;
       activeRows.forEach((row) => {
-        if (!row.completed_at && row.status !== "done" && row.status !== "completed" && row.due_at) {
+        if (!row.completed_at && row.status !== "done" && row.due_at) {
           const dueAt = new Date(row.due_at);
           if (dueAt < endOfToday) due += 1;
         }
@@ -313,7 +313,7 @@ export function StudentDashboard() {
           title: row.title ?? "Untitled Assignment",
           subject: course?.title ?? "Class",
           dueDate: row.due_at ?? new Date().toISOString(),
-          completed: Boolean(row.completed_at) || row.status === "done" || row.status === "completed",
+          completed: Boolean(row.completed_at) || row.status === "done",
           priority: row.priority ?? "medium",
           source: row.source ?? null,
           createdByRole: row.created_by_role ?? null,
