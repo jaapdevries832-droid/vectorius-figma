@@ -570,7 +570,7 @@ Legend: [ ] not started | [~] in progress | [x] complete | [!] blocked
 | S5-I | Unknown Role Handling | [x] | 147f368 | 2026-02-10 | Completed; unknown roles log and redirect to /login; lint/type-check/build pass |
 | S5-D | Dead Surface Cleanup | [x] | 35799aa | 2026-02-10 | Completed; deleted dead components, README aligned, persona route forced dynamic |
 | S5-E | Shared Auth Session Layer | [x] | 87af740 | 2026-02-10 | Completed; login/join pages share check-session utility; lint/type-check/build pass |
-| S5-F | Advisor/Mentor Naming | [ ] | - | - | Consistency |
+| S5-F | Advisor/Mentor Naming | [x] | 122316f | 2026-02-10 | Completed; includes rename commit 1c6c245; lint/type-check/build pass |
 | S5-G1 | Skills DB Source | [ ] | - | - | Data correctness |
 | S5-G2 | Azure Adapter Consolidation | [ ] | - | - | DRY API wiring |
 | S5-J | UX Pattern Standardization | [ ] | - | - | Consistency |
