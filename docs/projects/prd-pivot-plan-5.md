@@ -543,7 +543,7 @@ Within each phase, reorder only when dependencies remain intact; do not combine 
 | Slice | New Files | Modified Files | Migrations |
 |-------|-----------|----------------|------------|
 | S5-A | `lib/constants/assignment-status.ts` (optional) | `components/AssignmentsPage.tsx`, `components/StudentDashboard.tsx`, `components/ParentReportsPage.tsx`, `components/StudentProfileModal.tsx`, `supabase/functions/parent-alerts/index.ts` | 0 |
-| S5-B | None | `components/AssignmentModal.tsx`, `components/AddEventModal.tsx`, `components/AssignmentsPage.tsx`, `components/ParentDashboardWrapper.tsx`, `components/WeeklyPlanner.tsx` (if used) | 0 |
+| S5-B | None | `components/AssignmentModal.tsx`, `components/AddEventModal.tsx`, `components/AssignmentsPage.tsx`, `components/ParentDashboardWrapper.tsx`, `components/AdvisorDashboard.tsx`, `components/WeeklyPlanner.tsx` (if used) | 0 |
 | S5-C1 | None | None (migration-only slice) | 1 (`parent_advisor_notes_view`) |
 | S5-C2 | None | `components/ParentDashboardWrapper.tsx` | 0 |
 | S5-I | None | `app/(dash)/[role]/page.tsx` | 0 |
@@ -564,7 +564,7 @@ Legend: [ ] not started | [~] in progress | [x] complete | [!] blocked
 | Slice | Name | Status | PR/Commit | Completed | Notes |
 |------:|------|--------|-----------|-----------|-------|
 | S5-A | Assignment Status Normalization | [x] | ab2111a | 2026-02-10 | Completed; lint/type-check/build pass; manual path: S5-A script |
-| S5-B | Modal Save Safety | [ ] | - | - | Must fix: data loss on failure |
+| S5-B | Modal Save Safety | [x] | a3e0126 | 2026-02-10 | Completed; lint/type-check/build pass; manual path: S5-B script |
 | S5-C1 | Parent View Migration | [ ] | - | - | Must fix: secure view foundation |
 | S5-C2 | Parent Query Cutover | [ ] | - | - | Must fix: remove N+1 and enforce explicit filter |
 | S5-I | Unknown Role Handling | [ ] | - | - | Safety |
