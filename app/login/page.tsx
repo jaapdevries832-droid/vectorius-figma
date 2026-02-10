@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile } from "@/lib/profile";
+import { checkExistingSession } from "@/lib/auth/check-session";
 
 type AuthMode = "sign-in" | "sign-up";
 type SignupRole = "" | "parent" | "student" | "advisor";
@@ -28,33 +29,19 @@ export default function LoginPage() {
   useEffect(() => {
     let isMounted = true;
 
-    const checkExistingSession = async () => {
-      // Force a fresh session check by getting the session directly
-      const { data: { session } } = await supabase.auth.getSession();
+    const checkSessionOnLoad = async () => {
+      const { redirected } = await checkExistingSession({
+        router: { push: (href) => router.push(href) },
+        redirectIfAuthenticated: true,
+      });
 
       if (!isMounted) return;
 
-      // If no session, user is not logged in
-      if (!session) {
-        setIsCheckingAuth(false);
-        return;
-      }
-
-      // Session exists, get profile to determine role
-      const { user, profile } = await getCurrentProfile();
-
-      if (!isMounted) return;
-
-      if (user && profile?.role) {
-        // User is already logged in, redirect to their dashboard
-        router.push(`/${profile.role}`);
-        return;
-      }
-
+      if (redirected) return;
       setIsCheckingAuth(false);
     };
 
-    checkExistingSession();
+    checkSessionOnLoad();
 
     return () => {
       isMounted = false;

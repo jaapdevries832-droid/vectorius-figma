@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { checkExistingSession } from "@/lib/auth/check-session";
 import { getCurrentProfile } from "@/lib/profile";
 
 type AuthMode = "sign-up" | "sign-in";
@@ -28,7 +29,7 @@ export default function StudentJoinPage() {
     let isMounted = true;
 
     const checkSession = async () => {
-      const { user, profile } = await getCurrentProfile();
+      const { user, profile } = await checkExistingSession();
       if (!isMounted) return;
       if (user) {
         setUserId(user.id);

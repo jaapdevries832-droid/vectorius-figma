@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { getCurrentProfile } from "@/lib/profile";
+import { checkExistingSession } from "@/lib/auth/check-session";
 
 type AuthMode = "sign-up" | "sign-in";
 
@@ -28,7 +28,7 @@ export default function AdvisorJoinPage() {
     let isMounted = true;
 
     const checkSession = async () => {
-      const { user, profile } = await getCurrentProfile();
+      const { user, profile } = await checkExistingSession();
       if (!isMounted) return;
       if (user) {
         setUserId(user.id);

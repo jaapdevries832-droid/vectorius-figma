@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { getCurrentProfile } from "@/lib/profile";
+import { checkExistingSession } from "@/lib/auth/check-session";
 import { clearSupabaseLocalSession } from "@/lib/supabase/logout";
 import { clearCurrentUser } from "app/lib/current-user";
 
@@ -31,7 +31,7 @@ export default function ParentJoinPage() {
     let isMounted = true;
 
     const checkSession = async () => {
-      const { user, profile } = await getCurrentProfile();
+      const { user, profile } = await checkExistingSession();
       if (!isMounted) return;
       if (user) {
         setUserId(user.id);
