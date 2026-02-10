@@ -22,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import { supabase } from "@/lib/supabase/client";
 
 type Role = 'user' | 'assistant';
 
@@ -40,12 +41,13 @@ const getErrorMessage = (err: unknown, fallback: string) =>
   err instanceof Error ? err.message : fallback;
 
 // localStorage persistence constants (separate from student chat)
-const PARENT_CHAT_STORAGE_KEY = 'vectorius_parent_chat_messages';
+const PARENT_CHAT_STORAGE_KEY_PREFIX = 'vectorius_parent_chat_messages';
 const CHAT_STORAGE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 
 interface StoredChat {
   messages: Array<{ id: string; content: string; role: Role; timestamp: string }>;
   timestamp: number;
+  ownerId?: string; // Added to verify ownership on load
 }
 
 const getWelcomeMessage = (): Message => ({
@@ -55,19 +57,32 @@ const getWelcomeMessage = (): Message => ({
   timestamp: new Date(),
 });
 
-// Load messages from localStorage
-const loadStoredMessages = (): Message[] => {
-  if (typeof window === 'undefined') return [getWelcomeMessage()];
+// Generate storage key with optional user ID for isolation
+const getStorageKey = (userId?: string) =>
+  userId ? `${PARENT_CHAT_STORAGE_KEY_PREFIX}_${userId}` : PARENT_CHAT_STORAGE_KEY_PREFIX;
 
+// Load messages from localStorage
+const loadStoredMessages = (userId?: string): Message[] => {
+  if (typeof window === 'undefined') return [getWelcomeMessage()];
+  if (!userId) return [getWelcomeMessage()]; // Don't load without verified userId
+
+  const storageKey = getStorageKey(userId);
   try {
-    const stored = localStorage.getItem(PARENT_CHAT_STORAGE_KEY);
+    const stored = localStorage.getItem(storageKey);
     if (!stored) return [getWelcomeMessage()];
 
     const parsed: StoredChat = JSON.parse(stored);
 
+    // Verify ownership - if ownerId doesn't match, don't load these messages
+    if (parsed.ownerId && parsed.ownerId !== userId) {
+      console.warn('[ParentChat] Owner mismatch, clearing stale data');
+      localStorage.removeItem(storageKey);
+      return [getWelcomeMessage()];
+    }
+
     // Check if expired (24 hours)
     if (Date.now() - parsed.timestamp > CHAT_STORAGE_EXPIRY) {
-      localStorage.removeItem(PARENT_CHAT_STORAGE_KEY);
+      localStorage.removeItem(storageKey);
       return [getWelcomeMessage()];
     }
 
@@ -84,31 +99,35 @@ const loadStoredMessages = (): Message[] => {
 };
 
 // Save messages to localStorage
-const saveMessages = (messages: Message[]) => {
+const saveMessages = (messages: Message[], userId?: string) => {
   if (typeof window === 'undefined') return;
+  if (!userId) return; // Don't save without verified userId
 
+  const storageKey = getStorageKey(userId);
   try {
     const stored: StoredChat = {
       messages: messages.map(m => ({
         ...m,
         timestamp: m.timestamp.toISOString()
       })),
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      ownerId: userId // Store owner for verification
     };
 
-    localStorage.setItem(PARENT_CHAT_STORAGE_KEY, JSON.stringify(stored));
+    localStorage.setItem(storageKey, JSON.stringify(stored));
   } catch {
     // Ignore storage errors
   }
 };
 
 export function ParentChatInterface() {
-  const [messages, setMessages] = useState<Message[]>(() => loadStoredMessages());
+  const [messages, setMessages] = useState<Message[]>([getWelcomeMessage()]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [mode, setMode] = useState<Mode>('tutor');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -119,16 +138,56 @@ export function ParentChatInterface() {
     scrollToBottom();
   }, [messages]);
 
-  // Persist messages to localStorage when they change
+  // Get verified user ID directly from Supabase auth (not from potentially stale localStorage)
   useEffect(() => {
-    saveMessages(messages);
-  }, [messages]);
+    let isMounted = true;
+
+    const getAuthUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (isMounted && user?.id) {
+        setAuthUserId(user.id);
+      }
+    };
+
+    getAuthUser();
+
+    // Listen for auth state changes to handle login/logout
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (isMounted) {
+        setAuthUserId(session?.user?.id ?? null);
+        // Clear messages when user changes to prevent data leakage
+        if (event === 'SIGNED_OUT' || !session?.user) {
+          setMessages([getWelcomeMessage()]);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Load messages when authUserId becomes available
+  useEffect(() => {
+    if (authUserId) {
+      setMessages(loadStoredMessages(authUserId));
+    }
+  }, [authUserId]);
+
+  // Persist messages to localStorage when they change (only if authUserId is available)
+  useEffect(() => {
+    if (authUserId) {
+      saveMessages(messages, authUserId);
+    }
+  }, [messages, authUserId]);
 
   // Clear chat handler
   const handleClearChat = useCallback(() => {
-    localStorage.removeItem(PARENT_CHAT_STORAGE_KEY);
+    const storageKey = getStorageKey(authUserId ?? undefined);
+    localStorage.removeItem(storageKey);
     setMessages([getWelcomeMessage()]);
-  }, []);
+  }, [authUserId]);
 
   // Load chat enabled flag and persisted mode
   useEffect(() => {
@@ -406,6 +465,10 @@ export function ParentChatInterface() {
             </div>
             <p className="text-xs text-gray-500 mt-2 text-center">
               AI assistant to help you support your child&apos;s education
+            </p>
+            {/* DEBUG: remove after verifying chat isolation */}
+            <p className="text-[10px] text-gray-300 text-center mt-1 select-all">
+              uid: {authUserId ? authUserId.slice(0, 8) : 'loading...'}
             </p>
           </div>
         </CardContent>
