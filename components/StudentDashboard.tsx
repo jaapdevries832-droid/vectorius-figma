@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Calendar, Clock, CheckCircle, Circle, Plus, TrendingUp, Book, Target, Sparkles, Trophy, Flame, Edit2, Trash2, Users } from "lucide-react";
 import { ParentInviteModal } from "./ParentInviteModal";
 import { NoteEditModal } from "./NoteEditModal";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { validateTitle } from "@/lib/validation";
 import { useRoleLayout } from "app/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
@@ -64,6 +65,7 @@ export function StudentDashboard() {
   >([]);
   const [noteEditOpen, setNoteEditOpen] = React.useState(false);
   const [editingNote, setEditingNote] = React.useState<{ id: string; body: string; color: string } | null>(null);
+  const [noteToDeleteId, setNoteToDeleteId] = React.useState<string | null>(null);
 
   const overallProgress = dashboardMetrics?.progressPercent ?? 0;
   const avgGradeDisplay = dashboardMetrics?.avgGradePercent != null ? `${dashboardMetrics.avgGradePercent}%` : "—";
@@ -640,21 +642,25 @@ export function StudentDashboard() {
     }
   };
 
-  const handleDeleteNote = async (noteId: string) => {
+  const handleDeleteNote = (noteId: string) => {
+    setNoteToDeleteId(noteId);
+  };
+
+  const confirmDeleteNote = async () => {
     if (!studentId) return;
-    const confirmed = window.confirm("Delete this note?");
-    if (!confirmed) return;
+    if (!noteToDeleteId) return;
     const { error } = await supabase
       .from("student_notes")
       .delete()
-      .eq("id", noteId);
+      .eq("id", noteToDeleteId);
 
     if (error) {
       console.error("Failed to delete note", error);
       return;
     }
 
-    setNotes((prev) => prev.filter((note) => note.id !== noteId));
+    setNotes((prev) => prev.filter((note) => note.id !== noteToDeleteId));
+    setNoteToDeleteId(null);
   };
 
   return (
@@ -1102,6 +1108,18 @@ export function StudentDashboard() {
             initialBody={editingNote?.body ?? ""}
             initialColor={editingNote?.color ?? noteColors[notes.length % noteColors.length]}
             isNew={!editingNote}
+          />
+          <ConfirmDialog
+            open={Boolean(noteToDeleteId)}
+            onOpenChange={(open) => {
+              if (!open) setNoteToDeleteId(null);
+            }}
+            title="Delete this note?"
+            description="This action cannot be undone."
+            confirmLabel="Delete"
+            onConfirm={() => {
+              void confirmDeleteNote();
+            }}
           />
 
           {/* AI Chat Quick Access */}

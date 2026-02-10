@@ -20,6 +20,7 @@ import { NoteEditModal } from "./NoteEditModal";
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile } from "@/lib/profile";
 import { toast } from "sonner";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 import {
   Select,
   SelectContent,
@@ -68,6 +69,7 @@ export function NotesPage({ role }: NotesPageProps) {
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [noteEditOpen, setNoteEditOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<{ id: string; body: string; color: string } | null>(null);
+  const [noteToDeleteId, setNoteToDeleteId] = useState<string | null>(null);
 
   // Load data based on role
   const loadData = useCallback(async () => {
@@ -222,21 +224,20 @@ export function NotesPage({ role }: NotesPageProps) {
   };
 
   // Delete personal note (student only)
-  const handleDeleteStudentNote = async (noteId: string) => {
-    const confirmed = window.confirm("Delete this note?");
-    if (!confirmed) return;
-
+  const confirmDeleteStudentNote = async () => {
+    if (!noteToDeleteId) return;
     const { error } = await supabase
       .from("student_notes")
       .delete()
-      .eq("id", noteId);
+      .eq("id", noteToDeleteId);
 
     if (error) {
       toast.error("Unable to delete note.");
       return;
     }
 
-    setStudentNotes((prev) => prev.filter((n) => n.id !== noteId));
+    setStudentNotes((prev) => prev.filter((n) => n.id !== noteToDeleteId));
+    setNoteToDeleteId(null);
     toast.success("Note deleted.");
   };
 
@@ -436,7 +437,7 @@ export function NotesPage({ role }: NotesPageProps) {
                         <Edit2 className="w-4 h-4 text-gray-600" />
                       </button>
                       <button
-                        onClick={() => handleDeleteStudentNote(note.id)}
+                          onClick={() => setNoteToDeleteId(note.id)}
                         className="p-1.5 hover:bg-red-100/50 rounded"
                         title="Delete note"
                       >
@@ -451,14 +452,26 @@ export function NotesPage({ role }: NotesPageProps) {
         </Card>
 
         {/* Note Edit Modal */}
-        <NoteEditModal
-          open={noteEditOpen}
-          onClose={() => setNoteEditOpen(false)}
-          onSave={handleSaveNote}
-          initialBody={editingNote?.body ?? ""}
-          initialColor={editingNote?.color ?? noteColors[studentNotes.length % noteColors.length]}
-          isNew={!editingNote}
-        />
+      <NoteEditModal
+        open={noteEditOpen}
+        onClose={() => setNoteEditOpen(false)}
+        onSave={handleSaveNote}
+        initialBody={editingNote?.body ?? ""}
+        initialColor={editingNote?.color ?? noteColors[studentNotes.length % noteColors.length]}
+        isNew={!editingNote}
+      />
+      <ConfirmDialog
+        open={Boolean(noteToDeleteId)}
+        onOpenChange={(open) => {
+          if (!open) setNoteToDeleteId(null);
+        }}
+        title="Delete this note?"
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          void confirmDeleteStudentNote();
+        }}
+      />
 
         {/* Advisor Feedback */}
         <Card>

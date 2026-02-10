@@ -6,13 +6,14 @@ import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import type { ScheduledCourse } from "app/lib/domain"
 import { AssignmentModal, type AssignmentInput, type AssignmentType } from "./AssignmentModal"
-import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Edit, Trash2, Plus, ExternalLink, Copy, ChevronDown, Trophy, Sparkles } from "lucide-react"
+import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Trash2, Plus, ChevronDown, Trophy, Sparkles } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { GamificationCongratsModal } from "./GamificationCongratsModal"
 import { StudyPlanPreview, type StudyMilestone } from "./StudyPlanPreview"
 import { supabase } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { getCurrentProfile } from "@/lib/profile"
+import { ConfirmDialog } from "./ui/ConfirmDialog"
 
 type Assignment = {
   id: string
@@ -120,6 +121,7 @@ export function AssignmentsPage() {
   const [studyPlanAssignment, setStudyPlanAssignment] = useState<Assignment | null>(null)
   const [studyPlanMilestones, setStudyPlanMilestones] = useState<StudyMilestone[]>([])
   const [studyPlanId, setStudyPlanId] = useState<string | null>(null)
+  const [assignmentToDeleteId, setAssignmentToDeleteId] = useState<string | null>(null)
   // Advisor-specific state
   const [linkedStudents, setLinkedStudents] = useState<AdvisorStudent[]>([])
   const [selectedLinkedStudent, setSelectedLinkedStudent] = useState<string | null>(null)
@@ -590,8 +592,6 @@ export function AssignmentsPage() {
 
   // Delete assignment handler
   async function handleDeleteAssignment(assignmentId: string) {
-    if (!confirm("Delete this assignment? This cannot be undone.")) return
-
     const { error } = await supabase
       .from('assignments')
       .delete()
@@ -603,6 +603,7 @@ export function AssignmentsPage() {
     }
 
     setAssignments(prev => prev.filter(a => a.id !== assignmentId))
+    setAssignmentToDeleteId(null)
     toast.success("Assignment deleted.")
   }
 
@@ -868,14 +869,11 @@ export function AssignmentsPage() {
               </div>
             </div>
           <div className="flex items-center space-grid-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button variant="ghost" size="sm" className="p-2 h-auto rounded-xl hover:bg-gray-100"><ExternalLink className="w-4 h-4 text-gray-600" /></Button>
-            <Button variant="ghost" size="sm" className="p-2 h-auto rounded-xl hover:bg-gray-100"><Copy className="w-4 h-4 text-gray-600" /></Button>
-            <Button variant="ghost" size="sm" className="p-2 h-auto rounded-xl hover:bg-gray-100"><Edit className="w-4 h-4 text-gray-600" /></Button>
             <Button
               variant="ghost"
               size="sm"
               className="p-2 h-auto rounded-xl hover:bg-red-50"
-              onClick={() => handleDeleteAssignment(a.id)}
+              onClick={() => setAssignmentToDeleteId(a.id)}
             >
               <Trash2 className="w-4 h-4 text-red-600" />
             </Button>
@@ -1060,6 +1058,20 @@ export function AssignmentsPage() {
         assignmentTitle={studyPlanAssignment?.title ?? 'Study Plan'}
         dueDate={studyPlanAssignment?.dueAt ?? null}
         milestones={studyPlanMilestones}
+      />
+      <ConfirmDialog
+        open={Boolean(assignmentToDeleteId)}
+        onOpenChange={(open) => {
+          if (!open) setAssignmentToDeleteId(null)
+        }}
+        title="Delete this assignment?"
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (assignmentToDeleteId) {
+            void handleDeleteAssignment(assignmentToDeleteId)
+          }
+        }}
       />
     </div>
   )

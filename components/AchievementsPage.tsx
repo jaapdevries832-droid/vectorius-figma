@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 
 type Reward = { id: string; name: string; cost: number; description: string };
 type BadgeData = { id: string; name: string; icon: LucideIcon; achieved: boolean; criteria: string };
@@ -40,6 +41,8 @@ export function AchievementsPage() {
   const [newGoalTitle, setNewGoalTitle] = useState("");
   const [newGoalDate, setNewGoalDate] = useState("");
   const [isAddingGoal, setIsAddingGoal] = useState(false);
+  const [rewardToRedeem, setRewardToRedeem] = useState<Reward | null>(null);
+  const [goalToDelete, setGoalToDelete] = useState<string | null>(null);
   const level = Math.floor(points / 200) + 1;
 
   useEffect(() => {
@@ -129,10 +132,14 @@ export function AchievementsPage() {
     setIsLoading(false);
   };
 
-  const handleRedeem = async (r: Reward) => {
+  const handleRedeem = (r: Reward) => {
     if (points < r.cost) return;
-    const ok = confirm(`Redeem ${r.name} for ${r.cost} points?`);
-    if (!ok) return;
+    setRewardToRedeem(r);
+  };
+
+  const confirmRedeem = async () => {
+    const reward = rewardToRedeem;
+    if (!reward) return;
 
     // Get current student ID
     const { data: { user } } = await supabase.auth.getUser();
@@ -151,12 +158,12 @@ export function AchievementsPage() {
       .from("reward_redemptions")
       .insert({
         student_id: studentData.id,
-        reward_id: r.id,
+        reward_id: reward.id,
         status: "pending",
       });
 
     if (redemptionError) {
-      alert(`Error redeeming reward: ${redemptionError.message}`);
+      toast.error(`Error redeeming reward: ${redemptionError.message}`);
       return;
     }
 
@@ -166,19 +173,20 @@ export function AchievementsPage() {
       .insert({
         student_id: studentData.id,
         source_type: "reward_redemption",
-        source_id: r.id,
-        points: -r.cost,
-        description: `Redeemed: ${r.name}`,
+        source_id: reward.id,
+        points: -reward.cost,
+        description: `Redeemed: ${reward.name}`,
       });
 
     if (pointsError) {
-      alert(`Error deducting points: ${pointsError.message}`);
+      toast.error(`Error deducting points: ${pointsError.message}`);
       return;
     }
 
     // Update local state
-    setPoints(p => p - r.cost);
-    alert(`Successfully redeemed ${r.name}!`);
+    setPoints((p) => p - reward.cost);
+    setRewardToRedeem(null);
+    toast.success(`Successfully redeemed ${reward.name}!`);
   };
 
   const handleAddGoal = async () => {
@@ -233,20 +241,25 @@ export function AchievementsPage() {
     toast.success(newCompleted ? "Goal completed!" : "Goal reopened");
   };
 
-  const handleDeleteGoal = async (goalId: string) => {
-    if (!confirm("Delete this goal?")) return;
+  const handleDeleteGoal = (goalId: string) => {
+    setGoalToDelete(goalId);
+  };
+
+  const confirmDeleteGoal = async () => {
+    if (!goalToDelete) return;
 
     const { error } = await supabase
       .from("student_goals")
       .delete()
-      .eq("id", goalId);
+      .eq("id", goalToDelete);
 
     if (error) {
       toast.error(`Failed to delete goal: ${error.message}`);
       return;
     }
 
-    setGoals(prev => prev.filter(g => g.id !== goalId));
+    setGoals((prev) => prev.filter((g) => g.id !== goalToDelete));
+    setGoalToDelete(null);
     toast.success("Goal deleted");
   };
 
@@ -461,6 +474,34 @@ export function AchievementsPage() {
           </div>
         </TabsContent>
       </Tabs>
+      <ConfirmDialog
+        open={Boolean(rewardToRedeem)}
+        onOpenChange={(open) => {
+          if (!open) setRewardToRedeem(null);
+        }}
+        title={rewardToRedeem ? `Redeem ${rewardToRedeem.name}?` : "Redeem reward?"}
+        description={
+          rewardToRedeem
+            ? `This will spend ${rewardToRedeem.cost} points and create a pending redemption request.`
+            : undefined
+        }
+        confirmLabel="Redeem"
+        onConfirm={() => {
+          void confirmRedeem();
+        }}
+      />
+      <ConfirmDialog
+        open={Boolean(goalToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setGoalToDelete(null);
+        }}
+        title="Delete this goal?"
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          void confirmDeleteGoal();
+        }}
+      />
     </div>
   );
 }

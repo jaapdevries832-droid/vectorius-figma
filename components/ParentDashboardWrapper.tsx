@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { InviteCodeModal } from "@/components/InviteCodeModal";
 import { clearSupabaseLocalSession } from "@/lib/supabase/logout";
 import { AssignmentModal, type AssignmentInput } from "@/components/AssignmentModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { validateName, validateGrade } from "@/lib/validation";
 import type { ScheduledCourse } from "app/lib/domain";
 import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
@@ -80,6 +81,7 @@ export function ParentDashboardWrapper() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
+  const [pendingDeleteStudentId, setPendingDeleteStudentId] = useState<string | null>(null);
   const [deleteStatus, setDeleteStatus] = useState<{
     type: "success" | "error";
     message: string;
@@ -365,12 +367,16 @@ export function ParentDashboardWrapper() {
     setIsSaving(false);
   };
 
-  const handleDeleteStudent = async (studentId: string) => {
-    if (!confirm("Delete this student?")) return;
-    setDeleteStatus(null);
-    setDeletingStudentId(studentId);
+  const handleDeleteStudent = (studentId: string) => {
+    setPendingDeleteStudentId(studentId);
+  };
 
-    const { error } = await supabase.from("students").delete().eq("id", studentId);
+  const confirmDeleteStudent = async () => {
+    if (!pendingDeleteStudentId) return;
+    setDeleteStatus(null);
+    setDeletingStudentId(pendingDeleteStudentId);
+
+    const { error } = await supabase.from("students").delete().eq("id", pendingDeleteStudentId);
 
     if (error) {
       setDeleteStatus({ type: "error", message: error.message });
@@ -381,6 +387,7 @@ export function ParentDashboardWrapper() {
     await fetchStudents(userId);
     setDeleteStatus({ type: "success", message: "Student deleted." });
     toast.success("Student has been deleted.");
+    setPendingDeleteStudentId(null);
     setDeletingStudentId(null);
   };
 
@@ -623,6 +630,18 @@ export function ParentDashboardWrapper() {
         onClose={() => setIsSuggestModalOpen(false)}
         onSave={handleSaveSuggestion}
         classes={suggestClasses}
+      />
+      <ConfirmDialog
+        open={Boolean(pendingDeleteStudentId)}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteStudentId(null);
+        }}
+        title="Delete this student?"
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          void confirmDeleteStudent();
+        }}
       />
       {isSuggestLoading && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30">

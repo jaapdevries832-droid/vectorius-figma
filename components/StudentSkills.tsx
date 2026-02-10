@@ -7,6 +7,7 @@ import { Badge } from './ui/badge'
 import { Play, ExternalLink, CheckCircle, BookOpen, Trophy } from 'lucide-react'
 import type { SkillModule, AssignedSkill } from 'app/lib/types'
 import { supabase } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 
 export function StudentSkills() {
@@ -190,7 +191,7 @@ export function StudentSkills() {
       }
     }
 
-    alert('Great job! You earned +20 points for completing a skill module.')
+    toast.success('Great job! You earned +20 points for completing a skill module.')
   }
 
   return (
