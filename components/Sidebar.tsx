@@ -16,8 +16,8 @@ import {
   TrendingUp
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { Role, User } from "app/lib/domain";
-import type { SidebarItem } from 'app/lib/types';
+import type { Role, User } from "@/lib/domain";
+import type { SidebarItem } from '@/lib/types';
 import { getCurrentProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase/client";
 
@@ -187,3 +187,4 @@ export function Sidebar({ currentRole, activeItem, onItemChange, currentUser, cl
     </aside>
   );
 }
+

@@ -17,7 +17,7 @@ import {
 import { BookOpen, ClipboardCheck, HelpCircle, Briefcase, CalendarDays, Save, X, AlertCircle } from "lucide-react"
 import { validateTitle, validateFutureDate } from "@/lib/validation"
 import type { LucideIcon } from "lucide-react"
-import type { ScheduledCourse } from "app/lib/domain"
+import type { ScheduledCourse } from "@/lib/domain"
 import { toast } from "sonner"
 
 export type AssignmentType = 'homework' | 'quiz' | 'test' | 'project'
@@ -349,3 +349,4 @@ export function AssignmentModal({ isOpen, onClose, onSave, classes }: Assignment
     </Dialog>
   )
 }
+

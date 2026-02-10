@@ -9,9 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Search, Plus, Edit, Trash2, Send, Users, Brain, ClipboardCheck } from 'lucide-react'
-import type { SkillModule } from 'app/lib/types'
-import type { Student } from 'app/lib/domain'
-import { DEFAULT_SKILL_MODULES } from 'app/lib/skills-data'
+import type { SkillModule } from '@/lib/types'
+import type { Student } from '@/lib/domain'
+import { DEFAULT_SKILL_MODULES } from '@/lib/skills-data'
 import { supabase } from '@/lib/supabase/client'
 
 type AdvisorNotification = {
@@ -361,3 +361,4 @@ export function AdvisorSkills() {
 }
 
 export default AdvisorSkills
+

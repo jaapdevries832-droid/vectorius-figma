@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { ParentDashboard, type SignalCardType } from "@/components/ParentDashboard";
-import { useRoleLayout } from "app/lib/role-layout-context";
+import { useRoleLayout } from "@/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
 import { toast } from "sonner";
 import { InviteCodeModal } from "@/components/InviteCodeModal";
@@ -12,7 +12,7 @@ import { clearSupabaseLocalSession } from "@/lib/supabase/logout";
 import { AssignmentModal, type AssignmentInput } from "@/components/AssignmentModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { validateName, validateGrade } from "@/lib/validation";
-import type { ScheduledCourse } from "app/lib/domain";
+import type { ScheduledCourse } from "@/lib/domain";
 import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
 
 type Student = {
@@ -651,3 +651,4 @@ export function ParentDashboardWrapper() {
     </>
   );
 }
+

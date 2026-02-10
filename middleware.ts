@@ -54,7 +54,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
-     * - api routes (they handle their own auth)
+     *
+     * API routes are intentionally included so Supabase auth cookies
+     * stay refreshed for server route handlers as well.
      */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],

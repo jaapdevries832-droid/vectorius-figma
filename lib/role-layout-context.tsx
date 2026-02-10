@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext } from "react"
-import type { SidebarItem } from "app/lib/types"
+import type { SidebarItem } from "@/lib/types"
 
 type RoleLayoutContextValue = {
   activeItem: SidebarItem
@@ -35,4 +35,5 @@ export function useRoleLayout() {
   }
   return ctx
 }
+
 

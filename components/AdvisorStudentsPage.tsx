@@ -18,7 +18,7 @@ import {
 } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { getCurrentProfile } from "@/lib/profile"
-import { useRoleLayout } from "app/lib/role-layout-context"
+import { useRoleLayout } from "@/lib/role-layout-context"
 
 type StudentStatus = "excellent" | "good" | "needs-attention"
 type AdvisorStudent = {
@@ -365,3 +365,4 @@ export function AdvisorStudentsPage() {
     </div>
   )
 }
+

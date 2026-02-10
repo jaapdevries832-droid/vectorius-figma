@@ -1,6 +1,6 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
-import type { ScheduledCourse } from "app/lib/domain";
+import type { ScheduledCourse } from "@/lib/domain";
 
 export type StudentScheduleEvent = {
   student_id: string;
@@ -256,3 +256,4 @@ export function mapScheduleEventsToCourses(events: StudentScheduleEvent[]): Sche
     days: course.days.sort((a, b) => DAY_NAMES.indexOf(a) - DAY_NAMES.indexOf(b)),
   }));
 }
+

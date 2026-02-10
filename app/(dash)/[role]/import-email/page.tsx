@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import { getCurrentProfile } from "@/lib/profile";
-import type { Role } from "app/lib/domain";
+import type { Role } from "@/lib/domain";
 
 type ParsedEvent = {
   title: string;

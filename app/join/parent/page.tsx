@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { checkExistingSession } from "@/lib/auth/check-session";
 import { clearSupabaseLocalSession } from "@/lib/supabase/logout";
-import { clearCurrentUser } from "app/lib/current-user";
+import { clearCurrentUser } from "@/lib/current-user";
 
 type AuthMode = "sign-up" | "sign-in";
 
@@ -288,3 +288,4 @@ export default function ParentJoinPage() {
     </main>
   );
 }
+

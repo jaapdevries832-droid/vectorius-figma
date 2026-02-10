@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
-import type { ScheduledCourse } from "app/lib/domain"
+import type { ScheduledCourse } from "@/lib/domain"
 import { AssignmentModal, type AssignmentInput, type AssignmentType } from "./AssignmentModal"
 import { BookOpen, HelpCircle, ClipboardCheck, Briefcase, Calendar, CalendarDays, AlertCircle, Trash2, Plus, ChevronDown, Trophy, Sparkles } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -1078,3 +1078,4 @@ export function AssignmentsPage() {
 }
 
 export default AssignmentsPage
+

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react";
-import type { ScheduledCourse, User } from "app/lib/domain";
+import type { ScheduledCourse, User } from "@/lib/domain";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { 
@@ -21,7 +21,7 @@ import {
 import { cn } from "./ui/utils";
 import { ClassSetupModal } from "./ClassSetupModal";
 import { AddEventModal, type CalendarEventForm } from "./AddEventModal";
-import { useRoleLayout } from "app/lib/role-layout-context";
+import { useRoleLayout } from "@/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
 import { fetchStudentScheduleEvents, fetchAdvisorScheduleEvents, mapScheduleEventsToCourses, mapAdvisorScheduleEventsToCourses } from "@/lib/student-schedule";
 import { createCalendarEvent, deleteCalendarEvent, fetchCalendarEvents, updateCalendarEvent, type CalendarEvent } from "@/lib/calendar-events";
@@ -1019,3 +1019,4 @@ export function WeeklyPlanner({ currentUser }: WeeklyPlannerProps) {
     </div>
   );
 }
+

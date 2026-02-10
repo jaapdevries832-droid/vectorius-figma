@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Play, ExternalLink, CheckCircle, BookOpen, Trophy } from 'lucide-react'
-import type { SkillModule, AssignedSkill } from 'app/lib/types'
+import type { SkillModule, AssignedSkill } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
@@ -277,3 +277,4 @@ export function StudentSkills() {
 }
 
 export default StudentSkills
+

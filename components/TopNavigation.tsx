@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import type { Role, User } from "app/lib/domain";
+import type { Role, User } from "@/lib/domain";
 import { ParentAlertsList } from "./ParentAlertsList";
 
 interface TopNavigationProps {
@@ -148,3 +148,4 @@ export function TopNavigation({ currentRole, currentUser, onLogout }: TopNavigat
     </header>
   );
 }
+

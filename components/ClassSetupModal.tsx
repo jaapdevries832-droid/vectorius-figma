@@ -23,7 +23,7 @@ import {
   Save
 } from "lucide-react";
 import { cn } from "./ui/utils";
-import type { ScheduledCourse } from "app/lib/domain";
+import type { ScheduledCourse } from "@/lib/domain";
 
 interface ClassSetupModalProps {
   isOpen: boolean;
@@ -406,3 +406,4 @@ export function ClassSetupModal({
     </Dialog>
   );
 }
+

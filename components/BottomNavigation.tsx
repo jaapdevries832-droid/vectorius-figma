@@ -12,8 +12,8 @@ import {
   Settings,
   BookOpen
 } from "lucide-react";
-import type { Role } from "app/lib/domain";
-import type { SidebarItem } from 'app/lib/types';
+import type { Role } from "@/lib/domain";
+import type { SidebarItem } from '@/lib/types';
 
 interface BottomNavigationProps {
   currentRole: Role;
@@ -100,3 +100,4 @@ export function BottomNavigation({ currentRole, activeItem, onItemChange }: Bott
     </nav>
   );
 }
+

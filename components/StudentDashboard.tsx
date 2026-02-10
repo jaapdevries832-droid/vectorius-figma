@@ -11,7 +11,7 @@ import { ParentInviteModal } from "./ParentInviteModal";
 import { NoteEditModal } from "./NoteEditModal";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { validateTitle } from "@/lib/validation";
-import { useRoleLayout } from "app/lib/role-layout-context";
+import { useRoleLayout } from "@/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase/client";
 import {
@@ -1162,3 +1162,4 @@ export function StudentDashboard() {
     </div>
   );
 }
+

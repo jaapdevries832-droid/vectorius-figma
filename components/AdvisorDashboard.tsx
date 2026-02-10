@@ -23,7 +23,7 @@ import { AssignmentModal, type AssignmentInput } from "./AssignmentModal";
 import { AdvisorInviteModal } from "./AdvisorInviteModal";
 import { AdvisorMessageModal } from "./AdvisorMessageModal";
 import { StudentProfileModal } from "./StudentProfileModal";
-import type { ScheduledCourse } from "app/lib/domain";
+import type { ScheduledCourse } from "@/lib/domain";
 import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
 import { toast } from "sonner";
 import { UserPlus } from "lucide-react";
@@ -604,3 +604,4 @@ export function AdvisorDashboard() {
     </div>
   );
 }
+
