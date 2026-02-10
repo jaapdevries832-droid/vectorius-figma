@@ -54,6 +54,9 @@ type AdvisorNote = {
   message: string;
   priority: string;
   created_at: string;
+  advisor_first_name?: string | null;
+  advisor_last_name?: string | null;
+  advisor_email?: string | null;
   advisor?: {
     first_name: string | null;
     last_name: string | null;
@@ -149,10 +152,18 @@ export function ParentDashboardWrapper() {
     setGradeMetricsByStudentId(metrics);
   }, []);
 
-  const fetchStudents = useCallback(async () => {
+  const fetchStudents = useCallback(async (parentUserId?: string | null) => {
+    const parentId = parentUserId ?? userId;
+    if (!parentId) {
+      setStudents([]);
+      setLoadError("Unable to load students.");
+      return;
+    }
+
     const { data, error } = await supabase
       .from("students")
       .select("id, first_name, last_name, grade, advisor_id, student_user_id, created_at")
+      .eq("parent_id", parentId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -169,7 +180,7 @@ export function ParentDashboardWrapper() {
       return nextStudents.some((student) => student.id === current) ? current : nextStudents[0].id;
     });
     await fetchGradeMetrics(nextStudents.map((student) => student.id));
-  }, [fetchGradeMetrics]);
+  }, [fetchGradeMetrics, userId]);
 
   const fetchAdvisors = useCallback(async () => {
     setIsAdvisorsLoading(true);
@@ -217,15 +228,10 @@ export function ParentDashboardWrapper() {
     }
 
     const { data, error } = await supabase
-      .from("advisor_notes")
-      .select(`
-        id,
-        advisor_id,
-        student_id,
-        message,
-        priority,
-        created_at
-      `)
+      .from("advisor_notes_with_profiles")
+      .select(
+        "id, advisor_id, student_id, message, priority, created_at, advisor_first_name, advisor_last_name, advisor_email"
+      )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
@@ -234,20 +240,16 @@ export function ParentDashboardWrapper() {
       return;
     }
 
-    const notesWithAdvisors = await Promise.all(
-      (data ?? []).map(async (note) => {
-        const { data: advisorData } = await supabase
-          .from("profiles")
-          .select("first_name, last_name, email")
-          .eq("id", note.advisor_id)
-          .single();
-
-        return {
-          ...note,
-          advisor: advisorData || null
-        };
-      })
-    );
+    const notesWithAdvisors = (data ?? []).map((note) => ({
+      ...note,
+      advisor: note.advisor_email
+        ? {
+            first_name: note.advisor_first_name ?? null,
+            last_name: note.advisor_last_name ?? null,
+            email: note.advisor_email,
+          }
+        : null,
+    }));
 
     setAdvisorNotes(notesWithAdvisors);
   }, []);
@@ -274,7 +276,7 @@ export function ParentDashboardWrapper() {
       setUserId(user.id);
       setProfileRole(profile?.role ?? null);
 
-      await fetchStudents();
+      await fetchStudents(user.id);
       if (profile?.role === "parent") {
         await fetchAdvisors();
         await fetchStudentSignals();
@@ -357,7 +359,7 @@ export function ParentDashboardWrapper() {
     setFirstName("");
     setLastName("");
     setGrade("");
-    await fetchStudents();
+    await fetchStudents(userId);
     toast.success(`${trimmedFirst} has been added successfully.`);
 
     setIsSaving(false);
@@ -376,7 +378,7 @@ export function ParentDashboardWrapper() {
       return;
     }
 
-    await fetchStudents();
+    await fetchStudents(userId);
     setDeleteStatus({ type: "success", message: "Student deleted." });
     toast.success("Student has been deleted.");
     setDeletingStudentId(null);
@@ -404,7 +406,7 @@ export function ParentDashboardWrapper() {
       return;
     }
 
-    await fetchStudents();
+    await fetchStudents(userId);
     setAssignmentStatusByStudentId((current) => ({
       ...current,
       [studentId]: {
