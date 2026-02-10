@@ -1009,12 +1009,12 @@ Legend: ⬜ not started | 🟨 in progress | ✅ complete | ⛔ blocked
 
 | Slice | Name | Status | PR/Commit | Completed | Notes |
 |---:|---|---|---|---|---|
-| S3-A | Remove Demo Buttons | ⬜ | - | - | Quick cleanup |
-| S3-B | Parent Invite System | ⬜ | - | - | Multi-parent support |
-| S3-C | Assignment Modal | ⬜ | - | - | Type dropdown, colors, preview |
-| S3-D | Assignments Page Fixes | ⬜ | - | - | Delete, no points badge |
-| S3-E | AI Chat Improvements | ⬜ | - | - | Mode dropdown, prompts |
-| S3-F | Custom Goals | ⬜ | - | - | New achievements feature |
+| S3-A | Remove Demo Buttons | ✅ | `2e453bc` | 2026-02-03 | Deleted demo page, removed demo buttons from login |
+| S3-B | Parent Invite System | ✅ | `c110828` | 2026-02-03 | Multi-parent support via parent_student_links |
+| S3-C | Assignment Modal | ✅ | `55d1ae0` | 2026-02-03 | Type dropdown, 18 colors, preview below form |
+| S3-D | Assignments Page Fixes | ✅ | `f10b0b6` | 2026-02-05 | Delete handler, due date display, points badge removed |
+| S3-E | AI Chat Improvements | ✅ | `74ee3f8` | 2026-02-05 | Mode dropdown in header, quick prompts dropdown, curiosity badge |
+| S3-F | Custom Goals | ✅ | `eb5d362` | 2026-02-05 | Goals tab, add/complete/delete goals with target dates |
 
 ---
 
