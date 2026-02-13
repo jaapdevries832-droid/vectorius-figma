@@ -9,8 +9,9 @@ import {
   Bot,
   Users,
   Calendar,
-  Settings,
-  BookOpen
+  BookOpen,
+  TrendingUp,
+  Settings
 } from "lucide-react";
 import type { Role } from "@/lib/domain";
 import type { SidebarItem } from '@/lib/types';
@@ -23,11 +24,15 @@ interface BottomNavigationProps {
 
 export function BottomNavigation({ currentRole, activeItem, onItemChange }: BottomNavigationProps) {
   const getMenuItems = (role: Role) => {
-    // Parent-specific menu: simplified navigation matching sidebar
+    // Parent-specific menu: full parity with desktop sidebar
     if (role === 'parent') {
       return [
         { id: 'dashboard' as const, label: 'Home', icon: LayoutDashboard, color: '#3B82F6' },
-        { id: 'notes' as const, label: 'Notes', icon: BookOpen, color: '#F59E0B' },
+        { id: 'reports' as const, label: 'Reports', icon: TrendingUp, color: '#10B981' },
+        { id: 'schedule' as const, label: 'Schedule', icon: Calendar, color: '#8B5CF6' },
+        { id: 'assignments' as const, label: 'Assignments', icon: FileText, color: '#F59E0B' },
+        { id: 'notes' as const, label: 'Notes', icon: BookOpen, color: '#EF4444' },
+        { id: 'ai-chat' as const, label: 'AI Assistant', icon: Bot, color: '#14B8A6' },
         { id: 'settings' as const, label: 'Settings', icon: Settings, color: '#64748B' },
       ];
     }
@@ -68,7 +73,7 @@ export function BottomNavigation({ currentRole, activeItem, onItemChange }: Bott
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "flex flex-col items-center space-grid h-auto py-3 px-4 min-w-0 rounded-2xl transition-all duration-200",
+                  "flex flex-col items-center space-grid h-auto py-3 px-2 min-w-0 rounded-2xl transition-all duration-200",
                   isActive 
                     ? "text-white shadow-lg" 
                     : "hover:text-gray-900"
