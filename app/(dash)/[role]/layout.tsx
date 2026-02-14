@@ -12,6 +12,7 @@ import { StudentSkills } from '@/components/StudentSkills'
 import { NotesPage } from '@/components/NotesPage'
 import { AdvisorStudentsPage } from '@/components/AdvisorStudentsPage'
 import { ParentReportsPage } from '@/components/ParentReportsPage'
+import { ParentSettingsPage } from '@/components/ParentSettingsPage'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { RoleLayoutProvider } from '@/lib/role-layout-context'
@@ -123,6 +124,9 @@ export default function RoleLayout({ children, params }: { children: React.React
       case 'reports':
         return <ParentReportsPage />
       case 'settings':
+        if (role === 'parent') {
+          return <ParentSettingsPage />
+        }
         return (
           <div className="p-6 space-grid-6">
             <h2 className="text-2xl font-semibold">Settings</h2>
