@@ -53,6 +53,16 @@ type Student = {
   initials: string;
 };
 
+type ParentNote = {
+  id: string;
+  parent_user_id: string;
+  student_id: string;
+  recipient_type: string;
+  message: string;
+  priority: string;
+  created_at: string;
+};
+
 interface NotesPageProps {
   role: string;
 }
@@ -70,6 +80,14 @@ export function NotesPage({ role }: NotesPageProps) {
   const [noteEditOpen, setNoteEditOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<{ id: string; body: string; color: string } | null>(null);
   const [noteToDeleteId, setNoteToDeleteId] = useState<string | null>(null);
+  const [parentNotes, setParentNotes] = useState<ParentNote[]>([]);
+  const [parentUserId, setParentUserId] = useState<string | null>(null);
+  const [parentChildren, setParentChildren] = useState<Student[]>([]);
+  const [parentSelectedChild, setParentSelectedChild] = useState<string | null>(null);
+  const [parentNoteText, setParentNoteText] = useState("");
+  const [parentRecipient, setParentRecipient] = useState<"student" | "advisor" | "both">("both");
+  const [parentNotePriority, setParentNotePriority] = useState<"normal" | "high">("normal");
+  const [isSendingParentNote, setIsSendingParentNote] = useState(false);
 
   // Load data based on role
   const loadData = useCallback(async () => {
@@ -150,18 +168,32 @@ export function NotesPage({ role }: NotesPageProps) {
 
       setAdvisorNotes(advNotes ?? []);
     } else if (effectiveRole === "parent") {
+      setParentUserId(user.id);
+
       // Load children and their advisor notes
       const { data: children } = await supabase
         .from("student_parent")
         .select("student:students(id, first_name, last_name)")
         .eq("parent_id", user.id);
 
-      const studentIds = (children ?? [])
+      const mappedChildren: Student[] = (children ?? [])
         .map((c) => {
           const student = Array.isArray(c.student) ? c.student[0] : c.student;
-          return student?.id;
+          if (!student) return null;
+          return {
+            id: student.id,
+            name: `${student.first_name} ${student.last_name ?? ""}`.trim(),
+            initials: `${student.first_name?.[0] ?? ""}${student.last_name?.[0] ?? ""}`.toUpperCase(),
+          };
         })
-        .filter(Boolean) as string[];
+        .filter(Boolean) as Student[];
+
+      setParentChildren(mappedChildren);
+      if (mappedChildren.length > 0 && !parentSelectedChild) {
+        setParentSelectedChild(mappedChildren[0].id);
+      }
+
+      const studentIds = mappedChildren.map((c) => c.id);
 
       if (studentIds.length > 0) {
         const { data: advNotes } = await supabase
@@ -172,24 +204,23 @@ export function NotesPage({ role }: NotesPageProps) {
 
         // Enrich with student names
         const enrichedNotes = (advNotes ?? []).map((note) => {
-          const child = (children ?? []).find((c) => {
-            const student = Array.isArray(c.student) ? c.student[0] : c.student;
-            return student?.id === note.student_id;
-          });
-          const student = child
-            ? Array.isArray(child.student)
-              ? child.student[0]
-              : child.student
-            : null;
+          const child = mappedChildren.find((c) => c.id === note.student_id);
           return {
             ...note,
-            student_name: student
-              ? `${student.first_name} ${student.last_name ?? ""}`.trim()
-              : "Unknown",
+            student_name: child?.name ?? "Unknown",
           };
         });
 
         setAdvisorNotes(enrichedNotes);
+
+        // Load parent's own notes
+        const { data: pNotes } = await supabase
+          .from("parent_notes")
+          .select("id, parent_user_id, student_id, recipient_type, message, priority, created_at")
+          .eq("parent_user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        setParentNotes(pNotes ?? []);
       }
     }
 
@@ -324,6 +355,42 @@ export function NotesPage({ role }: NotesPageProps) {
       setNewNote("");
       toast.success("Note sent to student and parents!");
     }
+  };
+
+  // Send parent note
+  const handleSendParentNote = async () => {
+    if (!parentUserId || !parentSelectedChild || !parentNoteText.trim()) {
+      toast.error("Please select a student and enter a message.");
+      return;
+    }
+
+    setIsSendingParentNote(true);
+
+    const { data, error } = await supabase
+      .from("parent_notes")
+      .insert({
+        parent_user_id: parentUserId,
+        student_id: parentSelectedChild,
+        recipient_type: parentRecipient,
+        message: parentNoteText.trim(),
+        priority: parentNotePriority,
+      })
+      .select("id, parent_user_id, student_id, recipient_type, message, priority, created_at")
+      .single();
+
+    if (error) {
+      toast.error("Unable to send note: " + error.message);
+      setIsSendingParentNote(false);
+      return;
+    }
+
+    if (data) {
+      setParentNotes((prev) => [data, ...prev]);
+      setParentNoteText("");
+      setParentNotePriority("normal");
+      toast.success("Note sent!");
+    }
+    setIsSendingParentNote(false);
   };
 
   const formatDate = (iso: string) => {
@@ -658,18 +725,45 @@ export function NotesPage({ role }: NotesPageProps) {
 
   // Parent view
   if (role === "parent") {
+    const filteredAdvisorNotes = parentSelectedChild
+      ? advisorNotes.filter((n) => n.student_id === parentSelectedChild)
+      : advisorNotes;
+    const filteredParentNotes = parentSelectedChild
+      ? parentNotes.filter((n) => n.student_id === parentSelectedChild)
+      : parentNotes;
+
     return (
       <div className="p-6 space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center">
-            <MessageSquare className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center">
+              <MessageSquare className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold">Notes</h1>
+              <p className="text-muted-foreground text-sm">
+                Write notes and view advisor feedback
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-semibold">Advisor Notes</h1>
-            <p className="text-muted-foreground text-sm">
-              Feedback from your child&apos;s advisor
-            </p>
-          </div>
+
+          {parentChildren.length > 1 && (
+            <Select
+              value={parentSelectedChild ?? ""}
+              onValueChange={setParentSelectedChild}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select student" />
+              </SelectTrigger>
+              <SelectContent>
+                {parentChildren.map((child) => (
+                  <SelectItem key={child.id} value={child.id}>
+                    {child.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <Card>
@@ -686,9 +780,124 @@ export function NotesPage({ role }: NotesPageProps) {
           </CardContent>
         </Card>
 
+        {/* Write Note */}
         <Card>
-          <CardContent className="p-4">
-            {advisorNotes.length === 0 ? (
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Send className="w-4 h-4" />
+              Write a Note
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Textarea
+              value={parentNoteText}
+              onChange={(e) => setParentNoteText(e.target.value)}
+              placeholder="Write a note to the student's advisor, to the student, or both..."
+              rows={3}
+              className="resize-none"
+            />
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">To:</span>
+                <Select
+                  value={parentRecipient}
+                  onValueChange={(v) => setParentRecipient(v as "student" | "advisor" | "both")}
+                >
+                  <SelectTrigger className="w-36 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="both">Both</SelectItem>
+                    <SelectItem value="student">Student only</SelectItem>
+                    <SelectItem value="advisor">Advisor only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Priority:</span>
+                <Select
+                  value={parentNotePriority}
+                  onValueChange={(v) => setParentNotePriority(v as "normal" | "high")}
+                >
+                  <SelectTrigger className="w-28 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleSendParentNote}
+                disabled={isSendingParentNote || !parentNoteText.trim() || !parentSelectedChild}
+                className="ml-auto bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Send className="w-3 h-3 mr-1" />
+                {isSendingParentNote ? "Sending..." : "Send"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* My Notes */}
+        {filteredParentNotes.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">My Notes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {filteredParentNotes.map((note) => {
+                  const recipientLabel =
+                    note.recipient_type === "both"
+                      ? "Student & Advisor"
+                      : note.recipient_type === "student"
+                        ? "Student"
+                        : "Advisor";
+                  const childName = parentChildren.find((c) => c.id === note.student_id)?.name;
+
+                  return (
+                    <div
+                      key={note.id}
+                      className="p-4 rounded-xl bg-green-50 border border-green-100"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm text-gray-900">You</span>
+                        <Badge variant="secondary" className="text-xs">
+                          To: {recipientLabel}
+                        </Badge>
+                        {childName && parentChildren.length > 1 && (
+                          <Badge variant="outline" className="text-xs">
+                            Re: {childName}
+                          </Badge>
+                        )}
+                        {note.priority === "high" && (
+                          <Badge variant="destructive" className="text-xs">
+                            Important
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-700">{note.message}</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {formatDate(note.created_at)}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Advisor Notes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Advisor Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {filteredAdvisorNotes.length === 0 ? (
               <div className="text-center py-8">
                 <MessageSquare className="w-12 h-12 mx-auto text-gray-300 mb-3" />
                 <p className="text-muted-foreground">
@@ -697,7 +906,7 @@ export function NotesPage({ role }: NotesPageProps) {
               </div>
             ) : (
               <div className="space-y-4">
-                {advisorNotes.map((note) => (
+                {filteredAdvisorNotes.map((note) => (
                   <div
                     key={note.id}
                     className="p-4 rounded-xl bg-blue-50 border border-blue-100"
@@ -711,7 +920,7 @@ export function NotesPage({ role }: NotesPageProps) {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium text-sm">Advisor</span>
-                          {note.student_name && (
+                          {note.student_name && parentChildren.length > 1 && (
                             <Badge variant="secondary" className="text-xs">
                               Re: {note.student_name}
                             </Badge>
