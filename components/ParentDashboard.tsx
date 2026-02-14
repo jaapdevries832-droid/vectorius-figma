@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { TrendingUp, Calendar, MessageSquare, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "./ui/utils";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "./ui/hover-card";
 
 type StudentSummary = {
   id: string;
@@ -153,112 +154,190 @@ export function ParentDashboard({
 
       {/* Parent Signals */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <Card
-          className={cn(
-            "border-0 bg-gradient-to-br from-red-50 to-red-100 transition-all",
-            currentSignals && onSignalCardClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]"
-          )}
-          onClick={() => currentSignals && onSignalCardClick?.("overdue")}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-red-600 mb-1">Overdue Items</p>
-                <p className="text-2xl font-semibold text-red-700">
-                  {currentSignals ? currentSignals.overdue_count : "--"}
+        {/* Overdue Items */}
+        <HoverCard openDelay={200} closeDelay={100}>
+          <HoverCardTrigger asChild>
+            <Card
+              className={cn(
+                "border-0 bg-gradient-to-br from-red-50 to-red-100 transition-all",
+                currentSignals && onSignalCardClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]"
+              )}
+              onClick={() => currentSignals && onSignalCardClick?.("overdue")}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-red-600 mb-1">Overdue Items</p>
+                    <p className="text-2xl font-semibold text-red-700">
+                      {currentSignals ? currentSignals.overdue_count : "--"}
+                    </p>
+                    {!currentSignals && (
+                      <p className="mt-1 text-xs text-red-700">Select a student to see alerts.</p>
+                    )}
+                    {currentSignals && onSignalCardClick && (
+                      <p className="mt-1 text-xs text-red-600">Click to view</p>
+                    )}
+                  </div>
+                  <AlertTriangle className="w-8 h-8 text-red-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </HoverCardTrigger>
+          {currentSignals && (
+            <HoverCardContent className="w-72" side="bottom">
+              <p className="text-sm font-medium text-gray-900 mb-1">Overdue Assignments</p>
+              {currentSignals.overdue_count === 0 ? (
+                <p className="text-xs text-gray-600">All caught up! No overdue items.</p>
+              ) : (
+                <p className="text-xs text-gray-600">
+                  {currentSignals.overdue_count} assignment{currentSignals.overdue_count !== 1 ? "s" : ""} past due.
+                  Click to view in Assignments.
                 </p>
-                {!currentSignals && (
-                  <p className="mt-1 text-xs text-red-700">Select a student to see alerts.</p>
-                )}
-                {currentSignals && onSignalCardClick && (
-                  <p className="mt-1 text-xs text-red-600">Click to view</p>
-                )}
-              </div>
-              <AlertTriangle className="w-8 h-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
+              )}
+            </HoverCardContent>
+          )}
+        </HoverCard>
 
-        <Card
-          className={cn(
-            "border-0 bg-gradient-to-br from-purple-50 to-purple-100 transition-all",
-            currentSignals && onSignalCardClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]"
+        {/* Upcoming Test/Project */}
+        <HoverCard openDelay={200} closeDelay={100}>
+          <HoverCardTrigger asChild>
+            <Card
+              className={cn(
+                "border-0 bg-gradient-to-br from-purple-50 to-purple-100 transition-all",
+                currentSignals && onSignalCardClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]"
+              )}
+              onClick={() => currentSignals && onSignalCardClick?.("upcoming")}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-purple-600 mb-1">Upcoming Test/Project</p>
+                    <p className="text-2xl font-semibold text-purple-700">
+                      {nextBigItem ? nextBigItem.title : "--"}
+                    </p>
+                    {!nextBigItem && (
+                      <p className="mt-1 text-xs text-purple-600">No big items in the next 2 weeks.</p>
+                    )}
+                    {nextBigItem && nextBigItemDate && (
+                      <p className="mt-1 text-xs text-purple-600">Due {nextBigItemDate}</p>
+                    )}
+                    {currentSignals && onSignalCardClick && nextBigItem && (
+                      <p className="mt-1 text-xs text-purple-600 font-medium">Click to view</p>
+                    )}
+                  </div>
+                  <TrendingUp className="w-8 h-8 text-purple-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </HoverCardTrigger>
+          {currentSignals && (
+            <HoverCardContent className="w-72" side="bottom">
+              <p className="text-sm font-medium text-gray-900 mb-1">Next Big Item</p>
+              {nextBigItem ? (
+                <>
+                  <p className="text-xs text-gray-800 font-medium">{nextBigItem.title}</p>
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    Type: {nextBigItem.type} &middot; Due: {nextBigItemDate}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Click to view schedule.</p>
+                </>
+              ) : (
+                <p className="text-xs text-gray-600">No tests or projects in the next 2 weeks.</p>
+              )}
+            </HoverCardContent>
           )}
-          onClick={() => currentSignals && onSignalCardClick?.("upcoming")}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-purple-600 mb-1">Upcoming Test/Project</p>
-                <p className="text-2xl font-semibold text-purple-700">
-                  {nextBigItem ? nextBigItem.title : "--"}
-                </p>
-                {!nextBigItem && (
-                  <p className="mt-1 text-xs text-purple-600">No big items in the next 2 weeks.</p>
-                )}
-                {nextBigItem && nextBigItemDate && (
-                  <p className="mt-1 text-xs text-purple-600">Due {nextBigItemDate}</p>
-                )}
-                {currentSignals && onSignalCardClick && nextBigItem && (
-                  <p className="mt-1 text-xs text-purple-600 font-medium">Click to view</p>
-                )}
-              </div>
-              <TrendingUp className="w-8 h-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
+        </HoverCard>
 
-        <Card
-          className={cn(
-            "border-0 bg-gradient-to-br from-blue-50 to-blue-100 transition-all",
-            currentSignals && onSignalCardClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]"
-          )}
-          onClick={() => currentSignals && onSignalCardClick?.("plan")}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-600 mb-1">Study Plan</p>
-                <p className="text-2xl font-semibold text-blue-700">
-                  {currentSignals ? hasPlanLabel : "--"}
+        {/* Study Plan */}
+        <HoverCard openDelay={200} closeDelay={100}>
+          <HoverCardTrigger asChild>
+            <Card
+              className={cn(
+                "border-0 bg-gradient-to-br from-blue-50 to-blue-100 transition-all",
+                currentSignals && onSignalCardClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]"
+              )}
+              onClick={() => currentSignals && onSignalCardClick?.("plan")}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-blue-600 mb-1">Study Plan</p>
+                    <p className="text-2xl font-semibold text-blue-700">
+                      {currentSignals ? hasPlanLabel : "--"}
+                    </p>
+                    {!currentSignals && (
+                      <p className="mt-1 text-xs text-blue-600">Select a student to see status.</p>
+                    )}
+                    {currentSignals && onSignalCardClick && (
+                      <p className="mt-1 text-xs text-blue-600">Click to view schedule</p>
+                    )}
+                  </div>
+                  <Calendar className="w-8 h-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </HoverCardTrigger>
+          {currentSignals && (
+            <HoverCardContent className="w-72" side="bottom">
+              <p className="text-sm font-medium text-gray-900 mb-1">Study Plan</p>
+              {currentSignals.has_active_plan ? (
+                <p className="text-xs text-gray-600">
+                  An active study plan is scheduled. Click to view the weekly schedule.
                 </p>
-                {!currentSignals && (
-                  <p className="mt-1 text-xs text-blue-600">Select a student to see status.</p>
-                )}
-                {currentSignals && onSignalCardClick && (
-                  <p className="mt-1 text-xs text-blue-600">Click to view schedule</p>
-                )}
-              </div>
-              <Calendar className="w-8 h-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
+              ) : (
+                <p className="text-xs text-gray-600">
+                  No active study plan. Generate one from the Assignments page.
+                </p>
+              )}
+            </HoverCardContent>
+          )}
+        </HoverCard>
 
-        <Card
-          className={cn(
-            "border-0 bg-gradient-to-br from-amber-50 to-amber-100 transition-all",
-            currentSignals && onSignalCardClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]"
-          )}
-          onClick={() => currentSignals && onSignalCardClick?.("suggestions")}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-amber-600 mb-1">Your Suggestions</p>
-                <p className="text-2xl font-semibold text-amber-700">
-                  {currentSignals ? suggestionCount : "--"}
+        {/* Suggestions */}
+        <HoverCard openDelay={200} closeDelay={100}>
+          <HoverCardTrigger asChild>
+            <Card
+              className={cn(
+                "border-0 bg-gradient-to-br from-amber-50 to-amber-100 transition-all",
+                currentSignals && onSignalCardClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]"
+              )}
+              onClick={() => currentSignals && onSignalCardClick?.("suggestions")}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-amber-600 mb-1">Your Suggestions</p>
+                    <p className="text-2xl font-semibold text-amber-700">
+                      {currentSignals ? suggestionCount : "--"}
+                    </p>
+                    {!currentSignals && (
+                      <p className="mt-1 text-xs text-amber-700">Pending suggestions appear here.</p>
+                    )}
+                    {currentSignals && onSignalCardClick && (
+                      <p className="mt-1 text-xs text-amber-600">Click to view</p>
+                    )}
+                  </div>
+                  <Clock className="w-8 h-8 text-amber-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </HoverCardTrigger>
+          {currentSignals && (
+            <HoverCardContent className="w-72" side="bottom">
+              <p className="text-sm font-medium text-gray-900 mb-1">Parent Suggestions</p>
+              {suggestionCount === 0 ? (
+                <p className="text-xs text-gray-600">
+                  No pending suggestions. You can suggest assignments from the Assignments page.
                 </p>
-                {!currentSignals && (
-                  <p className="mt-1 text-xs text-amber-700">Pending suggestions appear here.</p>
-                )}
-                {currentSignals && onSignalCardClick && (
-                  <p className="mt-1 text-xs text-amber-600">Click to view</p>
-                )}
-              </div>
-              <Clock className="w-8 h-8 text-amber-500" />
-            </div>
-          </CardContent>
-        </Card>
+              ) : (
+                <p className="text-xs text-gray-600">
+                  {suggestionCount} suggestion{suggestionCount !== 1 ? "s" : ""} waiting for the student to accept.
+                  Click to view in Assignments.
+                </p>
+              )}
+            </HoverCardContent>
+          )}
+        </HoverCard>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
