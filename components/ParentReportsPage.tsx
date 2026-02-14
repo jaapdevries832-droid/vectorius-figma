@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { getCurrentProfile } from "@/lib/profile"
+import { GradeEntryPage } from "./GradeEntryPage"
 
 type ChildReport = {
   student_id: string
@@ -479,6 +480,9 @@ export function ParentReportsPage() {
           </Card>
         </>
       )}
+
+      {/* Semester Grades & Class Management */}
+      <GradeEntryPage />
     </div>
   )
 }
