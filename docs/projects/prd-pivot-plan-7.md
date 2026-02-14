@@ -736,17 +736,17 @@ End-to-end (after all slices):
 
 | Slice | Status | Commit SHA | Date | Notes |
 |-------|--------|------------|------|-------|
-| S7-A: Dashboard header | [ ] | | | Dynamic student name |
-| S7-B: Remove redundant cards | [ ] | | | Parent essentials + signals & actions |
-| S7-C: Parent Settings page | [ ] | | | Add student, advisor, invite |
-| S7-D: Parent notes schema | [ ] | | | parent_notes table + RLS |
-| S7-E: Parent notes UI | [ ] | | | Write capability in NotesPage |
-| S7-F: Schedule sharing | [ ] | | | Cross-role event visibility |
-| S7-G: Signal card hover | [ ] | | | Popover tooltips |
-| S7-H: Classes/grades card | [ ] | | | Dashboard card |
-| S7-I: Grade entry schema | [ ] | | | grading_periods + semester_grades |
-| S7-J: Grade entry UI | [ ] | | | Entry form + class archiving |
-| S7-K: Image downsampling | [ ] | | | Client-side canvas compression |
+| S7-A: Dashboard header | [x] | 8499ee0 | 2026-02-14 | Dynamic student name |
+| S7-B: Remove redundant cards | [x] | 4e2350d | 2026-02-14 | Parent essentials + signals & actions |
+| S7-C: Parent Settings page | [x] | a4a7d1f | 2026-02-14 | Add student, advisor, invite |
+| S7-D: Parent notes schema | [x] | 1ce5254 | 2026-02-14 | parent_notes table + RLS |
+| S7-E: Parent notes UI | [x] | ba46fbc | 2026-02-14 | Write capability in NotesPage |
+| S7-F: Schedule sharing | [x] | c833899 | 2026-02-14 | Advisor calendar event visibility |
+| S7-G: Signal card hover | [x] | 95373e8 | 2026-02-14 | HoverCard popovers on 4 signal cards |
+| S7-H: Classes/grades card | [x] | f191da0 | 2026-02-14 | Dashboard card with per-class averages |
+| S7-I: Grade entry schema | [x] | 6a18d53 | 2026-02-14 | grading_periods + semester_grades + archived_at |
+| S7-J: Grade entry UI | [x] | 7ea5e7e | 2026-02-14 | Entry form + class archiving in Reports |
+| S7-K: Image downsampling | [x] | c0d2b8a | 2026-02-14 | Canvas compression to ~1MB |
 
 Legend: `[x]` complete, `[~]` in progress, `[ ]` not started, `[!]` blocked
 
