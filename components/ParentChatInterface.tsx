@@ -24,6 +24,7 @@ import {
 } from "./ui/dropdown-menu";
 import { supabase } from "@/lib/supabase/client";
 import { ChatAttachmentThumbnail } from "./ChatAttachmentThumbnail";
+import { compressImage } from "@/lib/image-compress";
 
 type Role = 'user' | 'assistant';
 
@@ -197,7 +198,7 @@ export function ParentChatInterface() {
   }, [authUserId]);
 
   // File attachment handlers
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -212,8 +213,9 @@ export function ParentChatInterface() {
     }
 
     setErrorMsg(null);
-    const previewUrl = URL.createObjectURL(file);
-    setPendingAttachment({ file, previewUrl });
+    const compressed = await compressImage(file);
+    const previewUrl = URL.createObjectURL(compressed);
+    setPendingAttachment({ file: compressed, previewUrl });
     e.target.value = '';
   };
 
