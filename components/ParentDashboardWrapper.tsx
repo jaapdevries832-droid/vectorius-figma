@@ -1,19 +1,12 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { ParentDashboard, type SignalCardType } from "@/components/ParentDashboard";
 import { useRoleLayout } from "@/lib/role-layout-context";
 import { getCurrentProfile } from "@/lib/profile";
 import { toast } from "sonner";
-import { InviteCodeModal } from "@/components/InviteCodeModal";
-import { clearSupabaseLocalSession } from "@/lib/supabase/logout";
-import { AssignmentModal, type AssignmentInput } from "@/components/AssignmentModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { validateName, validateGrade } from "@/lib/validation";
-import type { ScheduledCourse } from "@/lib/domain";
-import { fetchStudentScheduleEvents, mapScheduleEventsToCourses } from "@/lib/student-schedule";
 
 type Student = {
   id: string;
@@ -22,16 +15,6 @@ type Student = {
   grade: string | null;
   advisor_id: string | null;
   student_user_id: string | null;
-};
-
-type AdvisorOption = {
-  id: string;
-  label: string;
-};
-
-type AssignmentStatus = {
-  type: "success" | "error";
-  message: string;
 };
 
 type ParentSignal = {
@@ -66,56 +49,21 @@ type AdvisorNote = {
 };
 
 export function ParentDashboardWrapper() {
-  const router = useRouter();
   const { setActiveItem } = useRoleLayout();
   const [userId, setUserId] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | null>(null);
-  const [profileRole, setProfileRole] = useState<string | null>(null);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [grade, setGrade] = useState("");
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
   const [pendingDeleteStudentId, setPendingDeleteStudentId] = useState<string | null>(null);
   const [deleteStatus, setDeleteStatus] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
-  const [advisors, setAdvisors] = useState<AdvisorOption[]>([]);
-  const [advisorLoadError, setAdvisorLoadError] = useState<string | null>(null);
-  const [isAdvisorsLoading, setIsAdvisorsLoading] = useState(false);
-  const [assigningStudentId, setAssigningStudentId] = useState<string | null>(null);
-  const [assignmentStatusByStudentId, setAssignmentStatusByStudentId] = useState<
-    Record<string, AssignmentStatus | null>
-  >({});
   const [gradeMetricsByStudentId, setGradeMetricsByStudentId] = useState<Record<string, number | null>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [studentSignals, setStudentSignals] = useState<ParentSignal[]>([]);
   const [advisorNotes, setAdvisorNotes] = useState<AdvisorNote[]>([]);
-  const [inviteStudent, setInviteStudent] = useState<Student | null>(null);
-  const [inviteCode, setInviteCode] = useState<string | null>(null);
-  const [inviteExpiresAt, setInviteExpiresAt] = useState<string | null>(null);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [isInviteLoading, setIsInviteLoading] = useState(false);
-  const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
-  const [suggestClasses, setSuggestClasses] = useState<ScheduledCourse[]>([]);
-  const [isSuggestLoading, setIsSuggestLoading] = useState(false);
-
-  const generateInviteCode = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let code = "";
-    for (let i = 0; i < 8; i += 1) {
-      code += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return code;
-  };
 
   const fetchGradeMetrics = useCallback(async (studentIds: string[]) => {
     if (studentIds.length === 0) {
@@ -158,7 +106,6 @@ export function ParentDashboardWrapper() {
     const parentId = parentUserId ?? userId;
     if (!parentId) {
       setStudents([]);
-      setLoadError("Unable to load students.");
       return;
     }
 
@@ -169,11 +116,9 @@ export function ParentDashboardWrapper() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      setLoadError(error.message);
       return;
     }
 
-    setLoadError(null);
     const nextStudents = data ?? [];
     setStudents(nextStudents);
     setSelectedStudentId((current) => {
@@ -183,32 +128,6 @@ export function ParentDashboardWrapper() {
     });
     await fetchGradeMetrics(nextStudents.map((student) => student.id));
   }, [fetchGradeMetrics, userId]);
-
-  const fetchAdvisors = useCallback(async () => {
-    setIsAdvisorsLoading(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, first_name, last_name, email")
-      .eq("role", "advisor")
-      .order("last_name", { ascending: true });
-
-    if (error) {
-      setAdvisorLoadError(error.message);
-      setAdvisors([]);
-      setIsAdvisorsLoading(false);
-      return;
-    }
-
-    const nextAdvisors = (data ?? []).map((advisor) => {
-      const name = `${advisor.first_name ?? ""} ${advisor.last_name ?? ""}`.trim();
-      const label = name || advisor.email || "Advisor";
-      return { id: advisor.id, label };
-    });
-
-    setAdvisorLoadError(null);
-    setAdvisors(nextAdvisors);
-    setIsAdvisorsLoading(false);
-  }, []);
 
   const fetchStudentSignals = useCallback(async () => {
     const { data, error } = await supabase
@@ -266,21 +185,16 @@ export function ParentDashboardWrapper() {
 
       if (!user) {
         setAuthMessage("Please sign in");
-        setProfileRole(null);
-        setEmail(null);
         setUserId(null);
         setIsLoading(false);
         return;
       }
 
       setAuthMessage(null);
-      setEmail(user.email ?? "Unknown");
       setUserId(user.id);
-      setProfileRole(profile?.role ?? null);
 
       await fetchStudents(user.id);
       if (profile?.role === "parent") {
-        await fetchAdvisors();
         await fetchStudentSignals();
       }
       setIsLoading(false);
@@ -291,81 +205,11 @@ export function ParentDashboardWrapper() {
     return () => {
       isMounted = false;
     };
-  }, [fetchAdvisors, fetchStudents, fetchStudentSignals, router]);
+  }, [fetchStudents, fetchStudentSignals]);
 
   useEffect(() => {
     fetchAdvisorNotes(selectedStudentId);
   }, [selectedStudentId, fetchAdvisorNotes]);
-
-  const handleSignOut = async () => {
-    setIsLoading(true);
-    // Clear all auth state in the correct order
-    // 1. Sign out from Supabase first (this invalidates the session)
-    await supabase.auth.signOut({ scope: "local" });
-
-    // 2. Clear server-side cookies via API
-    await fetch("/api/auth/logout", { method: "POST" });
-
-    // 3. Clear all local storage auth data
-    clearSupabaseLocalSession();
-
-    // 4. Use window.location for a hard redirect to ensure all state is cleared
-    window.location.href = "/login";
-  };
-
-  const handleAddStudent = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!userId) return;
-
-    const trimmedFirst = firstName.trim();
-    const trimmedLast = lastName.trim();
-    const trimmedGrade = grade.trim();
-
-    // Validate first name
-    const firstNameValidation = validateName(trimmedFirst, "First name");
-    if (!firstNameValidation.valid) {
-      setFormError(firstNameValidation.error ?? "Invalid first name");
-      return;
-    }
-
-    // Validate grade selection
-    const gradeValidation = validateGrade(trimmedGrade);
-    if (!gradeValidation.valid) {
-      setFormError(gradeValidation.error ?? "Please select a grade");
-      return;
-    }
-
-    setIsSaving(true);
-    setFormError(null);
-    setDeleteStatus(null);
-
-    const { error } = await supabase
-      .from("students")
-      .insert({
-        parent_id: userId,
-        first_name: trimmedFirst,
-        last_name: trimmedLast || null,
-        grade: trimmedGrade || null,
-      });
-
-    if (error) {
-      if (error.code === "23505" && error.message.includes("students_unique_per_parent")) {
-        setFormError("That student already exists.");
-      } else {
-        setFormError(error.message);
-      }
-      setIsSaving(false);
-      return;
-    }
-
-    setFirstName("");
-    setLastName("");
-    setGrade("");
-    await fetchStudents(userId);
-    toast.success(`${trimmedFirst} has been added successfully.`);
-
-    setIsSaving(false);
-  };
 
   const handleDeleteStudent = (studentId: string) => {
     setPendingDeleteStudentId(studentId);
@@ -391,168 +235,23 @@ export function ParentDashboardWrapper() {
     setDeletingStudentId(null);
   };
 
-  const handleAssignAdvisor = async (studentId: string, advisorId: string | null) => {
-    setAssigningStudentId(studentId);
-    setAssignmentStatusByStudentId((current) => {
-      const next = { ...current };
-      delete next[studentId];
-      return next;
-    });
-
-    const { error } = await supabase
-      .from("students")
-      .update({ advisor_id: advisorId })
-      .eq("id", studentId);
-
-    if (error) {
-      setAssignmentStatusByStudentId((current) => ({
-        ...current,
-        [studentId]: { type: "error", message: error.message },
-      }));
-      setAssigningStudentId(null);
-      return;
-    }
-
-    await fetchStudents(userId);
-    setAssignmentStatusByStudentId((current) => ({
-      ...current,
-      [studentId]: {
-        type: "success",
-        message: advisorId ? "Advisor assigned." : "Advisor cleared.",
-      },
-    }));
-    toast.success(advisorId ? "Advisor has been assigned." : "Advisor has been cleared.");
-    setAssigningStudentId(null);
-  };
-
-  const handleOpenInvite = (student: Student) => {
-    setInviteStudent(student);
-    setInviteCode(null);
-    setInviteExpiresAt(null);
-    setInviteError(null);
-    setInviteEmail("");
-    setIsInviteOpen(true);
-  };
-
-  const handleOpenSuggestModal = async () => {
-    if (!selectedStudentId) return;
-    setIsSuggestLoading(true);
-    const { data, error } = await fetchStudentScheduleEvents(selectedStudentId);
-    if (error) {
-      toast.error("Unable to load classes for that student.");
-      setIsSuggestLoading(false);
-      return;
-    }
-    setSuggestClasses(mapScheduleEventsToCourses(data));
-    setIsSuggestLoading(false);
-    setIsSuggestModalOpen(true);
-  };
-
-  const handleSaveSuggestion = async (assignment: AssignmentInput): Promise<boolean> => {
-    if (!selectedStudentId) {
-      toast.error("Select a student before suggesting an assignment.");
-      return false;
-    }
-    const { user, profile } = await getCurrentProfile();
-    if (!user) {
-      toast.error("Please sign in to suggest assignments.");
-      return false;
-    }
-
-    const { error } = await supabase.from("assignments").insert({
-      student_id: selectedStudentId,
-      course_id: assignment.classId === "none" ? null : assignment.classId,
-      type: assignment.type,
-      title: assignment.title,
-      due_at: assignment.dueDate ? new Date(assignment.dueDate).toISOString() : null,
-      description: assignment.notes || null,
-      status: "not_started",
-      created_by: profile?.id ?? user.id,
-      created_by_role: profile?.role ?? "parent",
-      source: "parent",
-      is_suggested: true,
-      suggestion_status: "pending",
-    });
-
-    if (error) {
-      toast.error(`Error creating suggestion: ${error.message}`);
-      return false;
-    }
-
-    toast.success(`Suggested "${assignment.title}" to the student.`);
-    await fetchStudentSignals();
-    return true;
-  };
-
-  const handleGenerateInvite = async () => {
-    if (!inviteStudent || !userId) return;
-    setIsInviteLoading(true);
-    setInviteError(null);
-
-    let created = false;
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const code = generateInviteCode();
-      const { data, error } = await supabase
-        .from("student_invites")
-        .insert({
-          parent_id: userId,
-          student_id: inviteStudent.id,
-          invite_code: code,
-        })
-        .select("invite_code, expires_at")
-        .single();
-
-      if (!error && data) {
-        setInviteCode(data.invite_code);
-        setInviteExpiresAt(data.expires_at);
-        toast.success("Invite code created.");
-        created = true;
-        break;
-      }
-
-      if (!error?.code || error.code !== "23505") {
-        setInviteError(error?.message ?? "Unable to generate invite code.");
-        break;
-      }
-    }
-
-    if (!created && !inviteError) {
-      setInviteError("Unable to generate a unique invite code. Please try again.");
-    }
-    setIsInviteLoading(false);
-  };
-
-  const handleCopyInvite = async () => {
-    if (!inviteCode) return;
-    if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(inviteCode);
-      toast.success("Invite code copied.");
-      return;
-    }
-    toast.error("Clipboard not available.");
-  };
-
   const handleSignalCardClick = (cardType: SignalCardType) => {
     if (!selectedStudentId) return;
 
     switch (cardType) {
       case "overdue":
-        // Navigate to assignments page - shows overdue items
         setActiveItem("assignments");
         toast.info("Viewing assignments - check for overdue items");
         break;
       case "upcoming":
-        // Navigate to schedule to see upcoming tests/projects
         setActiveItem("schedule");
         toast.info("Viewing schedule for upcoming tests and projects");
         break;
       case "plan":
-        // Navigate to schedule to see study plan
         setActiveItem("schedule");
         toast.info("Viewing study plan schedule");
         break;
       case "suggestions":
-        // Navigate to assignments to see pending suggestions
         setActiveItem("assignments");
         toast.info("Viewing assignments - check pending suggestions");
         break;
@@ -578,58 +277,16 @@ export function ParentDashboardWrapper() {
   return (
     <>
       <ParentDashboard
-        email={email}
         students={students}
         selectedStudentId={selectedStudentId}
         onSelectStudent={setSelectedStudentId}
-        firstName={firstName}
-        lastName={lastName}
-        grade={grade}
-        onFirstNameChange={setFirstName}
-        onLastNameChange={setLastName}
-        onGradeChange={setGrade}
-        onAddStudent={handleAddStudent}
-        isSaving={isSaving}
         deletingStudentId={deletingStudentId}
-        formError={formError}
-        loadError={loadError}
         deleteStatus={deleteStatus}
         onDeleteStudent={handleDeleteStudent}
-        advisors={advisors}
-        showAdvisorAssignments={profileRole === "parent"}
-        advisorLoadError={advisorLoadError}
-        isAdvisorsLoading={isAdvisorsLoading}
-        assigningStudentId={assigningStudentId}
-        assignmentStatusByStudentId={assignmentStatusByStudentId}
-        onAssignAdvisor={handleAssignAdvisor}
-        onSignOut={handleSignOut}
         gradeMetricsByStudentId={gradeMetricsByStudentId}
         studentSignals={studentSignals}
         advisorNotes={advisorNotes}
-        onInviteStudent={handleOpenInvite}
-        onSuggestAssignment={handleOpenSuggestModal}
         onSignalCardClick={handleSignalCardClick}
-      />
-      {inviteStudent && (
-        <InviteCodeModal
-          open={isInviteOpen}
-          studentName={`${inviteStudent.first_name} ${inviteStudent.last_name ?? ""}`.trim()}
-          inviteCode={inviteCode}
-          expiresAt={inviteExpiresAt}
-          isLoading={isInviteLoading}
-          error={inviteError}
-          email={inviteEmail}
-          onEmailChange={setInviteEmail}
-          onGenerate={handleGenerateInvite}
-          onCopy={handleCopyInvite}
-          onClose={() => setIsInviteOpen(false)}
-        />
-      )}
-      <AssignmentModal
-        isOpen={isSuggestModalOpen}
-        onClose={() => setIsSuggestModalOpen(false)}
-        onSave={handleSaveSuggestion}
-        classes={suggestClasses}
       />
       <ConfirmDialog
         open={Boolean(pendingDeleteStudentId)}
@@ -643,12 +300,6 @@ export function ParentDashboardWrapper() {
           void confirmDeleteStudent();
         }}
       />
-      {isSuggestLoading && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/30">
-          <div className="rounded-lg bg-white px-4 py-2 text-sm shadow">Loading classes...</div>
-        </div>
-      )}
     </>
   );
 }
-
