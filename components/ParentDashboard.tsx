@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { TrendingUp, Calendar, MessageSquare, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { TrendingUp, Calendar, MessageSquare, Clock, AlertTriangle, CheckCircle2, BookOpen } from "lucide-react";
 import { cn } from "./ui/utils";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "./ui/hover-card";
 
@@ -51,6 +51,13 @@ type AdvisorNote = {
 
 export type SignalCardType = "overdue" | "upcoming" | "plan" | "suggestions";
 
+type StudentClass = {
+  course_id: string;
+  title: string;
+  teacher_name: string | null;
+  grade_avg: number | null;
+};
+
 type ParentDashboardProps = {
   students: StudentSummary[];
   selectedStudentId: string | null;
@@ -61,6 +68,7 @@ type ParentDashboardProps = {
   gradeMetricsByStudentId?: Record<string, number | null>;
   studentSignals?: ParentSignal[];
   advisorNotes?: AdvisorNote[];
+  studentClasses?: StudentClass[];
   onSignalCardClick?: (cardType: SignalCardType) => void;
 };
 
@@ -74,6 +82,7 @@ export function ParentDashboard({
   gradeMetricsByStudentId = {},
   studentSignals = [],
   advisorNotes = [],
+  studentClasses = [],
   onSignalCardClick,
 }: ParentDashboardProps) {
   const studentOptions = students.map((student) => {
@@ -382,8 +391,71 @@ export function ParentDashboard({
           </Card>
         </div>
 
-        {/* Your Students -- right column (simplified) */}
+        {/* Right column */}
         <div className="space-y-6">
+          {/* Classes & Grades */}
+          {selectedStudentId && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4" />
+                  Classes &amp; Grades
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {studentClasses.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No enrolled classes.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {studentClasses.map((cls) => {
+                      const gradeColor =
+                        cls.grade_avg === null
+                          ? "text-gray-500"
+                          : cls.grade_avg >= 80
+                            ? "text-emerald-700"
+                            : cls.grade_avg >= 60
+                              ? "text-amber-700"
+                              : "text-red-700";
+                      const gradeBg =
+                        cls.grade_avg === null
+                          ? "bg-gray-50"
+                          : cls.grade_avg >= 80
+                            ? "bg-emerald-50"
+                            : cls.grade_avg >= 60
+                              ? "bg-amber-50"
+                              : "bg-red-50";
+                      return (
+                        <div
+                          key={cls.course_id}
+                          className="flex items-center justify-between rounded-lg border p-2.5 text-sm"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-gray-900 truncate">{cls.title}</div>
+                            {cls.teacher_name && (
+                              <div className="text-xs text-gray-500">{cls.teacher_name}</div>
+                            )}
+                          </div>
+                          <span
+                            className={cn(
+                              "ml-2 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium",
+                              gradeColor,
+                              gradeBg
+                            )}
+                          >
+                            {cls.grade_avg !== null
+                              ? `${Math.round(cls.grade_avg)}%`
+                              : "No grades"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Your Students */}
           <Card>
             <CardHeader>
               <CardTitle>Your students</CardTitle>

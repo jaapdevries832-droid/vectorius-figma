@@ -31,6 +31,13 @@ type ParentSignal = {
   pending_suggestions: number;
 };
 
+type StudentClass = {
+  course_id: string;
+  title: string;
+  teacher_name: string | null;
+  grade_avg: number | null;
+};
+
 type AdvisorNote = {
   id: string;
   advisor_id: string;
@@ -64,6 +71,7 @@ export function ParentDashboardWrapper() {
   const [isLoading, setIsLoading] = useState(true);
   const [studentSignals, setStudentSignals] = useState<ParentSignal[]>([]);
   const [advisorNotes, setAdvisorNotes] = useState<AdvisorNote[]>([]);
+  const [studentClasses, setStudentClasses] = useState<StudentClass[]>([]);
 
   const fetchGradeMetrics = useCallback(async (studentIds: string[]) => {
     if (studentIds.length === 0) {
@@ -175,6 +183,58 @@ export function ParentDashboardWrapper() {
     setAdvisorNotes(notesWithAdvisors);
   }, []);
 
+  const fetchStudentClasses = useCallback(async (studentId: string | null) => {
+    if (!studentId) {
+      setStudentClasses([]);
+      return;
+    }
+
+    // Fetch enrolled courses
+    const { data: enrollments, error: enrollErr } = await supabase
+      .from("student_course_enrollments")
+      .select("course_id, courses(id, title, teacher_name)")
+      .eq("student_id", studentId);
+
+    if (enrollErr || !enrollments) {
+      setStudentClasses([]);
+      return;
+    }
+
+    // Fetch assignments for grade averages
+    const { data: assignments } = await supabase
+      .from("assignments")
+      .select("course_id, score, max_score")
+      .eq("student_id", studentId);
+
+    // Calculate per-course averages
+    const courseGrades: Record<string, { score: number; max: number }> = {};
+    (assignments ?? []).forEach((a) => {
+      if (a.course_id && a.max_score !== null) {
+        const entry = courseGrades[a.course_id] ?? { score: 0, max: 0 };
+        entry.score += a.score ?? 0;
+        entry.max += a.max_score ?? 0;
+        courseGrades[a.course_id] = entry;
+      }
+    });
+
+    const classes: StudentClass[] = enrollments.map((e) => {
+      const course = Array.isArray(e.courses) ? e.courses[0] : e.courses;
+      const courseId = course?.id ?? e.course_id;
+      const gradeEntry = courseGrades[courseId];
+      const gradeAvg = gradeEntry && gradeEntry.max > 0
+        ? (gradeEntry.score / gradeEntry.max) * 100
+        : null;
+      return {
+        course_id: courseId,
+        title: course?.title ?? "Unknown Course",
+        teacher_name: course?.teacher_name ?? null,
+        grade_avg: gradeAvg,
+      };
+    });
+
+    setStudentClasses(classes);
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -209,7 +269,8 @@ export function ParentDashboardWrapper() {
 
   useEffect(() => {
     fetchAdvisorNotes(selectedStudentId);
-  }, [selectedStudentId, fetchAdvisorNotes]);
+    fetchStudentClasses(selectedStudentId);
+  }, [selectedStudentId, fetchAdvisorNotes, fetchStudentClasses]);
 
   const handleDeleteStudent = (studentId: string) => {
     setPendingDeleteStudentId(studentId);
@@ -286,6 +347,7 @@ export function ParentDashboardWrapper() {
         gradeMetricsByStudentId={gradeMetricsByStudentId}
         studentSignals={studentSignals}
         advisorNotes={advisorNotes}
+        studentClasses={studentClasses}
         onSignalCardClick={handleSignalCardClick}
       />
       <ConfirmDialog
