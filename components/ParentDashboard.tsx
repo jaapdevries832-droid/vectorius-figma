@@ -153,8 +153,25 @@ export function ParentDashboard({
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900 mb-2">Student Overview</h1>
-          <p className="text-gray-600">Monitor your children&apos;s academic progress</p>
+          {(() => {
+            const selectedStudent = students.find((s) => s.id === selectedStudentId);
+            if (selectedStudent) {
+              const fullName = `${selectedStudent.first_name} ${selectedStudent.last_name ?? ""}`.trim();
+              const gradeLabel = selectedStudent.grade ? `Grade ${selectedStudent.grade}` : "";
+              return (
+                <>
+                  <h1 className="text-3xl font-semibold text-gray-900 mb-1">{fullName}</h1>
+                  <p className="text-gray-600">{gradeLabel ? `${gradeLabel} — Overview` : "Overview"}</p>
+                </>
+              );
+            }
+            return (
+              <>
+                <h1 className="text-3xl font-semibold text-gray-900 mb-2">Select a Student</h1>
+                <p className="text-gray-600">Choose a student to view their academic progress</p>
+              </>
+            );
+          })()}
         </div>
 
         <div className="flex items-center gap-4">
@@ -185,15 +202,6 @@ export function ParentDashboard({
             </SelectContent>
           </Select>
           </div>
-          {onSignOut && (
-            <button
-              type="button"
-              onClick={onSignOut}
-              className="rounded-lg border border-border px-4 py-2 text-sm"
-            >
-              Sign out
-            </button>
-          )}
         </div>
       </div>
 
