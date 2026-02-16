@@ -1122,26 +1122,6 @@ export function StudentDashboard() {
             }}
           />
 
-          {/* AI Chat Quick Access */}
-          <Card className="bg-gradient-to-br from-purple-500 to-pink-500 border-0 shadow-xl rounded-2xl text-white card-hover overflow-hidden">
-            <CardHeader>
-              <CardTitle className="flex items-center space-grid-2 text-white">
-                <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                AI Tutor Assistant
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-white/90 mb-6 leading-relaxed">
-                Get instant help with homework, explanations, and study guidance from your AI tutor.
-              </p>
-              <Button className="w-full bg-white/20 hover:bg-white/30 border border-white/20 text-white font-medium py-3 rounded-xl transition-all duration-200 btn-glow">
-                <Sparkles className="w-4 h-4 mr-2" />
-                Start Chat Session
-              </Button>
-            </CardContent>
-          </Card>
         </div>
       </div>
 
