@@ -394,66 +394,66 @@ export function ParentDashboard({
         {/* Right column */}
         <div className="space-y-6">
           {/* Classes & Grades */}
-          {selectedStudentId && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4" />
-                  Classes &amp; Grades
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {studentClasses.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No enrolled classes.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {studentClasses.map((cls) => {
-                      const gradeColor =
-                        cls.grade_avg === null
-                          ? "text-gray-500"
-                          : cls.grade_avg >= 80
-                            ? "text-emerald-700"
-                            : cls.grade_avg >= 60
-                              ? "text-amber-700"
-                              : "text-red-700";
-                      const gradeBg =
-                        cls.grade_avg === null
-                          ? "bg-gray-50"
-                          : cls.grade_avg >= 80
-                            ? "bg-emerald-50"
-                            : cls.grade_avg >= 60
-                              ? "bg-amber-50"
-                              : "bg-red-50";
-                      return (
-                        <div
-                          key={cls.course_id}
-                          className="flex items-center justify-between rounded-lg border p-2.5 text-sm"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium text-gray-900 truncate">{cls.title}</div>
-                            {cls.teacher_name && (
-                              <div className="text-xs text-gray-500">{cls.teacher_name}</div>
-                            )}
-                          </div>
-                          <span
-                            className={cn(
-                              "ml-2 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium",
-                              gradeColor,
-                              gradeBg
-                            )}
-                          >
-                            {cls.grade_avg !== null
-                              ? `${Math.round(cls.grade_avg)}%`
-                              : "No grades"}
-                          </span>
+          <Card className="border-2 border-indigo-100">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-indigo-600" />
+                Classes &amp; Grades
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!selectedStudentId ? (
+                <p className="text-sm text-muted-foreground">Select a student to view classes.</p>
+              ) : studentClasses.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No enrolled classes.</p>
+              ) : (
+                <div className="space-y-2">
+                  {studentClasses.map((cls) => {
+                    const gradeColor =
+                      cls.grade_avg === null
+                        ? "text-gray-500"
+                        : cls.grade_avg >= 80
+                          ? "text-emerald-700"
+                          : cls.grade_avg >= 60
+                            ? "text-amber-700"
+                            : "text-red-700";
+                    const gradeBg =
+                      cls.grade_avg === null
+                        ? "bg-gray-50"
+                        : cls.grade_avg >= 80
+                          ? "bg-emerald-50"
+                          : cls.grade_avg >= 60
+                            ? "bg-amber-50"
+                            : "bg-red-50";
+                    return (
+                      <div
+                        key={cls.course_id}
+                        className="flex items-center justify-between rounded-lg border p-2.5 text-sm"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-gray-900 truncate">{cls.title}</div>
+                          {cls.teacher_name && (
+                            <div className="text-xs text-gray-500">{cls.teacher_name}</div>
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                        <span
+                          className={cn(
+                            "ml-2 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium",
+                            gradeColor,
+                            gradeBg
+                          )}
+                        >
+                          {cls.grade_avg !== null
+                            ? `${Math.round(cls.grade_avg)}%`
+                            : "No grades"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Your Students */}
           <Card>
