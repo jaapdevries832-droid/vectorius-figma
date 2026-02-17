@@ -19,13 +19,14 @@ import {
     createCourse,
     fetchMyEnrollments,
     removeEnrollment,
+    updateCourse,
+    updateEnrollment,
     type CourseWithMeetings,
     type EnrollmentWithCourse,
   } from "@/lib/student-classes";
+import { ClassEditModal, type ClassEditData } from "./ClassEditModal";
 import { Input } from "./ui/input";
 import { toast } from "sonner";
-import {
-} from "./ui/select";
 
 type TaskSource = 'student' | 'parent' | 'advisor' | 'ai' | 'google_classroom' | 'manual_import'
 type SuggestedAssignment = {
@@ -81,6 +82,8 @@ export function StudentDashboard() {
   const [createLocation, setCreateLocation] = React.useState("");
   const [createCourseError, setCreateCourseError] = React.useState<string | null>(null);
   const [isCreatingCourse, setIsCreatingCourse] = React.useState(false);
+  const [classEditOpen, setClassEditOpen] = React.useState(false);
+  const [editingEnrollment, setEditingEnrollment] = React.useState<EnrollmentWithCourse | null>(null);
 
   // Parent invite state
   const [parentInviteOpen, setParentInviteOpen] = React.useState(false);
@@ -549,6 +552,36 @@ export function StudentDashboard() {
     setRemovingCourseId(null);
   };
 
+  const handleSaveClassEdit = async (data: ClassEditData) => {
+    if (!editingEnrollment?.course || !studentId) return;
+
+    const courseError = await updateCourse(editingEnrollment.course.id, {
+      title: editingEnrollment.course.title,
+      teacher_name: data.teacher_name,
+      teacher_email: data.teacher_email,
+    });
+    if (courseError) {
+      toast.error("Failed to update teacher info.");
+      return;
+    }
+
+    const enrollError = await updateEnrollment(editingEnrollment.id, {
+      color: data.color,
+      semester1_grade: data.semester1_grade,
+      semester2_grade: data.semester2_grade,
+      semester3_grade: data.semester3_grade,
+      semester4_grade: data.semester4_grade,
+      current_grade: data.current_grade,
+    });
+    if (enrollError) {
+      toast.error("Failed to update class details.");
+      return;
+    }
+
+    await refreshEnrollments(studentId);
+    toast.success("Class updated!");
+  };
+
   const handleCreateCourse = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!studentId) return;
@@ -869,7 +902,7 @@ export function StudentDashboard() {
                 className="flex items-start justify-between p-6 rounded-2xl border border-gray-100 bg-white/60 hover:bg-white hover:border-gray-200 transition-all duration-200 hover:shadow-md"
               >
                 <div className="flex items-start space-grid-4">
-                  <span className="mt-1 w-3 h-3 rounded-full bg-blue-500"></span>
+                  <span className={`mt-1 w-3 h-3 rounded-full ${enrollment.color ?? "bg-blue-500"}`}></span>
                   <div>
                     <div className="font-semibold text-gray-900 leading-tight">{course.title}</div>
                     <div className="text-sm text-gray-600 mt-1">
@@ -887,6 +920,18 @@ export function StudentDashboard() {
                       Schedule TBD
                     </Badge>
                   )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg"
+                    onClick={() => {
+                      setEditingEnrollment(enrollment);
+                      setClassEditOpen(true);
+                    }}
+                  >
+                    <Edit2 className="w-3.5 h-3.5 mr-1" />
+                    Edit
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -1124,6 +1169,17 @@ export function StudentDashboard() {
 
         </div>
       </div>
+
+      {/* Class Edit Modal */}
+      <ClassEditModal
+        open={classEditOpen}
+        onClose={() => {
+          setClassEditOpen(false);
+          setEditingEnrollment(null);
+        }}
+        onSave={handleSaveClassEdit}
+        enrollment={editingEnrollment}
+      />
 
       {/* Parent Invite Modal */}
       <ParentInviteModal

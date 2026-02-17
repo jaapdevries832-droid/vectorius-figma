@@ -11,6 +11,7 @@ export type CourseWithMeetings = {
   id: string;
   title: string;
   teacher_name: string | null;
+  teacher_email: string | null;
   location: string | null;
   course_meetings: CourseMeeting[] | null;
 };
@@ -19,6 +20,12 @@ export type EnrollmentWithCourse = {
   id: string;
   course_id: string;
   course: CourseWithMeetings | null;
+  color: string | null;
+  semester1_grade: string | null;
+  semester2_grade: string | null;
+  semester3_grade: string | null;
+  semester4_grade: string | null;
+  current_grade: string | null;
 };
 
 export type Subject = {
@@ -29,7 +36,7 @@ export type Subject = {
 export async function fetchCourses(): Promise<CourseWithMeetings[]> {
   const { data, error } = await supabase
     .from("courses")
-    .select("id, title, teacher_name, location, course_meetings(day_of_week, start_time, end_time)")
+    .select("id, title, teacher_name, teacher_email, location, course_meetings(day_of_week, start_time, end_time)")
     .order("title", { ascending: true });
 
   if (error) {
@@ -56,7 +63,7 @@ export async function fetchMyEnrollments(studentId: string): Promise<EnrollmentW
   const { data, error } = await supabase
     .from("student_course_enrollments")
     .select(
-      "id, course_id, course:courses(id, title, teacher_name, location, course_meetings(day_of_week, start_time, end_time))",
+      "id, course_id, color, semester1_grade, semester2_grade, semester3_grade, semester4_grade, current_grade, course:courses(id, title, teacher_name, teacher_email, location, course_meetings(day_of_week, start_time, end_time))",
     )
     .eq("student_id", studentId)
     .order("created_at", { ascending: false });
@@ -68,6 +75,12 @@ export async function fetchMyEnrollments(studentId: string): Promise<EnrollmentW
   const rows = (data ?? []) as Array<{
     id: string;
     course_id: string;
+    color: string | null;
+    semester1_grade: string | null;
+    semester2_grade: string | null;
+    semester3_grade: string | null;
+    semester4_grade: string | null;
+    current_grade: string | null;
     course: CourseWithMeetings | CourseWithMeetings[] | null;
   }>;
 
@@ -75,6 +88,12 @@ export async function fetchMyEnrollments(studentId: string): Promise<EnrollmentW
     id: row.id,
     course_id: row.course_id,
     course: Array.isArray(row.course) ? row.course[0] ?? null : row.course,
+    color: row.color ?? null,
+    semester1_grade: row.semester1_grade ?? null,
+    semester2_grade: row.semester2_grade ?? null,
+    semester3_grade: row.semester3_grade ?? null,
+    semester4_grade: row.semester4_grade ?? null,
+    current_grade: row.current_grade ?? null,
   }));
 }
 
@@ -116,6 +135,7 @@ export async function updateCourse(
   params: {
     title: string;
     teacher_name?: string | null;
+    teacher_email?: string | null;
     location?: string | null;
   },
 ): Promise<PostgrestError | null> {
@@ -124,9 +144,36 @@ export async function updateCourse(
     .update({
       title: params.title,
       teacher_name: params.teacher_name ?? null,
+      teacher_email: params.teacher_email ?? null,
       location: params.location ?? null,
     })
     .eq("id", courseId);
+
+  return error ?? null;
+}
+
+export async function updateEnrollment(
+  enrollmentId: string,
+  params: {
+    color?: string | null;
+    semester1_grade?: string | null;
+    semester2_grade?: string | null;
+    semester3_grade?: string | null;
+    semester4_grade?: string | null;
+    current_grade?: string | null;
+  },
+): Promise<PostgrestError | null> {
+  const { error } = await supabase
+    .from("student_course_enrollments")
+    .update({
+      color: params.color ?? null,
+      semester1_grade: params.semester1_grade ?? null,
+      semester2_grade: params.semester2_grade ?? null,
+      semester3_grade: params.semester3_grade ?? null,
+      semester4_grade: params.semester4_grade ?? null,
+      current_grade: params.current_grade ?? null,
+    })
+    .eq("id", enrollmentId);
 
   return error ?? null;
 }
