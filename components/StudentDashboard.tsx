@@ -905,19 +905,15 @@ export function StudentDashboard() {
                   <span className={`mt-1 w-3 h-3 rounded-full ${enrollment.color ?? "bg-blue-500"}`}></span>
                   <div>
                     <div className="font-semibold text-gray-900 leading-tight">{course.title}</div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      {course.teacher_name ?? "Staff"} - {course.location ?? "TBD"}
-                    </div>
+                    {course.teacher_name && (
+                      <div className="text-sm text-gray-600 mt-1">{course.teacher_name}</div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center space-grid-3">
-                  {meeting ? (
+                  {meeting && (
                     <Badge className="bg-gray-100 text-gray-700 border-gray-200 text-xs font-medium rounded-lg">
                       {abbrevDays(meeting.days)} {formatTimeHuman(meeting.startTime)} - {formatTimeHuman(meeting.endTime)}
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-gray-100 text-gray-700 border-gray-200 text-xs font-medium rounded-lg">
-                      Schedule TBD
                     </Badge>
                   )}
                   <Button
